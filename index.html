@@ -557,7 +557,10 @@ img{max-width:100%;display:block;}
 
 
 
-.panel-hidden{display:none;}
+
+
+.panel{display:none;}
+.panel.active{display:block;}
 </style>
 </head>
 <body>
@@ -654,7 +657,7 @@ img{max-width:100%;display:block;}
   </div>
 
   <!-- CONFIG -->
-  <div id="at-config" class="panel active">
+  <div id="at-config" class="panel">
     <div class="card"><div class="card-title">Marcas</div><div id="aBrands"></div></div>
     <div class="card">
       <div class="card-title">Plataformas por marca</div>
@@ -669,7 +672,7 @@ img{max-width:100%;display:block;}
   </div>
 
   <!-- CICLOS -->
-  <div id="at-ciclos" class="panel panel-hidden">
+  <div id="at-ciclos" class="panel">
     <div class="card">
       <div class="card-title">Crear ciclo</div>
       <div class="fr">
@@ -711,7 +714,7 @@ img{max-width:100%;display:block;}
   </div>
 
   <!-- OBJETIVOS + METRICAS -->
-  <div id="at-obj" class="panel panel-hidden">
+  <div id="at-obj" class="panel">
     <div class="card">
       <div class="card-title">Objetivos del ciclo</div>
       <div class="fr">
@@ -785,7 +788,7 @@ img{max-width:100%;display:block;}
   </div>
 
   <!-- PUBLICACIONES -->
-  <div id="at-pubs" class="panel panel-hidden">
+  <div id="at-pubs" class="panel">
     <div class="card">
       <div class="card-title">Nueva publicacion</div>
       <div class="fr">
@@ -833,7 +836,7 @@ img{max-width:100%;display:block;}
   </div>
 
   <!-- PAUTA -->
-  <div id="at-pauta" class="panel panel-hidden">
+  <div id="at-pauta" class="panel">
     <div class="card">
       <div class="card-title">Configurar pauta</div>
       <div class="fr">
@@ -875,7 +878,7 @@ img{max-width:100%;display:block;}
   </div>
 
   <!-- LOGROS -->
-  <div id="at-logros" class="panel panel-hidden">
+  <div id="at-logros" class="panel">
     <div class="card">
       <div class="card-title">Logro / Mensaje de invitación a feedback por marca</div>
       <p class="tip">Aparece como banner en el portal del cliente.</p>
@@ -901,7 +904,7 @@ img{max-width:100%;display:block;}
   </div>
 
   <!-- HISTORIAL -->
-  <div id="at-users" class="panel panel-hidden">
+  <div id="at-users" class="panel">
     <div class="card">
       <div class="card-title" id="userFormTitle">&#128100; Nuevo usuario</div>
       <p class="tip">Agrega marcas o edita sus accesos.</p>
@@ -932,7 +935,7 @@ img{max-width:100%;display:block;}
     </div>
   </div>
 
-  <div id="at-log" class="panel panel-hidden">
+  <div id="at-log" class="panel">
     <div class="card">
       <div class="section-header">
         <span class="card-title" style="margin:0;">Historial de cambios</span>
@@ -2188,11 +2191,11 @@ function printReport() { window.print(); }
 // ===== ADMIN PANELS =====
 function showAT(el, panel) {
   document.querySelectorAll("#adminScreen .panel").forEach(function(p){
-    p.classList.add("panel-hidden");
+    p.classList.remove("active");
   });
   document.querySelectorAll("#sbAdmin .ni").forEach(function(n){n.classList.remove("on");});
   var p = gi(panel);
-  if(p) p.classList.remove("panel-hidden");
+  if(p) p.classList.add("active");
   if(el) el.classList.add("on");
   closeSidebar();
   var _p = panel;
@@ -2206,22 +2209,20 @@ function showAT(el, panel) {
     else if(_p==="at-log") renderALog();
     else if(_p==="at-obj"){ setTimeout(renderAObj,80); setTimeout(renderWeekMetricsList,100); }
     populateAdminSelects();
-  }, 30);
+  }, 50);
 }
 
 function initAdmin() {
   sanitizeDB();
-  // Hide all panels except config
   document.querySelectorAll("#adminScreen .panel").forEach(function(p){
-    p.classList.add("panel-hidden");
+    p.classList.remove("active");
   });
   var cfg = gi("at-config");
-  if(cfg) cfg.classList.remove("panel-hidden");
-  // Render
+  if(cfg) cfg.classList.add("active");
   try{ populateAdminSelects(); }catch(e){}
-  try{ renderConfig(); }catch(e){ console.error(e); }
-  try{ renderUserList(); }catch(e){ console.error(e); }
-  try{ renderACycles(); }catch(e){ console.error(e); }
+  try{ renderConfig(); }catch(e){ console.error("cfg:",e); }
+  try{ renderUserList(); }catch(e){ console.error("ul:",e); }
+  try{ renderACycles(); }catch(e){ console.error("cyc:",e); }
 }
 function populateAdminSelects() {
   var selects = ["aCB","aOB","aMB","aPB","aPaB","aLB"];
