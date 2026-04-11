@@ -1631,7 +1631,7 @@ function doLogin() {
     if(!CREDS[u]||CREDS[u].pass!==p){ err.classList.add("show"); return; }
     CU=u; FB_LOADED=true; startFirebaseSync(); sanitizeDB();
     if(CREDS[u].type==="admin"){
-      showS("adminScreen"); initAdmin();
+      showS("adminScreen"); setTimeout(function(){ initAdmin(); }, 50);
     } else {
       showS("dashScreen"); setTimeout(checkTutorial,600);
       gi("brandName").textContent=CREDS[u].name;
@@ -2195,15 +2195,18 @@ function showAT(el, panel) {
   if(p) p.classList.remove("panel-hidden");
   if(el) el.classList.add("on");
   closeSidebar();
-  if(panel==="at-config") renderConfig();
-  else if(panel==="at-users"){ try{renderUserList();}catch(e){console.error(e);} }
-  else if(panel==="at-ciclos") renderACycles();
-  else if(panel==="at-pubs") renderAPubs();
-  else if(panel==="at-pauta") renderAPauta();
-  else if(panel==="at-logros"){ renderALogros(); renderFeedbackAdmin(); }
-  else if(panel==="at-log") renderALog();
-  else if(panel==="at-obj"){ setTimeout(renderAObj,80); setTimeout(renderWeekMetricsList,100); }
-  populateAdminSelects();
+  var _p = panel;
+  setTimeout(function(){
+    if(_p==="at-config") renderConfig();
+    else if(_p==="at-users"){ try{renderUserList();}catch(e){console.error(e);} }
+    else if(_p==="at-ciclos") renderACycles();
+    else if(_p==="at-pubs") renderAPubs();
+    else if(_p==="at-pauta") renderAPauta();
+    else if(_p==="at-logros"){ renderALogros(); renderFeedbackAdmin(); }
+    else if(_p==="at-log") renderALog();
+    else if(_p==="at-obj"){ setTimeout(renderAObj,80); setTimeout(renderWeekMetricsList,100); }
+    populateAdminSelects();
+  }, 30);
 }
 
 function initAdmin() {
