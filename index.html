@@ -1133,9 +1133,12 @@ img{max-width:100%;display:block;}
         <div class="ff"><label>Alcance pauta</label><input type="number" id="aPaAlcP" value="0"></div>
         <div class="ff"><label>Resultados obtenidos</label><input type="text" id="aPaRes" placeholder="Ej: 120 seguidores nuevos"></div>
       </div>
-      <button class="btn btn-pur" onclick="savePauta()">Guardar Pauta</button>
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        <button class="btn btn-pur" id="savePautaBtn" onclick="savePauta()">Guardar Pauta</button>
+        <button class="btn btn-ghost" onclick="clearPautaForm()">+ Nueva pauta</button>
+      </div>
     </div>
-    <div class="card"><div class="card-title">Pauta guardada</div><div id="pautaList"></div></div>
+    <div class="card"><div class="card-title">Pautas guardadas</div><p class="tip">Puedes agregar varias pautas por ciclo. Usa "+ Nueva pauta" para limpiar el formulario.</p><div id="pautaList"></div></div>
   </div>
 
   <!-- LOGROS -->
@@ -2695,44 +2698,6 @@ function renderResumen(cycId) {
     html+='</div></div>';
   }
 
-  // \u2500\u2500 PAUTA \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-  var myPauta=(DB.pauta||[]).filter(function(p){return p.brand===CU;});
-  var _pCycles={};
-  myPauta.forEach(function(pt){ if(!_pCycles[pt.cycle]) _pCycles[pt.cycle]=[]; _pCycles[pt.cycle].push(pt); });
-  if(myPauta.length){
-    html+='<div class="adv-card">';
-    html+='<div class="adv-card-title">\uD83D\uDCCA Pauta</div>';
-    html+='<div class="adv-kpi-grid" style="margin-top:10px;">';
-    myPauta.forEach(function(pt){
-      html+='<div class="kpi-card kpi-na">';
-      html+='<div class="kpi-lbl">'+(pt.platform||pt.tipo||'Pauta')+'</div>';
-      if(pt.investment) html+='<div class="kpi-val">$'+fN(pt.investment)+'</div><div class="kpi-meta">inversi\u00F3n</div>';
-      if(pt.reach||pt.alcance_pauta) html+='<div style="font-size:11px;color:var(--t2);margin-top:4px;">Alcance: '+fN(pt.reach||pt.alcance_pauta)+'</div>';
-      if(pt.impressions) html+='<div style="font-size:11px;color:var(--t2);">Impresiones: '+fN(pt.impressions)+'</div>';
-      if(pt.conversions) html+='<div style="font-size:11px;color:var(--grn);font-weight:600;">Conversiones: '+fN(pt.conversions)+'</div>';
-      if(pt.resultados) html+='<div style="font-size:11px;color:var(--t2);margin-top:4px;">\uD83C\uDFAF '+pt.resultados+'</div>';
-      html+='</div>';
-    });
-    html+='</div></div>';
-  }
-
-  // \u2500\u2500 LOGROS DEL CICLO \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-  var cycLogros=(DB.logros&&DB.logros[CU]&&DB.logros[CU][cycId])||[];
-  if(cycLogros.length){
-    html+='<div class="adv-card">';
-    html+='<div class="adv-card-title">\u2605 Logros del ciclo</div>';
-    html+='<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">';
-    cycLogros.forEach(function(lg){
-      var t=typeof lg==='string'?lg:(lg.title||lg.text||'');
-      var d=typeof lg==='object'?lg.desc:'';
-      html+='<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:rgba(249,0,0,.04);border-radius:10px;border-left:3px solid var(--red);">';
-      html+='<span style="font-size:14px;flex-shrink:0;">\u2605</span>';
-      html+='<div><div style="font-size:13px;font-weight:600;color:var(--tx);">'+t+'</div>';
-      if(d) html+='<div style="font-size:11px;color:var(--t2);margin-top:2px;">'+d+'</div>';
-      html+='</div></div>';
-    });
-    html+='</div></div>';
-  }
   el.innerHTML=html;
 }
 
@@ -3393,6 +3358,7 @@ function showAT(el,panel) {
   if(p){ p.style.cssText="display:block"; p.classList.add("active"); }
   if(el) el.classList.add("on");
   closeSidebar();
+  if(panel==="at-ciclos") _acycBrand=null;
   var _p=panel;
   setTimeout(function(){
     if(_p==="at-config") renderConfig();
@@ -3595,6 +3561,9 @@ function deleteCycle(id) {
   renderACycles(); populateAdminSelects();
 }
 
+var _acycBrand=null;
+function selectACycBrand(b){ _acycBrand=b; renderACycles(); }
+function backACycBrand(){ _acycBrand=null; renderACycles(); }
 function renderACycles() {
   if(!DB.cycles) DB.cycles=[];
   if(!DB.publications) DB.publications=[];
@@ -3605,23 +3574,40 @@ function renderACycles() {
     return;
   }
 
+  // VISTA 1: tarjetas de marca — elige una para ver sus ciclos
+  if(!_acycBrand){
+    var gh='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-top:8px;">';
+    BRANDS.forEach(function(brand){
+      var bc=DB.cycles.filter(function(c){return c.brand===brand;});
+      var bName=CREDS[brand]?CREDS[brand].name:brand;
+      var act=bc.filter(function(c){return c.status==='active';}).length;
+      gh+='<div onclick="selectACycBrand(\''+brand+'\')" style="background:var(--card);border:0.5px solid var(--bd);border-radius:14px;padding:16px;cursor:pointer;box-shadow:var(--sh);">';
+      gh+='<div style="font-size:15px;font-weight:700;color:var(--tx);margin-bottom:6px;">'+bName+'</div>';
+      gh+='<div style="font-size:12px;color:var(--t2);">'+bc.length+' '+(bc.length===1?'ciclo':'ciclos')+'</div>';
+      if(act) gh+='<div style="display:inline-block;margin-top:8px;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">'+act+' activo'+(act>1?'s':'')+'</div>';
+      gh+='<div style="font-size:11px;color:var(--pur);font-weight:600;margin-top:10px;">Ver ciclos →</div>';
+      gh+='</div>';
+    });
+    gh+='</div>';
+    el.innerHTML=gh;
+    return;
+  }
+
+  // VISTA 2: ciclos de la marca seleccionada
+  var brand=_acycBrand;
+  var bName=CREDS[brand]?CREDS[brand].name:brand;
+  var brandCycles=DB.cycles.filter(function(c){return c.brand===brand;})
+    .sort(function(a,b){ return (b.start||'').localeCompare(a.start||''); }); // newest first
   var html='';
-
-  // Group by brand
-  BRANDS.forEach(function(brand){
-    var brandCycles=DB.cycles.filter(function(c){return c.brand===brand;})
-      .sort(function(a,b){ return (b.start||'').localeCompare(a.start||''); }); // newest first
-    if(!brandCycles.length) return;
-    var bName=CREDS[brand]?CREDS[brand].name:brand;
-
-    // Brand section header
-    html+='<div style="display:flex;align-items:center;gap:8px;margin:18px 0 10px;">';
-    html+='<div style="flex:1;height:1px;background:var(--bd);"></div>';
-    html+='<span style="font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;">'+bName+'</span>';
-    html+='<div style="flex:1;height:1px;background:var(--bd);"></div>';
-    html+='</div>';
-
-    brandCycles.forEach(function(c){
+  html+='<div onclick="backACycBrand()" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--pur);font-weight:600;cursor:pointer;margin-bottom:10px;">← Volver a marcas</div>';
+  html+='<div style="display:flex;align-items:center;gap:10px;margin:0 0 14px;">';
+  html+='<span style="font-size:18px;font-weight:800;color:var(--tx);">'+bName+'</span>';
+  html+='<span style="font-size:11px;color:var(--t2);">'+brandCycles.length+' '+(brandCycles.length===1?'ciclo':'ciclos')+'</span>';
+  html+='</div>';
+  if(!brandCycles.length){
+    html+='<div class="empty" style="padding:20px 0;text-align:center;">Esta marca no tiene ciclos aún. Crea el primero arriba.</div>';
+  }
+  brandCycles.forEach(function(c){
       var cycPubs=DB.publications.filter(function(p){return p.brand===brand&&p.cycle===c.id;});
       var pubTotal=cycPubs.length;
       var pubPub=cycPubs.filter(function(p){return p.status==='published';}).length;
@@ -3699,7 +3685,6 @@ function renderACycles() {
       }
       html+='</div></div>';
     });
-  });
 
   el.innerHTML=html;
 }
@@ -4041,18 +4026,36 @@ function togglePubsAcc(id){
   if(chev) chev.style.transform=open?'':'rotate(90deg)';
 }
 
+var _pautaEditIdx=-1;
+function clearPautaForm(){
+  _pautaEditIdx=-1;
+  var defs={aPaPer:"",aPaInv:"0",aPaDias:"15",aPaAlc:"0",aPaImp:"0",aPaFr:"0",
+    aPaCl:"0",aPaCT:"0",aPaCo:"0",aPaCP:"0",aPaAnu:"0",aPaAlcP:"0",aPaRes:""};
+  Object.keys(defs).forEach(function(id){var el=gi(id);if(el)el.value=defs[id];});
+  var t=gi("aPaTipo"); if(t) t.value="";
+  var b=gi("savePautaBtn"); if(b) b.textContent="Guardar Pauta";
+}
 function savePauta() {
   var brand = gv("aPaB"), cycle = gv("aPaC");
   if(!cycle) { alert("Selecciona un ciclo."); return; }
-  DB.pauta = DB.pauta.filter(function(p){return !(p.brand===brand&&p.cycle===cycle);});
-  DB.pauta.push({
+  var obj={
     brand:brand, cycle:cycle, platform:gv("aPaPl"), period:gv("aPaPer"),
     investment:gv("aPaInv"), days:gv("aPaDias"), reach:gv("aPaAlc"),
     impressions:gv("aPaImp"), frequency:gv("aPaFr"), clicks:gv("aPaCl"),
     ctr:gv("aPaCT"), conversions:gv("aPaCo"), cpc:gv("aPaCP"),
     anuncios:gv("aPaAnu"), tipo:gv("aPaTipo"), alcance_pauta:gv("aPaAlcP"), resultados:gv("aPaRes")
-  });
+  };
+  // Editar la pauta cargada, o agregar una nueva (se permiten varias por ciclo)
+  if(_pautaEditIdx>=0 && DB.pauta[_pautaEditIdx]){
+    obj.id=DB.pauta[_pautaEditIdx].id||("pa"+Date.now());
+    DB.pauta[_pautaEditIdx]=obj;
+  } else {
+    obj.id="pa"+Date.now()+"_"+Math.floor(Math.random()*1000);
+    DB.pauta.push(obj);
+  }
+  _pautaEditIdx=-1;
   saveDB(); addLog("Pauta guardada para " + brand); showToast("Pauta guardada!");
+  clearPautaForm();
   renderAPauta();
 }
 function renderAPauta() {
@@ -4158,6 +4161,7 @@ function logAction(msg){ addLog(msg); }
 
 function loadPauta(idx){
   var p=DB.pauta[idx]; if(!p) return;
+  _pautaEditIdx=idx;
   var bSel=gi('aPaB'); if(bSel) bSel.value=p.brand;
   popCyc('aPaC',p.brand);
   setTimeout(function(){ var c=gi('aPaC'); if(c) c.value=p.cycle; },100);
@@ -4166,11 +4170,15 @@ function loadPauta(idx){
     aPaCT:p.ctr,aPaCo:p.conversions,aPaCP:p.cpc,aPaAnu:p.anuncios,
     aPaTipo:p.tipo,aPaAlcP:p.alcance_pauta,aPaRes:p.resultados};
   Object.keys(m).forEach(function(id){ var el=gi(id); if(el&&m[id]!=null) el.value=m[id]; });
+  var b=gi("savePautaBtn"); if(b) b.textContent="Actualizar pauta";
   showToast('Pauta cargada para edicion');
+  var pan=gi("at-pauta"); if(pan) pan.scrollIntoView({behavior:"smooth",block:"start"});
 }
 function deletePauta(idx){
   if(!confirm('Eliminar esta pauta?')) return;
   DB.pauta.splice(idx,1);
+  if(_pautaEditIdx===idx) clearPautaForm();
+  _pautaEditIdx=-1;
   saveDB(); renderAPauta(); showToast('Pauta eliminada');
 }
 
