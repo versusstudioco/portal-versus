@@ -2393,28 +2393,38 @@ function renderResumen(cycId) {
   var totalSV2=histPubs2.reduce(function(a,p){return a+(Number(p.storiesViews)||0);},0);
   var totalSI2=histPubs2.reduce(function(a,p){return a+(Number(p.storiesInt)||0);},0);
 
-  if(promCreat>0||promHist>0||entrHist>0){
+  if(promCreat>0||promHist>0||entrHist>0||entrCreat>0){
     html+='<div class="adv-kpi-grid" style="margin-top:12px;">';
-    // CREATIVOS
-    if(promCreat>0){
-      var pctC=Math.min(200,Math.round((entrCreat/promCreat)*100));
-      var clC=pctC>=100?'kpi-good':pctC>=70?'kpi-warn':'kpi-bad';
+    // CREATIVOS (muestra el conteo publicado aunque el ciclo no tenga meta configurada)
+    if(promCreat>0||entrCreat>0){
+      var hasGoalC=promCreat>0;
+      var pctC=hasGoalC?Math.min(200,Math.round((entrCreat/promCreat)*100)):0;
+      var clC=!hasGoalC?'kpi-na':(pctC>=100?'kpi-good':pctC>=70?'kpi-warn':'kpi-bad');
       html+='<div class="kpi-card '+clC+'" style="grid-column:span 2">';
       html+='<div class="kpi-lbl" style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;">Creativos</div>';
       html+='<div style="display:flex;align-items:baseline;gap:6px;"><div class="kpi-val">'+entrCreat+'</div>';
-      html+='<div class="kpi-meta" style="font-size:12px;">/ '+promCreat+' prometidos</div></div>';
-      html+='<div class="kpi-bar"><div class="kpi-fill '+clC+'" style="width:'+Math.min(100,pctC)+'%"></div></div>';
+      if(hasGoalC) html+='<div class="kpi-meta" style="font-size:12px;">/ '+promCreat+' prometidos</div>';
+      else html+='<div class="kpi-meta" style="font-size:12px;">publicados</div>';
+      html+='</div>';
+      if(hasGoalC) html+='<div class="kpi-bar"><div class="kpi-fill '+clC+'" style="width:'+Math.min(100,pctC)+'%"></div></div>';
       html+='<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">';
       creatiTypes.forEach(function(t){
-        var m2=Number(cyc[t.k])||0; if(!m2) return;
+        var m2=Number(cyc[t.k])||0;
         var d2=pubsInCyc.filter(function(p){return p.type===t.sing||p.type===t.lbl;}).length;
-        var ok2=d2>=m2;
-        html+='<span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;'
-          +(ok2?'background:rgba(34,197,94,.15);color:#16a34a':'background:rgba(249,0,0,.12);color:#F90000')+';">'
-          +t.lbl+': '+d2+'/'+m2+'</span>';
+        if(!m2&&!d2) return;
+        if(m2>0){
+          var ok2=d2>=m2;
+          html+='<span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;'
+            +(ok2?'background:rgba(34,197,94,.15);color:#16a34a':'background:rgba(249,0,0,.12);color:#F90000')+';">'
+            +t.lbl+': '+d2+'/'+m2+'</span>';
+        } else {
+          html+='<span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;background:var(--bg4);color:var(--t2);">'
+            +t.lbl+': '+d2+'</span>';
+        }
       });
       html+='</div>';
-      html+='<div class="kpi-diff">'+(pctC>=100?'\u2713 Completo':entrCreat+'/'+promCreat)+'</div>';
+      if(hasGoalC) html+='<div class="kpi-diff">'+(pctC>=100?'\u2713 Completo':entrCreat+'/'+promCreat)+'</div>';
+      else html+='<div class="kpi-diff">'+entrCreat+' creativos publicados</div>';
       html+='</div>';
     }
     // HISTORIAS
