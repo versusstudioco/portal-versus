@@ -496,9 +496,12 @@ img{max-width:100%;display:block;}
 .acc-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;cursor:pointer;user-select:none;}
 .acc-head:hover{background:var(--bg3);}
 .acc-t{font-size:14px;font-weight:700;color:var(--tx);}
-.acc-chev{transition:transform .2s;color:var(--t3);font-size:11px;}
-.acc.open .acc-chev{transform:rotate(90deg);}
-.acc-body{display:none;padding:2px 18px 18px;}
+.acc-chev{position:relative;width:18px;height:18px;flex-shrink:0;color:var(--t2);}
+.acc-chev::before,.acc-chev::after{content:"";position:absolute;background:currentColor;border-radius:2px;transition:.2s;}
+.acc-chev::before{top:8px;left:3px;width:12px;height:2px;}
+.acc-chev::after{left:8px;top:3px;width:2px;height:12px;}
+.acc.open .acc-chev::after{transform:scaleY(0);}
+.acc-body{display:none;padding:2px 18px 20px;}
 .acc.open .acc-body{display:block;}
 .acc-sub{font-size:12px;font-weight:700;color:var(--tx);margin-bottom:8px;}
 .ch-handles{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
@@ -508,7 +511,7 @@ img{max-width:100%;display:block;}
 /* ── SAFE AREA + DVH ── */
 @supports(padding:max(0px)){
   .hbg{top:max(12px,env(safe-area-inset-top));}
-  .main{padding-bottom:max(68px,calc(env(safe-area-inset-bottom)+60px));}
+  .main{padding-bottom:max(100px,calc(env(safe-area-inset-bottom)+90px));}
   #loginScreen{
     padding-top:max(24px,env(safe-area-inset-top));
     padding-bottom:max(24px,env(safe-area-inset-bottom));
@@ -810,7 +813,7 @@ img{max-width:100%;display:block;}
   <div class="card" id="pautaCfg" style="margin-top:12px;"></div>
 
   <div class="acc" id="accUsers">
-    <div class="acc-head" onclick="toggleAcc(this)"><span class="acc-t">Usuarios y accesos</span><span class="acc-chev">&#9654;</span></div>
+    <div class="acc-head" onclick="toggleAcc(this)"><span class="acc-t">Usuarios y accesos</span><span class="acc-chev"></span></div>
     <div class="acc-body">
     <div class="acc-sub" id="userFormTitle">Nuevo usuario</div>
     <p class="tip">Agrega clientes o edita sus accesos al portal.</p>
@@ -835,7 +838,7 @@ img{max-width:100%;display:block;}
 
 
     <div class="acc" id="accBranding">
-    <div class="acc-head" onclick="toggleAcc(this)"><span class="acc-t">Apariencia del portal</span><span class="acc-chev">&#9654;</span></div>
+    <div class="acc-head" onclick="toggleAcc(this)"><span class="acc-t">Apariencia del portal</span><span class="acc-chev"></span></div>
     <div class="acc-body">
     <p class="tip">Personaliza logos, colores y fuente del portal.</p>
     <div style="margin-bottom:14px;">
@@ -958,7 +961,7 @@ img{max-width:100%;display:block;}
   </div>
 
   <div class="acc" id="accSeguridad">
-    <div class="acc-head" onclick="toggleAcc(this)"><span class="acc-t">Seguridad</span><span class="acc-chev">&#9654;</span></div>
+    <div class="acc-head" onclick="toggleAcc(this)"><span class="acc-t">Seguridad</span><span class="acc-chev"></span></div>
     <div class="acc-body">
     <div class="acc-sub">Cambiar contrase&#241;a admin</div>
     <div class="fr">
@@ -1043,7 +1046,8 @@ img{max-width:100%;display:block;}
       <button class="btn btn-pur" onclick="saveObj()">Guardar Objetivos</button>
     </div>
     <div class="card" style="margin-top:4px;">
-      <div class="card-title">Objetivos guardados — haz clic en Cargar para editar</div>
+      <div class="card-title">Objetivos por marca</div>
+      <p class="tip">Toca una marca para ver y editar sus objetivos.</p>
       <div id="objList"><div class="empty">Sin objetivos guardados.</div></div>
     </div>
     <div class="card" style="margin-top:4px;">
@@ -3542,7 +3546,6 @@ function togglePauta(brand, val) {
   DB.pautaOn[brand] = val;
   saveDB();
   addLog("Pauta " + (val?"activada":"desactivada") + " para " + brand);
-  renderConfig();
 }
 
 // ===== CYCLES =====
@@ -3635,7 +3638,7 @@ function renderACycles() {
     gh+='<div style="font-size:15px;font-weight:700;color:var(--tx);margin-bottom:6px;">'+bName+'</div>';
     gh+='<div style="font-size:12px;color:var(--t2);">'+bc.length+' '+(bc.length===1?'ciclo':'ciclos')+'</div>';
     if(act) gh+='<div style="display:inline-block;margin-top:8px;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">'+act+' activo'+(act>1?'s':'')+'</div>';
-    gh+='<div style="font-size:11px;color:var(--pur);font-weight:600;margin-top:10px;">Ver ciclos →</div>';
+    gh+='<div style="font-size:11px;color:var(--pur);font-weight:600;margin-top:10px;">Ver ciclos</div>';
     gh+='</div>';
   });
   gh+='</div>';
@@ -3714,7 +3717,6 @@ function renderCycModalList(){
     h+='<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">';
     h+='<button class="wmc-edit-btn" style="padding:5px 10px;" onclick="event.stopPropagation();editCycleLoad(\''+c.id+'\')">Editar</button>';
     h+='<button class="wmc-edit-btn" style="padding:5px 8px;color:var(--red);" onclick="event.stopPropagation();deleteCycle(\''+c.id+'\')">Elim.</button>';
-    h+='<span style="font-size:13px;color:var(--pur);">→</span>';
     h+='</div></div></div>';
   });
   body.innerHTML=h;
@@ -3722,7 +3724,7 @@ function renderCycModalList(){
 function selectCycInModal(cycleId){
   var body=gi('cycModalBody'); if(!body) return;
   var c=DB.cycles.find(function(x){return x.id===cycleId;}); if(!c) return;
-  var h='<div onclick="renderCycModalList()" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--pur);font-weight:600;cursor:pointer;margin-bottom:10px;">← Volver a ciclos</div>';
+  var h='<div onclick="renderCycModalList()" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--pur);font-weight:600;cursor:pointer;margin-bottom:10px;">‹ Volver a ciclos</div>';
   h+='<div class="modal-title">'+c.name+'</div>';
   h+='<p class="tip" style="margin-bottom:14px;">'+fD(c.start)+' — '+fD(c.end)+'</p>';
   h+=cycPubsTableHTML(c.brand,cycleId);
@@ -3756,48 +3758,85 @@ function toggleCycAcc(cycId){
   if(chev) chev.style.transform=isOpen?'':'rotate(90deg)';
 }
 
+function objChips(o){
+  var s="<div style='display:flex;gap:6px;flex-wrap:wrap;'>";
+  if(o.reels)      s+="<span style='font-size:11px;background:rgba(249,0,0,.08);color:var(--red);padding:3px 8px;border-radius:6px;font-weight:600;'>"+o.reels+" Reels</span>";
+  if(o.carruseles) s+="<span style='font-size:11px;background:rgba(108,0,255,.08);color:var(--pur);padding:3px 8px;border-radius:6px;font-weight:600;'>"+o.carruseles+" Carr.</span>";
+  if(o.posts)      s+="<span style='font-size:11px;background:rgba(77,184,255,.08);color:#4db8ff;padding:3px 8px;border-radius:6px;font-weight:600;'>"+o.posts+" Posts</span>";
+  if(o.stories)    s+="<span style='font-size:11px;background:rgba(34,197,94,.08);color:var(--grn);padding:3px 8px;border-radius:6px;font-weight:600;'>"+o.stories+" Hist.</span>";
+  if(o.videos)     s+="<span style='font-size:11px;background:rgba(245,158,11,.08);color:var(--yel);padding:3px 8px;border-radius:6px;font-weight:600;'>"+o.videos+" Vid.</span>";
+  if(o.followers)  s+="<span style='font-size:11px;background:rgba(22,163,74,.08);color:#16a34a;padding:3px 8px;border-radius:6px;font-weight:600;'>\uD83D\uDC65 Meta: "+fN(o.followers)+"</span>";
+  if(o.growth)     s+="<span style='font-size:11px;background:rgba(22,163,74,.08);color:#16a34a;padding:3px 8px;border-radius:6px;font-weight:600;'>+"+o.growth+" nuevos</span>";
+  if(!o.reels&&!o.carruseles&&!o.posts&&!o.stories&&!o.videos&&!o.followers&&!o.growth) s+="<span style='font-size:11px;color:var(--t3);'>Sin metas</span>";
+  return s+"</div>";
+}
+// Tarjetas de marca: cada una abre un popup con sus objetivos
 function renderAObj() {
   if(!DB.cycles) DB.cycles=[];
   if(!DB.objectives) DB.objectives=[];
   var el=gi("objList"); if(!el) return;
-  if(!DB.objectives.length){ inn("objList","<div class='empty'>Sin objetivos guardados.</div>"); return; }
-  var Q="'";
-  var html=DB.objectives.map(function(o,i){
-    var bn=CREDS[o.brand]?CREDS[o.brand].name:o.brand;
+  var sorted=BRANDS.slice().sort(function(a,b){
+    var na=(CREDS[a]?CREDS[a].name:a).toLowerCase(), nb=(CREDS[b]?CREDS[b].name:b).toLowerCase();
+    return na<nb?-1:na>nb?1:0;
+  });
+  if(!sorted.length){ el.innerHTML="<div class='empty'>Sin marcas.</div>"; return; }
+  var html='<div class="brand-grid">';
+  sorted.forEach(function(b){
+    var n=DB.objectives.filter(function(o){return o.brand===b;}).length;
+    var name=CREDS[b]?CREDS[b].name:b;
+    html+='<div class="bcard" style="gap:8px;cursor:pointer;" onclick="openObjModal(\''+b+'\')">';
+    html+='<div class="bcard-head"><div><div class="bcard-name">'+name+'</div><div class="bcard-user">'+n+' '+(n===1?'objetivo':'objetivos')+'</div></div></div>';
+    html+='<div style="font-size:11px;color:var(--pur);font-weight:600;">Ver objetivos</div>';
+    html+='</div>';
+  });
+  html+='</div>';
+  el.innerHTML=html;
+}
+var _objBrand=null;
+function openObjModal(brand){
+  _objBrand=brand;
+  renderObjModalList();
+  var m=gi('objModal'); if(m) m.classList.add('open');
+}
+function closeObjModal(){ var m=gi('objModal'); if(m) m.classList.remove('open'); }
+function renderObjModalList(){
+  var body=gi('objModalBody'); if(!body) return;
+  var brand=_objBrand;
+  var name=CREDS[brand]?CREDS[brand].name:brand;
+  var objs=DB.objectives.filter(function(o){return o.brand===brand;});
+  var h='<div class="modal-title">'+name+'</div>';
+  h+='<p class="tip" style="margin-bottom:14px;">Objetivos por ciclo y plataforma.</p>';
+  if(!objs.length){ h+='<div class="empty" style="padding:20px 0;text-align:center;">Sin objetivos. Cr\u00E9alos con el formulario de arriba.</div>'; }
+  objs.forEach(function(o){
+    var i=DB.objectives.indexOf(o);
     var cyc=DB.cycles.find(function(c){return c.id===o.cycle;});
     var cn=cyc?cyc.name:o.cycle;
-    var row="<div class='obj-item'>";
-    row+="<div class='obj-head'>";
-    row+="<div style='flex:1;'><span class='obj-brand'>"+bn+"</span> <span class='obj-cycle' style='font-size:11px;color:var(--t2);'>"+cn+" \u00B7 "+o.platform+"</span></div>";
-    row+="<div style='display:flex;gap:6px;'>";
-    row+="<button class='wmc-edit-btn' onclick='loadObj("+Q+o.brand+Q+","+Q+o.cycle+Q+","+Q+o.platform+Q+")'>Editar</button>";
-    row+="<button class='wmc-edit-btn' style='color:#F90000;' onclick='deleteObj("+i+")'>Eliminar</button>";
-    row+="</div></div>";
-    row+="<div style='display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;'>";
-    if(o.reels)      row+="<span style='font-size:11px;background:rgba(249,0,0,.08);color:var(--red);padding:3px 8px;border-radius:6px;font-weight:600;'>"+o.reels+" Reels</span>";
-    if(o.carruseles) row+="<span style='font-size:11px;background:rgba(108,0,255,.08);color:var(--pur);padding:3px 8px;border-radius:6px;font-weight:600;'>"+o.carruseles+" Carr.</span>";
-    if(o.posts)      row+="<span style='font-size:11px;background:rgba(77,184,255,.08);color:#4db8ff;padding:3px 8px;border-radius:6px;font-weight:600;'>"+o.posts+" Posts</span>";
-    if(o.stories)    row+="<span style='font-size:11px;background:rgba(34,197,94,.08);color:var(--grn);padding:3px 8px;border-radius:6px;font-weight:600;'>"+o.stories+" Hist.</span>";
-    if(o.videos)     row+="<span style='font-size:11px;background:rgba(245,158,11,.08);color:var(--yel);padding:3px 8px;border-radius:6px;font-weight:600;'>"+o.videos+" Vid.</span>";
-    if(o.followers)  row+="<span style='font-size:11px;background:rgba(22,163,74,.08);color:#16a34a;padding:3px 8px;border-radius:6px;font-weight:600;'>\uD83D\uDC65 Meta: "+fN(o.followers)+"</span>";
-    if(o.growth)     row+="<span style='font-size:11px;background:rgba(22,163,74,.08);color:#16a34a;padding:3px 8px;border-radius:6px;font-weight:600;'>\u2197 +"+o.growth+" nuevos</span>";
-    row+="</div></div>";
-    return row;
-  }).join("");
-  inn("objList", html);
+    h+='<div style="background:var(--bg3);border-radius:12px;padding:12px 14px;margin-bottom:8px;">';
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">';
+    h+='<div style="font-size:13px;font-weight:700;color:var(--tx);min-width:0;">'+cn+' \u00B7 '+o.platform+'</div>';
+    h+='<div style="display:flex;gap:6px;flex-shrink:0;">';
+    h+='<button class="wmc-edit-btn" onclick="loadObj(\''+o.brand+'\',\''+o.cycle+'\',\''+o.platform+'\')">Editar</button>';
+    h+='<button class="wmc-edit-btn" style="color:#F90000;" onclick="deleteObj('+i+')">Eliminar</button>';
+    h+='</div></div>';
+    h+=objChips(o);
+    h+='</div>';
+  });
+  body.innerHTML=h;
 }
-
 function loadObj(brand, cycle, plat) {
-  sv("aOB", brand); popCyc("aOC", brand);
-  setTimeout(function() {
-    sv("aOC", cycle); sv("aOP", plat);
-    var o = DB.objectives.find(function(x){return x.brand===brand&&x.cycle===cycle&&x.platform===plat;});
-    if(o) {
-      sv('aOReels',o.reels||0); sv('aOCarr',o.carruseles||0);
-      sv('aOPosts',o.posts||0); sv('aOSt',o.stories||0);
-      sv('aOF',o.followers||0); sv('aOGrowth',o.growth||0);
-    }
-  }, 60);
+  closeObjModal();
+  sv("aOB", brand);
+  popCyc("aOC", brand);       // popCyc es sincrono: las opciones ya existen
+  sv("aOC", cycle);
+  sv("aOP", plat);
+  var o = DB.objectives.find(function(x){return x.brand===brand&&x.cycle===cycle&&x.platform===plat;});
+  if(o) {
+    sv('aOReels',o.reels||0); sv('aOCarr',o.carruseles||0);
+    sv('aOPosts',o.posts||0); sv('aOSt',o.stories||0);
+    sv('aOF',o.followers||0); sv('aOGrowth',o.growth||0);
+  }
+  var f=gi("aOB"); if(f) f.scrollIntoView({behavior:"smooth",block:"center"});
+  showToast("Objetivo cargado para edici\u00F3n");
 }
 
 function saveObj() {
@@ -4226,6 +4265,7 @@ function deleteObj(idx){
   if(!confirm("Eliminar este objetivo?")) return;
   DB.objectives.splice(idx,1);
   saveDB(); renderAObj(); showToast("Objetivo eliminado");
+  var m=gi('objModal'); if(m&&m.classList.contains('open')) renderObjModalList();
 }
 
 function loadLogro(brand,cid){
@@ -4578,6 +4618,13 @@ function cancelImport() {
   <div class="modal" style="max-width:680px;">
     <button class="modal-close" onclick="closeCycModal()">&#10005;</button>
     <div id="cycModalBody"></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="objModal">
+  <div class="modal" style="max-width:560px;">
+    <button class="modal-close" onclick="closeObjModal()">&#10005;</button>
+    <div id="objModalBody"></div>
   </div>
 </div>
 
