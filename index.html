@@ -2878,52 +2878,45 @@ function openWeekDetail(weekNum, cycId){
 
 function renderPautaClient(cycId){
   var el=gi('pautaPanel'); if(!el) return;
-  var allBrandPauta=(DB.pauta||[]).filter(function(p){return p.brand===CU;});
-  if(!allBrandPauta.length){
-    el.innerHTML='<div class="empty" style="padding:40px 20px;text-align:center;"><div style="font-size:32px;margin-bottom:12px;">\uD83D\uDCE2</div><div style="font-weight:700;">Sin pauta registrada</div><div style="font-size:12px;color:var(--t2);margin-top:6px;">El admin debe cargar la informaci\u00f3n de pauta.</div></div>';
+  // Solo las pautas del ciclo seleccionado (una o varias)
+  var cycPauta=(DB.pauta||[]).filter(function(p){return p.brand===CU&&p.cycle===cycId;});
+  if(!cycId||!cycPauta.length){
+    el.innerHTML='<div class="empty" style="padding:40px 20px;text-align:center;"><div style="font-size:32px;margin-bottom:12px;">\uD83D\uDCE2</div><div style="font-weight:700;">Sin pauta en este ciclo</div><div style="font-size:12px;color:var(--t2);margin-top:6px;">Selecciona otro ciclo o espera a que el admin cargue la pauta.</div></div>';
     return;
   }
-  // Group by cycle
-  var _pcyc={};
-  allBrandPauta.forEach(function(pt){if(!_pcyc[pt.cycle])_pcyc[pt.cycle]=[];_pcyc[pt.cycle].push(pt);});
-  var html='';
-  // Order: current cycle first
-  var cycIds=Object.keys(_pcyc).sort(function(a,b){return a===cycId?-1:b===cycId?1:0;});
-  cycIds.forEach(function(cid){
-    var cyc2=DB.cycles.find(function(c){return c.id===cid;});
-    var cycName=cyc2?cyc2.name:cid;
-    var isActive=cid===cycId;
-    html+='<div class="adv-card" style="'+(isActive?'border-left:3px solid var(--red);':'opacity:.75;')+'">';
-    html+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">';
-    html+='<div class="adv-card-title" style="margin:0;">'+cycName+'</div>';
-    if(isActive) html+='<span style="font-size:10px;font-weight:700;background:var(--red);color:#fff;padding:2px 8px;border-radius:8px;">Activo</span>';
+  var cyc2=DB.cycles.find(function(c){return c.id===cycId;});
+  var cycName=cyc2?cyc2.name:cycId;
+  var html='<div class="adv-card" style="border-left:3px solid var(--red);">';
+  html+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">';
+  html+='<div class="adv-card-title" style="margin:0;">'+cycName+'</div>';
+  html+='<span style="font-size:11px;color:var(--t2);">'+cycPauta.length+' '+(cycPauta.length===1?'pauta':'pautas')+'</span>';
+  html+='</div>';
+  cycPauta.forEach(function(pt){
+    var idx=DB.pauta.indexOf(pt);
+    var platName=pt.platform||pt.tipo||'Pauta';
+    html+='<div style="background:var(--bg3);border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:background .15s;" onclick="openPautaDetail('+idx+')">';
+    html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">';
+    html+='<span style="font-size:13px;font-weight:700;color:var(--tx);">'+platName+(pt.period?' \u00b7 '+pt.period:'')+'</span>';
+    html+='<span style="font-size:11px;color:var(--pur);font-weight:600;">Ver detalle \u2192</span>';
     html+='</div>';
-    _pcyc[cid].forEach(function(pt){
-      // Compact card with click to open popup
-      var platName=pt.platform||pt.tipo||'Pauta';
-      html+='<div style="background:var(--bg3);border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:background .15s;" onclick="openPautaDetail(\''+cid+'\',\''+platName+'\',this)">';
-      html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">';
-      html+='<span style="font-size:13px;font-weight:700;color:var(--tx);">'+platName+(pt.period?' \u00b7 '+pt.period:'')+'</span>';
-      html+='<span style="font-size:11px;color:var(--pur);font-weight:600;">Ver detalle \u2192</span>';
-      html+='</div>';
-      html+='<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--t2);">';
-      if(pt.investment) html+='<span>\uD83D\uDCB0 $'+fN(pt.investment)+'</span>';
-      if(pt.reach||pt.alcance_pauta) html+='<span>\uD83D\uDC64 '+fN(pt.reach||pt.alcance_pauta)+'</span>';
-      if(pt.impressions) html+='<span>\uD83D\uDC41 '+fN(pt.impressions)+'</span>';
-      if(pt.conversions) html+='<span>\uD83C\uDFAF '+fN(pt.conversions)+'</span>';
-      html+='</div>';
-      html+='</div>';
-    });
+    html+='<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--t2);">';
+    if(pt.investment) html+='<span>\uD83D\uDCB0 $'+fN(pt.investment)+'</span>';
+    if(pt.reach||pt.alcance_pauta) html+='<span>\uD83D\uDC64 '+fN(pt.reach||pt.alcance_pauta)+'</span>';
+    if(pt.impressions) html+='<span>\uD83D\uDC41 '+fN(pt.impressions)+'</span>';
+    if(pt.conversions) html+='<span>\uD83C\uDFAF '+fN(pt.conversions)+'</span>';
+    html+='</div>';
     html+='</div>';
   });
+  html+='</div>';
   el.innerHTML=html;
 }
-function openPautaDetail(cycId2,platName,trigEl){
+function openPautaDetail(idx){
   var modal=gi('pubDetailModal'); var body=gi('pubDetailBody'); if(!modal||!body) return;
-  var pt=(DB.pauta||[]).find(function(p){return p.brand===CU&&p.cycle===cycId2&&(p.platform===platName||p.tipo===platName);});
+  var pt=DB.pauta[idx];
   if(!pt) return;
-  var cyc2=DB.cycles.find(function(c){return c.id===cycId2;}); 
-  var html='<div style="font-size:11px;color:var(--t2);margin-bottom:12px;">'+(cyc2?cyc2.name:cycId2)+'</div>';
+  var platName=pt.platform||pt.tipo||'Pauta';
+  var cyc2=DB.cycles.find(function(c){return c.id===pt.cycle;});
+  var html='<div style="font-size:11px;color:var(--t2);margin-bottom:12px;">'+(cyc2?cyc2.name:pt.cycle)+'</div>';
   html+='<div class="cont-metrics" style="margin-bottom:12px;">';
   var fields=[
     {k:'investment',lbl:'Inversi\u00f3n',pre:'$'},{k:'days',lbl:'D\u00edas',suf:' d\u00edas'},
