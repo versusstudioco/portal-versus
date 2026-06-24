@@ -491,6 +491,16 @@ img{max-width:100%;display:block;}
 .ptog input:checked + span{background:var(--grn);color:#fff;border-color:var(--grn);}
 .bcard-pauta{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg3);border-radius:10px;}
 .bcard-pauta .pl{font-size:12px;font-weight:600;color:var(--tx);}
+/* Acordeon de configuracion de pagina */
+.acc{background:var(--card);border:0.5px solid var(--bd);border-radius:var(--r);margin-top:12px;overflow:hidden;}
+.acc-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;cursor:pointer;user-select:none;}
+.acc-head:hover{background:var(--bg3);}
+.acc-t{font-size:14px;font-weight:700;color:var(--tx);}
+.acc-chev{transition:transform .2s;color:var(--t3);font-size:11px;}
+.acc.open .acc-chev{transform:rotate(90deg);}
+.acc-body{display:none;padding:2px 18px 18px;}
+.acc.open .acc-body{display:block;}
+.acc-sub{font-size:12px;font-weight:700;color:var(--tx);margin-bottom:8px;}
 .ch-handles{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
 .ch-handle{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;color:#fff;text-decoration:none;}
 .ch-handle:hover{opacity:.85;}
@@ -799,8 +809,10 @@ img{max-width:100%;display:block;}
   <div class="card" id="platCfg" style="margin-top:12px;"></div>
   <div class="card" id="pautaCfg" style="margin-top:12px;"></div>
 
-  <div class="card" style="margin-top:20px;">
-    <div class="card-title" id="userFormTitle">Nuevo usuario</div>
+  <div class="acc" id="accUsers">
+    <div class="acc-head" onclick="toggleAcc(this)"><span class="acc-t">Usuarios y accesos</span><span class="acc-chev">&#9654;</span></div>
+    <div class="acc-body">
+    <div class="acc-sub" id="userFormTitle">Nuevo usuario</div>
     <p class="tip">Agrega clientes o edita sus accesos al portal.</p>
     <div class="fr">
       <div class="ff"><label>Usuario</label><input type="text" id="uUN" placeholder="ej: nuevamarca" autocomplete="off" data-editing=""></div>
@@ -814,16 +826,17 @@ img{max-width:100%;display:block;}
       <button class="btn btn-red" onclick="saveUser()">Guardar usuario</button>
       <button class="btn" onclick="clearUserForm()">Limpiar</button>
     </div>
+    <div style="margin-top:18px;border-top:0.5px solid var(--bd);padding-top:14px;">
+      <div class="acc-sub">Usuarios registrados</div>
+      <div id="userList"></div>
+    </div>
+    </div>
   </div>
 
-  <div class="card" style="margin-top:12px;">
-    <div class="card-title">Usuarios registrados</div>
-    <div id="userList"></div>
-  </div>
 
-
-    <div class="card" id="versusBrandingCard" style="margin-top:20px;">
-    <div class="card-title">Branding VERSUS Studio</div>
+    <div class="acc" id="accBranding">
+    <div class="acc-head" onclick="toggleAcc(this)"><span class="acc-t">Apariencia del portal</span><span class="acc-chev">&#9654;</span></div>
+    <div class="acc-body">
     <p class="tip">Personaliza logos, colores y fuente del portal.</p>
     <div style="margin-bottom:14px;">
       <div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Logos</div>
@@ -941,15 +954,19 @@ img{max-width:100%;display:block;}
       <button class="btn btn-red" onclick="saveVSBranding()">Guardar todo</button>
       <button class="btn" onclick="resetVSBranding()">Restaurar defaults</button>
     </div>
+    </div>
   </div>
 
-  <div class="card" style="margin-top:12px;">
-    <div class="card-title">Cambiar contrase&#241;a admin</div>
+  <div class="acc" id="accSeguridad">
+    <div class="acc-head" onclick="toggleAcc(this)"><span class="acc-t">Seguridad</span><span class="acc-chev">&#9654;</span></div>
+    <div class="acc-body">
+    <div class="acc-sub">Cambiar contrase&#241;a admin</div>
     <div class="fr">
       <div class="ff"><label>Actual</label><input type="password" id="aOldPass"></div>
       <div class="ff"><label>Nueva</label><input type="password" id="aNewPass"></div>
     </div>
     <div style="margin-top:10px;"><button class="btn btn-red" onclick="changeAdminPass()">Actualizar contrase&#241;a</button></div>
+    </div>
   </div>
 
 </div>
@@ -1975,9 +1992,11 @@ function renderFeedbackList() {
   inn("fbList", rows.length?rows.join("") : "<div class='empty'>Sin feedback.</div>");
 }
 
+function toggleAcc(el){ var a=el.closest(".acc"); if(a) a.classList.toggle("open"); }
 function loadUser(un){
   var u=CREDS[un];if(!u)return;
   var e=gi("uUN");if(e){e.value=un;e.dataset.editing=un;}
+  var acc=gi("accUsers"); if(acc) acc.classList.add("open");
   if(gi("uName"))gi("uName").value=u.name||"";
   if(gi("uPass"))gi("uPass").value=u.pass||"";
   if(gi("uType"))gi("uType").value=u.type||"client";
