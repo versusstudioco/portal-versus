@@ -467,6 +467,30 @@ img{max-width:100%;display:block;}
 .ig-dot{background:#E1306C;}.tk-dot{background:#333;}.yt-dot{background:#FF0000;}
 .bcf-input{flex:1;padding:7px 10px;border:1px solid var(--bd);border-radius:var(--rs);font-family:var(--fn);font-size:12px;background:var(--bg);color:var(--tx);min-width:0;}
 .bcf-input:focus{outline:none;border-color:var(--pur);}
+/* Tarjetas compactas de marca (Config) */
+.brand-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-top:6px;}
+.bcard{background:var(--bg2);border:0.5px solid var(--bd);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:14px;}
+.bcard-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
+.bcard-name{font-size:15px;font-weight:800;color:var(--tx);line-height:1.1;}
+.bcard-user{font-size:11px;color:var(--t2);font-family:monospace;margin-top:3px;}
+.bcard-acts{display:flex;gap:6px;flex-shrink:0;}
+.bcard-acts button{width:30px;height:30px;border-radius:8px;border:0.5px solid var(--bd2);background:var(--bg);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;color:var(--t2);transition:.15s;}
+.bcard-acts button:hover{background:var(--bg3);color:var(--tx);}
+.bcard-acts button.del:hover{border-color:rgba(249,0,0,.4);color:#F90000;}
+.bcard-lbl{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px;}
+.bcard-logos{display:flex;gap:10px;}
+.bcard-logo{flex:1;min-width:0;text-align:center;background:var(--bg3);border-radius:10px;padding:8px;}
+.bcard-logo .lname{font-size:9px;color:var(--t3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px;}
+.bcard-logo img{height:28px;width:auto;max-width:100%;object-fit:contain;border-radius:5px;display:block;margin:0 auto 5px;}
+.bcard-logo .ph{height:28px;display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:18px;margin-bottom:5px;}
+.bcard-logo button{font-size:10px;padding:4px 9px;border-radius:7px;border:0.5px solid var(--bd2);background:var(--bg);color:var(--tx);cursor:pointer;}
+.bcard-plats{display:flex;gap:6px;flex-wrap:wrap;}
+.ptog{cursor:pointer;}
+.ptog input{display:none;}
+.ptog span{display:inline-block;font-size:11px;font-weight:600;padding:5px 11px;border-radius:99px;background:var(--bg4);color:var(--t2);border:1px solid var(--bd);transition:.15s;}
+.ptog input:checked + span{background:var(--grn);color:#fff;border-color:var(--grn);}
+.bcard-pauta{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg3);border-radius:10px;}
+.bcard-pauta .pl{font-size:12px;font-weight:600;color:var(--tx);}
 .ch-handles{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
 .ch-handle{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;color:#fff;text-decoration:none;}
 .ch-handle:hover{opacity:.85;}
@@ -3437,68 +3461,56 @@ function renderConfig() {
     return;
   }
 
-  // \u2500\u2500 Marca cards (handles + logos) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-  var brands_html=BRANDS.map(function(b){
+  // Tarjetas compactas de marca (orden alfabetico): redes + logos + plataformas + pauta + acciones
+  var sorted=BRANDS.slice().sort(function(a,b){
+    var na=(CREDS[a]?CREDS[a].name:a).toLowerCase(), nb=(CREDS[b]?CREDS[b].name:b).toLowerCase();
+    return na<nb?-1:na>nb?1:0;
+  });
+  var html='<div class="brand-grid">';
+  sorted.forEach(function(b){
     var bc=DB.brandCfg[b]||{};
-    var name=CREDS[b]?CREDS[b].name:b;
-    var row='<div class="brand-cfg-row">';
-    // Name
-    row+='<div class="brand-cfg-name">'+name+'</div>';
-    // Handles
-    row+='<div class="brand-cfg-handles">';
-    row+='<div class="bcf-row"><span class="bcf-plat ig-dot">IG</span><span style="color:var(--t2);font-size:12px;">@</span><input class="bcf-input" type="text" placeholder="handle" value="'+(bc.instagram||'')+'" data-brand="'+b+'" data-plat="instagram" onchange="saveBrandHandle(this)"></div>';
-    row+='<div class="bcf-row"><span class="bcf-plat tk-dot">TK</span><span style="color:var(--t2);font-size:12px;">@</span><input class="bcf-input" type="text" placeholder="handle" value="'+(bc.tiktok||'')+'" data-brand="'+b+'" data-plat="tiktok" onchange="saveBrandHandle(this)"></div>';
-    row+='<div class="bcf-row"><span class="bcf-plat yt-dot">YT</span><input class="bcf-input" type="text" placeholder="canal o @" value="'+(bc.youtube||'')+'" data-brand="'+b+'" data-plat="youtube" onchange="saveBrandHandle(this)"></div>';
-    row+='</div>';
-    // Logos section
-    row+='<div style="margin-top:12px;padding-top:12px;border-top:0.5px solid var(--bd);">';
-    row+='<div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Logo de marca</div>';
-    row+='<div style="display:flex;gap:12px;flex-wrap:wrap;">';
-    // Light logo
-    row+='<div style="flex:1;min-width:130px;">';
-    row+='<div style="font-size:11px;color:var(--t3);margin-bottom:4px;">Fondo claro</div>';
-    if(bc.logoLight) row+='<img src="'+bc.logoLight+'" style="height:36px;width:auto;border-radius:6px;border:0.5px solid var(--bd);padding:4px;background:#fff;display:block;margin-bottom:6px;">';
-    row+='<input type="file" id="bll-'+b+'" accept="image/png,image/jpeg,image/svg+xml" style="display:none" onchange="uploadBrandLogo(this,\''+b+'\',\'light\')">';
-    row+='<button type="button" class="btn" style="font-size:11px;padding:4px 10px;" onclick="gi(\'bll-'+b+'\').click()">'+(bc.logoLight?'Cambiar':'+ Subir')+'</button>';
-    row+='</div>';
-    // Dark logo
-    row+='<div style="flex:1;min-width:130px;">';
-    row+='<div style="font-size:11px;color:var(--t3);margin-bottom:4px;">Fondo oscuro</div>';
-    if(bc.logoDark) row+='<img src="'+bc.logoDark+'" style="height:36px;width:auto;border-radius:6px;border:0.5px solid var(--bd);padding:4px;background:#111;display:block;margin-bottom:6px;">';
-    row+='<input type="file" id="bld-'+b+'" accept="image/png,image/jpeg,image/svg+xml" style="display:none" onchange="uploadBrandLogo(this,\''+b+'\',\'dark\')">';
-    row+='<button type="button" class="btn" style="font-size:11px;padding:4px 10px;" onclick="gi(\'bld-'+b+'\').click()">'+(bc.logoDark?'Cambiar':'+ Subir')+'</button>';
-    row+='</div>';
-    row+='</div></div></div>';
-    return row;
-  }).join('');
-  if(abEl) abEl.innerHTML=brands_html;
-
-  // \u2500\u2500 Platforms per brand \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-  var plat_html='<div class="card-title" style="margin-bottom:10px;">Plataformas activas</div>';
-  plat_html+=BRANDS.map(function(b){
     var cfg=DB.platCfg[b]||{};
-    var s='<div style="margin-bottom:12px;">';
-    s+='<div style="font-size:12px;font-weight:700;color:var(--tx);margin-bottom:6px;">'+(CREDS[b]?CREDS[b].name:b)+'</div>';
-    s+='<div style="display:flex;gap:12px;flex-wrap:wrap;">';
+    var pOn=DB.pautaOn[b]||false;
+    var name=CREDS[b]?CREDS[b].name:b;
+    html+='<div class="bcard">';
+    // Header: nombre + usuario + acciones
+    html+='<div class="bcard-head"><div><div class="bcard-name">'+name+'</div><div class="bcard-user">@'+b+'</div></div>';
+    html+='<div class="bcard-acts">';
+    html+='<button title="Editar acceso" onclick="loadUser(\''+b+'\')">✎</button>';
+    html+='<button class="del" title="Eliminar marca" onclick="deleteUser(\''+b+'\')">✕</button>';
+    html+='</div></div>';
+    // Logos
+    html+='<div><div class="bcard-lbl">Logos</div><div class="bcard-logos">';
+    html+='<div class="bcard-logo"><div class="lname">Claro</div>';
+    html+=(bc.logoLight?'<img src="'+bc.logoLight+'" style="background:#fff;">':'<div class="ph">▢</div>');
+    html+='<input type="file" id="bll-'+b+'" accept="image/png,image/jpeg,image/svg+xml" style="display:none" onchange="uploadBrandLogo(this,\''+b+'\',\'light\')">';
+    html+='<button onclick="gi(\'bll-'+b+'\').click()">'+(bc.logoLight?'Cambiar':'+ Subir')+'</button></div>';
+    html+='<div class="bcard-logo"><div class="lname">Oscuro</div>';
+    html+=(bc.logoDark?'<img src="'+bc.logoDark+'" style="background:#111;">':'<div class="ph">▢</div>');
+    html+='<input type="file" id="bld-'+b+'" accept="image/png,image/jpeg,image/svg+xml" style="display:none" onchange="uploadBrandLogo(this,\''+b+'\',\'dark\')">';
+    html+='<button onclick="gi(\'bld-'+b+'\').click()">'+(bc.logoDark?'Cambiar':'+ Subir')+'</button></div>';
+    html+='</div></div>';
+    // Redes
+    html+='<div><div class="bcard-lbl">Redes</div><div class="brand-cfg-handles">';
+    html+='<div class="bcf-row"><span class="bcf-plat ig-dot">IG</span><span style="color:var(--t2);font-size:12px;">@</span><input class="bcf-input" type="text" placeholder="handle" value="'+(bc.instagram||'')+'" data-brand="'+b+'" data-plat="instagram" onchange="saveBrandHandle(this)"></div>';
+    html+='<div class="bcf-row"><span class="bcf-plat tk-dot">TK</span><span style="color:var(--t2);font-size:12px;">@</span><input class="bcf-input" type="text" placeholder="handle" value="'+(bc.tiktok||'')+'" data-brand="'+b+'" data-plat="tiktok" onchange="saveBrandHandle(this)"></div>';
+    html+='<div class="bcf-row"><span class="bcf-plat yt-dot">YT</span><input class="bcf-input" type="text" placeholder="canal o @" value="'+(bc.youtube||'')+'" data-brand="'+b+'" data-plat="youtube" onchange="saveBrandHandle(this)"></div>';
+    html+='</div></div>';
+    // Plataformas (pills)
+    html+='<div><div class="bcard-lbl">Plataformas</div><div class="bcard-plats">';
     PLATS.forEach(function(pl){
-      var chk=cfg[pl]?'checked':'';
-      s+='<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="checkbox" '+chk+' onchange="togglePlat(\''+b+'\',\''+pl+'\',this.checked)"> '+pl+'</label>';
+      html+='<label class="ptog"><input type="checkbox" '+(cfg[pl]?'checked':'')+' onchange="togglePlat(\''+b+'\',\''+pl+'\',this.checked)"><span>'+pl+'</span></label>';
     });
-    s+='</div></div>';
-    return s;
-  }).join('');
-  if(pcEl){ pcEl.style.display=''; pcEl.innerHTML=plat_html; }
-
-  // \u2500\u2500 Pauta toggle per brand \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-  var pauta_html='<div class="card-title" style="margin-bottom:10px;">Pauta activa por marca</div>';
-  pauta_html+=BRANDS.map(function(b){
-    var on=DB.pautaOn[b]||false;
-    return '<div class="ptr'+(on?' on':'')+'" style="margin-bottom:6px;">'
-      +'<div style="font-size:12px;font-weight:700;color:var(--tx);">'+(CREDS[b]?CREDS[b].name:b)+'</div>'
-      +'<label class="sw"><input type="checkbox" '+(on?'checked':'')+' onchange="togglePauta(\''+b+'\',this.checked)"><span class="sl"></span></label>'
-      +'</div>';
-  }).join('');
-  if(paEl){ paEl.style.display=''; paEl.innerHTML=pauta_html; }
+    html+='</div></div>';
+    // Pauta
+    html+='<div class="bcard-pauta"><span class="pl">Pauta activa</span><label class="sw"><input type="checkbox" '+(pOn?'checked':'')+' onchange="togglePauta(\''+b+'\',this.checked)"><span class="sl"></span></label></div>';
+    html+='</div>';
+  });
+  html+='</div>';
+  if(abEl) abEl.innerHTML=html;
+  // Plataformas y pauta ahora viven dentro de cada tarjeta: ocultar las cards separadas
+  if(pcEl){ pcEl.style.display='none'; pcEl.innerHTML=''; }
+  if(paEl){ paEl.style.display='none'; paEl.innerHTML=''; }
 }
 
 function togglePlat(brand, plat, val) {
