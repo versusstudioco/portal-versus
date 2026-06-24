@@ -1791,6 +1791,7 @@ function renderFeedbackAdmin() {
 
 function editCycleLoad(id) {
   var c = DB.cycles.find(function(x){return x.id===id;}); if(!c) return;
+  closeCycModal();
   var titleEl=gi('cycFormTitle');
   if(titleEl){titleEl.textContent='Editando: '+c.name;titleEl.dataset.editing=id;titleEl.style.color='var(--pur)';}
   var cancelBtn=gi('cancelCycBtn'); if(cancelBtn) cancelBtn.style.display='block';
@@ -3552,134 +3553,124 @@ function deleteCycle(id) {
   }
   saveDB(); addLog('Ciclo eliminado'); showToast('Ciclo eliminado');
   renderACycles(); populateAdminSelects();
+  // Si el popup de ciclos está abierto, refrescar su lista
+  var m=gi('cycModal'); if(m&&m.classList.contains('open')) renderCycModalList();
 }
 
 var _acycBrand=null;
 function selectACycBrand(b){ _acycBrand=b; renderACycles(); }
 function backACycBrand(){ _acycBrand=null; renderACycles(); }
+
 function renderACycles() {
   if(!DB.cycles) DB.cycles=[];
   if(!DB.publications) DB.publications=[];
   var el=gi('aCycles'); if(!el) return;
-
-  if(!DB.cycles.length){
-    el.innerHTML='<div class="empty" style="padding:20px 0;text-align:center;">Sin ciclos. Crea el primero arriba.</div>';
+  if(!BRANDS.length){
+    el.innerHTML='<div class="empty" style="padding:20px 0;text-align:center;">Sin marcas. Crea un cliente en Config.</div>';
     return;
   }
-
-  // VISTA 1: tarjetas de marca — elige una para ver sus ciclos
-  if(!_acycBrand){
-    var gh='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-top:8px;">';
-    BRANDS.forEach(function(brand){
-      var bc=DB.cycles.filter(function(c){return c.brand===brand;});
-      var bName=CREDS[brand]?CREDS[brand].name:brand;
-      var act=bc.filter(function(c){return c.status==='active';}).length;
-      gh+='<div onclick="selectACycBrand(\''+brand+'\')" style="background:var(--card);border:0.5px solid var(--bd);border-radius:14px;padding:16px;cursor:pointer;box-shadow:var(--sh);">';
-      gh+='<div style="font-size:15px;font-weight:700;color:var(--tx);margin-bottom:6px;">'+bName+'</div>';
-      gh+='<div style="font-size:12px;color:var(--t2);">'+bc.length+' '+(bc.length===1?'ciclo':'ciclos')+'</div>';
-      if(act) gh+='<div style="display:inline-block;margin-top:8px;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">'+act+' activo'+(act>1?'s':'')+'</div>';
-      gh+='<div style="font-size:11px;color:var(--pur);font-weight:600;margin-top:10px;">Ver ciclos →</div>';
-      gh+='</div>';
-    });
+  // Tarjetas de marca — al tocar una se abre un popup con sus ciclos
+  var gh='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-top:8px;">';
+  BRANDS.forEach(function(brand){
+    var bc=DB.cycles.filter(function(c){return c.brand===brand;});
+    var bName=CREDS[brand]?CREDS[brand].name:brand;
+    var act=bc.filter(function(c){return c.status==='active';}).length;
+    gh+='<div onclick="openCycModal(\''+brand+'\')" style="background:var(--card);border:0.5px solid var(--bd);border-radius:14px;padding:16px;cursor:pointer;box-shadow:var(--sh);">';
+    gh+='<div style="font-size:15px;font-weight:700;color:var(--tx);margin-bottom:6px;">'+bName+'</div>';
+    gh+='<div style="font-size:12px;color:var(--t2);">'+bc.length+' '+(bc.length===1?'ciclo':'ciclos')+'</div>';
+    if(act) gh+='<div style="display:inline-block;margin-top:8px;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">'+act+' activo'+(act>1?'s':'')+'</div>';
+    gh+='<div style="font-size:11px;color:var(--pur);font-weight:600;margin-top:10px;">Ver ciclos →</div>';
     gh+='</div>';
-    el.innerHTML=gh;
-    return;
-  }
+  });
+  gh+='</div>';
+  el.innerHTML=gh;
+}
 
-  // VISTA 2: ciclos de la marca seleccionada
+// Tabla de publicaciones (contenido) de un ciclo
+function cycPubsTableHTML(brand,cycleId){
+  var cycPubs=DB.publications.filter(function(p){return p.brand===brand&&p.cycle===cycleId;});
+  if(!cycPubs.length){
+    return '<div style="padding:16px;font-size:12px;color:var(--t3);text-align:center;">Sin publicaciones en este ciclo. Agrégalas desde el panel Publicaciones.</div>';
+  }
+  var html='<div style="overflow-x:auto;">';
+  html+='<table style="width:100%;border-collapse:collapse;font-size:12px;min-width:580px;">';
+  html+='<thead><tr style="border-bottom:1px solid var(--bd);background:var(--bg3);">';
+  ['Tipo','Descripción','Fecha','Plat.','Estado','Vistas','Likes','Coment.','ER','★',''].forEach(function(th){
+    html+='<th style="padding:7px 10px;text-align:left;font-size:10px;color:var(--t2);font-weight:600;white-space:nowrap;">'+th+'</th>';
+  });
+  html+='</tr></thead><tbody>';
+  cycPubs.forEach(function(p){
+    var er=engRate(p);
+    var sc2=engScore(er);
+    var stLbl={published:'Pub',scheduled:'Prog',draft:'Bor'}[p.status]||'Bor';
+    var stCl={published:'st-pub',scheduled:'st-sch',draft:'st-dft'}[p.status]||'st-dft';
+    var tCls={Reel:'t-reel',Carrusel:'t-carr',Post:'t-post',Historia:'t-hist',Video:'t-vid',Short:'t-sho'}[p.type]||'t-post';
+    html+='<tr class="pub-row" style="border-bottom:0.5px solid var(--bd);">';
+    html+='<td style="padding:7px 10px;"><span class="ttag '+tCls+'">'+(p.type||'?')+'</span></td>';
+    html+='<td style="padding:7px 10px;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(p.desc||'—')+'</td>';
+    html+='<td style="padding:7px 10px;white-space:nowrap;color:var(--t2);">'+fD(p.date)+'</td>';
+    html+='<td style="padding:7px 10px;color:var(--t2);">'+(p.platform||'—')+'</td>';
+    html+='<td style="padding:7px 10px;"><span class="'+stCl+'">'+stLbl+'</span></td>';
+    html+='<td style="padding:7px 10px;text-align:right;">'+fN(p.views)+'</td>';
+    html+='<td style="padding:7px 10px;text-align:right;">'+fN(p.likes)+'</td>';
+    html+='<td style="padding:7px 10px;text-align:right;">'+fN(p.comments)+'</td>';
+    html+='<td style="padding:7px 10px;"><span class="eng-badge '+sc2.cls+'">'+(er||'—')+'</span></td>';
+    html+='<td style="padding:7px 10px;text-align:center;font-size:14px;">'+(p.featured?'★':'☆')+'</td>';
+    html+='<td style="padding:7px 10px;white-space:nowrap;">';
+    html+='<button class="wmc-edit-btn" onclick="openEdit(\''+p.id+'\')">Editar</button> ';
+    html+='<button class="wmc-edit-btn" style="color:var(--red);" onclick="deletePub(\''+p.id+'\')">Elim.</button>';
+    html+='</td></tr>';
+  });
+  html+='</tbody></table></div>';
+  return html;
+}
+
+// Popup: ciclos de una marca
+function openCycModal(brand){
+  _acycBrand=brand;
+  renderCycModalList();
+  var m=gi('cycModal'); if(m) m.classList.add('open');
+}
+function closeCycModal(){ var m=gi('cycModal'); if(m) m.classList.remove('open'); }
+function renderCycModalList(){
+  var body=gi('cycModalBody'); if(!body) return;
   var brand=_acycBrand;
   var bName=CREDS[brand]?CREDS[brand].name:brand;
-  var brandCycles=DB.cycles.filter(function(c){return c.brand===brand;})
-    .sort(function(a,b){ return (b.start||'').localeCompare(a.start||''); }); // newest first
-  var html='';
-  html+='<div onclick="backACycBrand()" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--pur);font-weight:600;cursor:pointer;margin-bottom:10px;">← Volver a marcas</div>';
-  html+='<div style="display:flex;align-items:center;gap:10px;margin:0 0 14px;">';
-  html+='<span style="font-size:18px;font-weight:800;color:var(--tx);">'+bName+'</span>';
-  html+='<span style="font-size:11px;color:var(--t2);">'+brandCycles.length+' '+(brandCycles.length===1?'ciclo':'ciclos')+'</span>';
-  html+='</div>';
-  if(!brandCycles.length){
-    html+='<div class="empty" style="padding:20px 0;text-align:center;">Esta marca no tiene ciclos aún. Crea el primero arriba.</div>';
+  var cycles=DB.cycles.filter(function(c){return c.brand===brand;})
+    .sort(function(a,b){return (b.start||'').localeCompare(a.start||'');});
+  var h='<div class="modal-title">'+bName+'</div>';
+  h+='<p class="tip" style="margin-bottom:14px;">Selecciona un ciclo para ver su contenido.</p>';
+  if(!cycles.length){
+    h+='<div class="empty" style="padding:20px 0;text-align:center;">Esta marca no tiene ciclos aún. Crea el primero arriba.</div>';
   }
-  brandCycles.forEach(function(c){
-      var cycPubs=DB.publications.filter(function(p){return p.brand===brand&&p.cycle===c.id;});
-      var pubTotal=cycPubs.length;
-      var pubPub=cycPubs.filter(function(p){return p.status==='published';}).length;
-      var isActive=c.status==='active';
-      var accId='cyc-acc-'+c.id;
-      var chevId='chev-'+c.id;
-
-      // \u2500\u2500 CYCLE CARD \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-      html+='<div class="cyc-acc-card" id="card-'+c.id+'">';
-
-      // Header row
-      html+='<div class="cyc-acc-head" onclick="toggleCycAcc(\''+c.id+'\')">';
-
-      // Left: info
-      html+='<div style="flex:1;min-width:0;">';
-      html+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">';
-      html+='<span style="font-size:14px;font-weight:700;color:var(--tx);">'+c.name+'</span>';
-      if(isActive) html+='<span style="background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">Activo</span>';
-      html+='</div>';
-      html+='<div style="display:flex;gap:16px;font-size:11px;color:var(--t2);">';
-      html+='<span>'+fD(c.start)+' \u2014 '+fD(c.end)+'</span>';
-      html+='<span style="color:var(--grn);font-weight:600;">'+pubPub+' publicadas</span>';
-      html+='<span style="color:var(--t3);">'+pubTotal+' total</span>';
-      if(c.reels||c.carruseles||c.posts) {
-        var obj=(Number(c.reels)||0)+(Number(c.carruseles)||0)+(Number(c.posts)||0);
-        html+='<span style="color:var(--pur);">Meta: '+obj+' creativos</span>';
-      }
-      html+='</div></div>';
-
-      // Right: buttons + chevron
-      html+='<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">';
-      html+='<button class="wmc-edit-btn" style="padding:5px 10px;" onclick="event.stopPropagation();editCycleLoad(\''+c.id+'\')">Editar</button>';
-      html+='<button class="wmc-edit-btn" style="padding:5px 8px;color:var(--red);" onclick="event.stopPropagation();deleteCycle(\''+c.id+'\')">Elim.</button>';
-      html+='<span id="'+chevId+'" style="font-size:12px;color:var(--t3);margin-left:4px;transition:transform .2s;">\u25B6</span>';
-      html+='</div></div>';
-
-      // \u2500\u2500 PUBLICATIONS BODY \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-      html+='<div id="'+accId+'" style="display:none;border-top:0.5px solid var(--bd);padding:0 0 12px;">';
-
-      if(!pubTotal){
-        html+='<div style="padding:16px;font-size:12px;color:var(--t3);text-align:center;">Sin publicaciones en este ciclo. Agr\u00E9galas desde el panel Publicaciones.</div>';
-      } else {
-        html+='<div style="overflow-x:auto;">';
-        html+='<table style="width:100%;border-collapse:collapse;font-size:12px;min-width:580px;">';
-        // Table header
-        html+='<thead><tr style="border-bottom:1px solid var(--bd);background:var(--bg3);">';
-        ['Tipo','Descripci\u00f3n','Fecha','Plat.','Estado','Vistas','Likes','Coment.','ER','\u2605',''].forEach(function(th){
-          html+='<th style="padding:7px 10px;text-align:left;font-size:10px;color:var(--t2);font-weight:600;white-space:nowrap;">'+th+'</th>';
-        });
-        html+='</tr></thead><tbody>';
-
-        cycPubs.forEach(function(p){
-          var er=engRate(p);
-          var sc2=engScore(er);
-          var stLbl={published:'Pub',scheduled:'Prog',draft:'Bor'}[p.status]||'Bor';
-          var stCl={published:'st-pub',scheduled:'st-sch',draft:'st-dft'}[p.status]||'st-dft';
-          var tCls={Reel:'t-reel',Carrusel:'t-carr',Post:'t-post',Historia:'t-hist',Video:'t-vid',Short:'t-sho'}[p.type]||'t-post';
-          html+='<tr class="pub-row" style="border-bottom:0.5px solid var(--bd);">';
-          html+='<td style="padding:7px 10px;"><span class="ttag '+tCls+'">'+(p.type||'?')+'</span></td>';
-          html+='<td style="padding:7px 10px;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(p.desc||'\u2014')+'</td>';
-          html+='<td style="padding:7px 10px;white-space:nowrap;color:var(--t2);">'+fD(p.date)+'</td>';
-          html+='<td style="padding:7px 10px;color:var(--t2);">'+(p.platform||'\u2014')+'</td>';
-          html+='<td style="padding:7px 10px;"><span class="'+stCl+'">'+stLbl+'</span></td>';
-          html+='<td style="padding:7px 10px;text-align:right;">'+fN(p.views)+'</td>';
-          html+='<td style="padding:7px 10px;text-align:right;">'+fN(p.likes)+'</td>';
-          html+='<td style="padding:7px 10px;text-align:right;">'+fN(p.comments)+'</td>';
-          html+='<td style="padding:7px 10px;"><span class="eng-badge '+sc2.cls+'">'+(er||'\u2014')+'</span></td>';
-          html+='<td style="padding:7px 10px;text-align:center;font-size:14px;">'+(p.featured?'\u2605':'\u2606')+'</td>';
-          html+='<td style="padding:7px 10px;white-space:nowrap;">';
-          html+='<button class="wmc-edit-btn" onclick="openEdit(\''+p.id+'\')">Editar</button> ';
-          html+='<button class="wmc-edit-btn" style="color:var(--red);" onclick="deletePub(\''+p.id+'\')">Elim.</button>';
-          html+='</td></tr>';
-        });
-        html+='</tbody></table></div>';
-      }
-      html+='</div></div>';
-    });
-
-  el.innerHTML=html;
+  cycles.forEach(function(c){
+    var cycPubs=DB.publications.filter(function(p){return p.brand===brand&&p.cycle===c.id;});
+    var pubPub=cycPubs.filter(function(p){return p.status==='published';}).length;
+    var isActive=c.status==='active';
+    h+='<div onclick="selectCycInModal(\''+c.id+'\')" style="background:var(--bg3);border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;">';
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">';
+    h+='<div style="flex:1;min-width:0;">';
+    h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="font-size:14px;font-weight:700;color:var(--tx);">'+c.name+'</span>';
+    if(isActive) h+='<span style="background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">Activo</span>';
+    h+='</div>';
+    h+='<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--t2);"><span>'+fD(c.start)+' — '+fD(c.end)+'</span><span style="color:var(--grn);font-weight:600;">'+pubPub+' publicadas</span><span style="color:var(--t3);">'+cycPubs.length+' total</span></div>';
+    h+='</div>';
+    h+='<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">';
+    h+='<button class="wmc-edit-btn" style="padding:5px 10px;" onclick="event.stopPropagation();editCycleLoad(\''+c.id+'\')">Editar</button>';
+    h+='<button class="wmc-edit-btn" style="padding:5px 8px;color:var(--red);" onclick="event.stopPropagation();deleteCycle(\''+c.id+'\')">Elim.</button>';
+    h+='<span style="font-size:13px;color:var(--pur);">→</span>';
+    h+='</div></div></div>';
+  });
+  body.innerHTML=h;
+}
+function selectCycInModal(cycleId){
+  var body=gi('cycModalBody'); if(!body) return;
+  var c=DB.cycles.find(function(x){return x.id===cycleId;}); if(!c) return;
+  var h='<div onclick="renderCycModalList()" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--pur);font-weight:600;cursor:pointer;margin-bottom:10px;">← Volver a ciclos</div>';
+  h+='<div class="modal-title">'+c.name+'</div>';
+  h+='<p class="tip" style="margin-bottom:14px;">'+fD(c.start)+' — '+fD(c.end)+'</p>';
+  h+=cycPubsTableHTML(c.brand,cycleId);
+  body.innerHTML=h;
 }
 
 function toggleCycAcc(cycId){
@@ -4524,6 +4515,13 @@ function cancelImport() {
     <button class="modal-close" onclick="closePubDetail()">&#10005;</button>
     <div class="modal-title">Detalle de publicaci&#243;n</div>
     <div id="pubDetailBody"></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="cycModal">
+  <div class="modal" style="max-width:680px;">
+    <button class="modal-close" onclick="closeCycModal()">&#10005;</button>
+    <div id="cycModalBody"></div>
   </div>
 </div>
 
