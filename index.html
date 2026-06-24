@@ -27,6 +27,9 @@ document.addEventListener("DOMContentLoaded", function() {
   try { firebase.initializeApp(firebaseConfig); FBDB = firebase.database(); }
   catch(e) { console.warn("Firebase no disponible:", e.message); FBDB = null; }
 });
+// Si el usuario cierra/recarga con un guardado pendiente, lo forzamos a Firebase
+window.addEventListener("beforeunload", function(){ try{ if(typeof flushSave==="function") flushSave(); }catch(e){} });
+</script>
 <style>
 :root{
   --red:#F90000;--pur:#6C00FF;--grn:#22c55e;--yel:#f59e0b;--ora:#ff6400;
@@ -1360,18 +1363,28 @@ function loadDB() {
     return db;
   } catch(e) { return defaultDB(); }
 }
-function saveDB() {
-  sanitizeDB();
-  try {
-    localStorage.setItem(DB_KEY, JSON.stringify(DB));
-    localStorage.setItem(DB_KEY+"_creds", JSON.stringify(CREDS));
-  } catch(e) {}
+var _fbSaveTimer=null;
+function _fbPush() {
+  _fbSaveTimer=null;
   try {
     if(FBDB && typeof FBDB.ref === "function") {
       FBDB.ref("vsportal/db").set(DB).catch(function(e){console.warn("FB db:",e.message);});
       FBDB.ref("vsportal/creds").set(CREDS).catch(function(e){console.warn("FB creds:",e.message);});
     }
   } catch(e){ console.warn("Firebase save:",e.message); }
+}
+// Escribe a Firebase de inmediato cualquier cambio pendiente (al cerrar sesion/pestana)
+function flushSave() { if(_fbSaveTimer){ clearTimeout(_fbSaveTimer); _fbPush(); } }
+function saveDB() {
+  sanitizeDB();
+  // Persistencia local: instantanea
+  try {
+    localStorage.setItem(DB_KEY, JSON.stringify(DB));
+    localStorage.setItem(DB_KEY+"_creds", JSON.stringify(CREDS));
+  } catch(e) {}
+  // Persistencia en Firebase: agrupada (debounce) para no escribir la BD entera en cada cambio
+  if(_fbSaveTimer) clearTimeout(_fbSaveTimer);
+  _fbSaveTimer=setTimeout(_fbPush, 600);
 }
 var DB = loadDB();
 // Ensure DB always has required arrays
@@ -2055,6 +2068,8 @@ function doLogin() {
 }
 
 function doLogout() {
+  // Asegura que cualquier cambio pendiente se escriba antes de cortar la sesion
+  flushSave();
   // Stop Firebase sync listener
   try {
     if(FBDB && typeof FBDB.ref === "function") {
