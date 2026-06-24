@@ -3515,6 +3515,17 @@ function togglePauta(brand, val) {
 }
 
 // ===== CYCLES =====
+// Solo el ciclo mas reciente (por fecha de inicio) de la marca queda "active";
+// los demas pasan a "closed" (siguen visibles como historial).
+function normalizeBrandActive(brand){
+  var bc=DB.cycles.filter(function(c){return c.brand===brand;});
+  if(!bc.length) return;
+  var latest=bc.reduce(function(a,b){return (b.start||"")>(a.start||"")?b:a;});
+  DB.cycles.forEach(function(c){
+    if(c.brand!==brand) return;
+    c.status = (c.id===latest.id) ? "active" : "closed";
+  });
+}
 function saveCycle() {
   try {
   var brand = gv("aCB");
@@ -3544,6 +3555,7 @@ function saveCycle() {
     addLog("Ciclo '"+name+"' creado para "+brand);
     showToast("\u00A1Ciclo creado!");
   }
+  normalizeBrandActive(brand);
   saveDB();
   sv("aCN",""); sv("aCS",""); sv("aCE","");
   sv("aCBF","0"); sv("aCBV","0");
@@ -3554,6 +3566,8 @@ function saveCycle() {
 
 function deleteCycle(id) {
   if(!confirm('Eliminar este ciclo?')) return;
+  var delCyc=DB.cycles.find(function(c){return c.id===id;});
+  var delBrand=delCyc?delCyc.brand:null;
   DB.cycles = DB.cycles.filter(function(c){return c.id!==id;});
   DB.publications = DB.publications.filter(function(p){return p.cycle!==id;});
   if(DB.weekMetrics){
@@ -3561,6 +3575,7 @@ function deleteCycle(id) {
       if(k.indexOf('__'+id+'__')>=0) delete DB.weekMetrics[k];
     });
   }
+  if(delBrand) normalizeBrandActive(delBrand);
   saveDB(); addLog('Ciclo eliminado'); showToast('Ciclo eliminado');
   renderACycles(); populateAdminSelects();
   // Si el popup de ciclos está abierto, refrescar su lista
