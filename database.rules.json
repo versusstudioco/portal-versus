@@ -1,0 +1,25 @@
+{
+  "rules": {
+    "//": "Reglas de seguridad Firebase RTDB - Portal VERSUS (FASE 1, no rompe el portal).",
+    "//2": "Bloquea todo fuera de 'vsportal'. Permite leer vsportal y escribir solo db y creds.",
+    "//3": "Anti-wipe: la validacion rechaza vaciar db/creds a null (no se puede borrar todo).",
+
+    ".read": false,
+    ".write": false,
+
+    "vsportal": {
+      ".read": true,
+      ".write": false,
+
+      "db": {
+        ".write": true,
+        ".validate": "newData.hasChildren()"
+      },
+
+      "creds": {
+        ".write": true,
+        ".validate": "newData.hasChildren()"
+      }
+    }
+  }
+}
