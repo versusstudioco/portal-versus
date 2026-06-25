@@ -2053,14 +2053,26 @@ function saveUser() {
 
 function deleteUser(u) {
   if(u==="versus_admin") { showToast("No puedes eliminar el admin."); return; }
-  if(!confirm("\u00BFEliminar @"+u+"?")) return;
+  if(!confirm("\u00BFEliminar @"+u+"? Se borraran tambien sus ciclos, publicaciones, objetivos y configuracion.")) return;
   delete CREDS[u];
   var bi=BRANDS.indexOf(u); if(bi>=0) BRANDS.splice(bi,1);
+  // Limpiar datos asociados a la marca para no dejar huerfanos
+  if(DB.cycles)       DB.cycles       = DB.cycles.filter(function(c){return c.brand!==u;});
+  if(DB.publications) DB.publications = DB.publications.filter(function(p){return p.brand!==u;});
+  if(DB.objectives)   DB.objectives   = DB.objectives.filter(function(o){return o.brand!==u;});
+  if(DB.pauta)        DB.pauta        = DB.pauta.filter(function(p){return p.brand!==u;});
+  if(DB.brandCfg)     delete DB.brandCfg[u];
+  if(DB.platCfg)      delete DB.platCfg[u];
+  if(DB.pautaOn)      delete DB.pautaOn[u];
+  if(DB.logros)       delete DB.logros[u];
+  if(DB.feedback)     delete DB.feedback[u];
+  if(DB.notifications)delete DB.notifications[u];
   saveDB();
+  flushSave();              // escribir la eliminacion a Firebase de inmediato (evita que el sync la revierta)
   renderUserList();
   renderConfig();
   populateAdminSelects();
-  showToast("Usuario eliminado.");
+  showToast("Marca eliminada.");
 }
 function clearUserForm() {
   sv("uUN",""); sv("uName",""); sv("uPass",""); sv("uType","client");
@@ -2108,9 +2120,13 @@ function startFirebaseSync() {
   FBDB.ref("vsportal/creds").on("value", function(snap) {
     if(!snap.val()||!FB_LOADED) return;
     var nc=snap.val();
+    // Reemplazar (no fusionar): si una marca/usuario se elimino, debe desaparecer
+    Object.keys(CREDS).forEach(function(k){ if(!nc[k]) delete CREDS[k]; });
     Object.keys(nc).forEach(function(k){CREDS[k]=nc[k];});
     BRANDS.length=0;
-    Object.keys(CREDS).forEach(function(k){if(CREDS[k].type==="client")BRANDS.push(k);});
+    Object.keys(CREDS).forEach(function(k){if(CREDS[k]&&CREDS[k].type==="client")BRANDS.push(k);});
+    // Si el admin esta en Config, refrescar para reflejar el cambio
+    if(CU&&CREDS[CU]&&CREDS[CU].type==="admin"){ try{ if(typeof renderConfig==="function") renderConfig(); if(typeof renderUserList==="function") renderUserList(); }catch(e){} }
   });
 }
 function doLogin() {
