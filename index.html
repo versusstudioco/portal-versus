@@ -476,7 +476,9 @@ img{max-width:100%;display:block;}
 .bcard:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(0,0,0,.12);}
 .bcard-head{display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .bcard-id{display:flex;align-items:center;gap:11px;min-width:0;}
-.bcard-av{width:38px;height:38px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:var(--bg2);background:var(--tx);}
+.bcard-av{width:38px;height:38px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:var(--bg2);background:var(--tx);overflow:hidden;}
+.bcard-av.has-logo{background:#fff;border:0.5px solid var(--bd);padding:4px;}
+.bcard-av.has-logo img{width:100%;height:100%;object-fit:contain;}
 .bcard-name{font-size:15px;font-weight:800;color:var(--tx);line-height:1.15;}
 .bcard-user{font-size:11px;color:var(--t2);font-family:monospace;margin-top:3px;}
 .bcard-acts{display:flex;gap:6px;flex-shrink:0;}
@@ -3502,7 +3504,9 @@ function renderConfig() {
     var name=CREDS[b]?CREDS[b].name:b;
     html+='<div class="bcard">';
     // Header: avatar + nombre + usuario + acciones
-    html+='<div class="bcard-head"><div class="bcard-id"><div class="bcard-av">'+(name.charAt(0)||'?').toUpperCase()+'</div><div style="min-width:0;"><div class="bcard-name">'+name+'</div><div class="bcard-user">@'+b+'</div></div></div>';
+    var _avLogo=bc.logoLight||bc.logoDark;
+    var _av=_avLogo?'<div class="bcard-av has-logo"><img src="'+_avLogo+'"></div>':'<div class="bcard-av">'+(name.charAt(0)||'?').toUpperCase()+'</div>';
+    html+='<div class="bcard-head"><div class="bcard-id">'+_av+'<div style="min-width:0;"><div class="bcard-name">'+name+'</div><div class="bcard-user">@'+b+'</div></div></div>';
     html+='<div class="bcard-acts">';
     html+='<button title="Editar acceso" onclick="loadUser(\''+b+'\')">✎</button>';
     html+='<button class="del" title="Eliminar marca" onclick="deleteUser(\''+b+'\')">✕</button>';
@@ -3789,8 +3793,11 @@ function renderAObj() {
   sorted.forEach(function(b){
     var n=DB.objectives.filter(function(o){return o.brand===b;}).length;
     var name=CREDS[b]?CREDS[b].name:b;
+    var _obc=DB.brandCfg[b]||{};
+    var _oLogo=_obc.logoLight||_obc.logoDark;
+    var _oav=_oLogo?'<div class="bcard-av has-logo"><img src="'+_oLogo+'"></div>':'<div class="bcard-av">'+(name.charAt(0)||'?').toUpperCase()+'</div>';
     html+='<div class="bcard" style="gap:10px;cursor:pointer;" onclick="openObjModal(\''+b+'\')">';
-    html+='<div class="bcard-head"><div class="bcard-id"><div class="bcard-av">'+(name.charAt(0)||'?').toUpperCase()+'</div><div style="min-width:0;"><div class="bcard-name">'+name+'</div><div class="bcard-user">'+n+' '+(n===1?'objetivo':'objetivos')+'</div></div></div></div>';
+    html+='<div class="bcard-head"><div class="bcard-id">'+_oav+'<div style="min-width:0;"><div class="bcard-name">'+name+'</div><div class="bcard-user">'+n+' '+(n===1?'objetivo':'objetivos')+'</div></div></div></div>';
     html+='<div style="font-size:11px;color:var(--pur);font-weight:600;">Ver objetivos</div>';
     html+='</div>';
   });
