@@ -1024,81 +1024,96 @@ img{max-width:100%;display:block;}
 
   <!-- OBJETIVOS + METRICAS -->
   <div id="at-obj" class="panel">
+    <!-- Revisar objetivos por marca -->
     <div class="card">
-      <div class="card-title">Objetivos del ciclo</div>
-      <div class="fr">
-        <div class="ff"><label>Marca</label><select id="aOB" onchange="popCyc('aOC',this.value)"></select></div>
-        <div class="ff"><label>Ciclo</label><select id="aOC"><option value="">- selecciona marca -</option></select></div>
-      </div>
-      <div class="fr s1"><div class="ff"><label>Plataforma</label>
-        <select id="aOP"><option>Instagram</option><option>YouTube</option><option>TikTok</option></select>
-      </div></div>
-      <div class="div"></div>
-
-      <p class="tip">Contenido prometido (creativos)</p>
-      <div class="fr t3">
-        <div class="ff"><label>Reels</label><input type="number" id="aOReels" value="0" min="0"></div>
-        <div class="ff"><label>Carruseles</label><input type="number" id="aOCarr" value="0" min="0"></div>
-        <div class="ff"><label>Posts</label><input type="number" id="aOPosts" value="0" min="0"></div>
-      </div>
-      <div class="fr">
-        <div class="ff"><label>Historias (ciclo)</label><input type="number" id="aOSt" value="0" min="0"></div>
-      </div>
-      <div class="div"></div>
-      <p class="tip">Meta de crecimiento</p>
-      <div class="fr">
-        <div class="ff"><label>Seguidores objetivo</label><input type="number" id="aOF" value="0" min="0" placeholder="Ej: 5000"></div>
-        <div class="ff"><label>Nuevos seguidores meta</label><input type="number" id="aOGrowth" value="0" min="0" placeholder="Ej: 200"></div>
-      </div>
-      <button class="btn btn-pur" onclick="saveObj()">Guardar Objetivos</button>
-    </div>
-    <div class="card" style="margin-top:4px;">
       <div class="card-title">Objetivos por marca</div>
       <p class="tip">Toca una marca para ver y editar sus objetivos.</p>
       <div id="objList"><div class="empty">Sin objetivos guardados.</div></div>
     </div>
-    <div class="card" style="margin-top:4px;">
-      <div class="card-title">Metricas reales — por semana</div>
-      <div class="fr">
-        <div class="ff"><label>Marca</label><select id="aMB" onchange="popCyc('aMC',this.value); setTimeout(renderWeekMetricsList,100);"></select></div>
-        <div class="ff"><label>Ciclo</label><select id="aMC" onchange="loadWeekMetrics()"><option value="">- selecciona marca -</option></select></div>
-      </div>
-      <div class="fr s1">
-        <div class="ff"><label>Plataforma</label>
-          <select id="aMP" onchange="loadWeekMetrics()"><option>Instagram</option><option>YouTube</option><option>TikTok</option></select>
+
+    <!-- Crear / editar objetivo -->
+    <div class="acc" id="accObjForm">
+      <div class="acc-head" onclick="toggleAcc(this)"><span class="acc-t">Crear / editar objetivo</span><span class="acc-chev"></span></div>
+      <div class="acc-body">
+        <div class="fr">
+          <div class="ff"><label>Marca</label><select id="aOB" onchange="popCyc('aOC',this.value)"></select></div>
+          <div class="ff"><label>Ciclo</label><select id="aOC"><option value="">- selecciona marca -</option></select></div>
+        </div>
+        <div class="fr s1"><div class="ff"><label>Plataforma</label>
+          <select id="aOP"><option>Instagram</option><option>YouTube</option><option>TikTok</option></select>
+        </div></div>
+        <div class="div"></div>
+        <p class="tip">Contenido prometido (creativos)</p>
+        <div class="fr t3">
+          <div class="ff"><label>Reels</label><input type="number" id="aOReels" value="0" min="0"></div>
+          <div class="ff"><label>Carruseles</label><input type="number" id="aOCarr" value="0" min="0"></div>
+          <div class="ff"><label>Posts</label><input type="number" id="aOPosts" value="0" min="0"></div>
+        </div>
+        <div class="fr">
+          <div class="ff"><label>Historias (ciclo)</label><input type="number" id="aOSt" value="0" min="0"></div>
+        </div>
+        <div class="div"></div>
+        <p class="tip">Meta de crecimiento</p>
+        <div class="fr">
+          <div class="ff"><label>Seguidores objetivo</label><input type="number" id="aOF" value="0" min="0" placeholder="Ej: 5000"></div>
+          <div class="ff"><label>Nuevos seguidores meta</label><input type="number" id="aOGrowth" value="0" min="0" placeholder="Ej: 200"></div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-pur" onclick="saveObj()">Guardar objetivo</button>
+          <button class="btn btn-ghost" onclick="clearObjForm()">Limpiar</button>
         </div>
       </div>
-      <div class="div"></div>
-      <p class="tip">Selecciona la semana a ingresar</p>
-      <div class="fr">
-        <div class="ff"><label>Semana</label>
-          <select id="aMWeek" onchange="loadWeekMetrics()">
-            <option value="1">Semana 1</option>
-            <option value="2">Semana 2</option>
-            <option value="3">Semana 3</option>
-            <option value="4">Semana 4</option>
-          </select>
-        </div>
-        <div class="ff"><label>Fecha inicio semana</label>
-          <input type="date" id="aMWeekDate" placeholder="Fecha inicio de esta semana">
-        </div>
-      </div>
-      <div class="div"></div>
-      <p class="tip">Datos de la semana</p>
-      <div class="fr">
-        <div class="ff"><label>Seguidores al cierre</label><input type="number" id="aMF" value="0" min="0"></div>
-        <div class="ff"><label>Visualizaciones</label><input type="number" id="aMV" value="0" min="0"></div>
-      </div>
-      <p class="tip" style="color:var(--t3);font-style:italic;">El engagement se calcula automaticamente con los datos de publicaciones.</p>
-      <button class="btn btn-pur" onclick="saveMet()">Guardar semana</button>
     </div>
-    <div class="card" style="margin-top:4px;">
-      <div class="card-title">Resumen por semanas</div>
-      <div id="weekMetList"><div class="empty">Selecciona marca, ciclo y plataforma.</div></div>
+
+    <!-- Metricas reales por semana -->
+    <div class="acc" id="accMetForm">
+      <div class="acc-head" onclick="toggleAcc(this)"><span class="acc-t">Métricas reales por semana</span><span class="acc-chev"></span></div>
+      <div class="acc-body">
+        <div class="fr">
+          <div class="ff"><label>Marca</label><select id="aMB" onchange="popCyc('aMC',this.value); setTimeout(renderWeekMetricsList,100);"></select></div>
+          <div class="ff"><label>Ciclo</label><select id="aMC" onchange="loadWeekMetrics()"><option value="">- selecciona marca -</option></select></div>
+        </div>
+        <div class="fr s1">
+          <div class="ff"><label>Plataforma</label>
+            <select id="aMP" onchange="loadWeekMetrics()"><option>Instagram</option><option>YouTube</option><option>TikTok</option></select>
+          </div>
+        </div>
+        <div class="div"></div>
+        <p class="tip">Selecciona la semana a ingresar</p>
+        <div class="fr">
+          <div class="ff"><label>Semana</label>
+            <select id="aMWeek" onchange="loadWeekMetrics()">
+              <option value="1">Semana 1</option>
+              <option value="2">Semana 2</option>
+              <option value="3">Semana 3</option>
+              <option value="4">Semana 4</option>
+            </select>
+          </div>
+          <div class="ff"><label>Fecha inicio semana</label>
+            <input type="date" id="aMWeekDate" placeholder="Fecha inicio de esta semana">
+          </div>
+        </div>
+        <div class="div"></div>
+        <p class="tip">Datos de la semana</p>
+        <div class="fr">
+          <div class="ff"><label>Seguidores al cierre</label><input type="number" id="aMF" value="0" min="0"></div>
+          <div class="ff"><label>Visualizaciones</label><input type="number" id="aMV" value="0" min="0"></div>
+        </div>
+        <p class="tip" style="color:var(--t3);font-style:italic;">El engagement se calcula automaticamente con los datos de publicaciones.</p>
+        <button class="btn btn-pur" onclick="saveMet()">Guardar semana</button>
+        <div style="margin-top:18px;border-top:0.5px solid var(--bd);padding-top:14px;">
+          <div class="acc-sub">Resumen por semanas</div>
+          <div id="weekMetList"><div class="empty">Selecciona marca, ciclo y plataforma.</div></div>
+        </div>
+      </div>
     </div>
-    <div class="card" style="margin-top:4px;">
-      <div class="card-title">Feedback de clientes</div>
-      <div id="feedbackList"><div class="empty">Sin feedback.</div></div>
+
+    <!-- Feedback de clientes -->
+    <div class="acc" id="accFeedback">
+      <div class="acc-head" onclick="toggleAcc(this)"><span class="acc-t">Feedback de clientes</span><span class="acc-chev"></span></div>
+      <div class="acc-body">
+        <div id="feedbackList"><div class="empty">Sin feedback.</div></div>
+      </div>
     </div>
   </div>
 
@@ -3647,7 +3662,7 @@ function renderACycles() {
     gh+='<div style="font-size:15px;font-weight:700;color:var(--tx);margin-bottom:6px;">'+bName+'</div>';
     gh+='<div style="font-size:12px;color:var(--t2);">'+bc.length+' '+(bc.length===1?'ciclo':'ciclos')+'</div>';
     if(act) gh+='<div style="display:inline-block;margin-top:8px;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">'+act+' activo'+(act>1?'s':'')+'</div>';
-    gh+='<div style="font-size:11px;color:var(--pur);font-weight:600;margin-top:10px;">Ver ciclos</div>';
+    gh+='<div style="font-size:11px;color:var(--t2);font-weight:600;margin-top:10px;">Ver ciclos</div>';
     gh+='</div>';
   });
   gh+='</div>';
@@ -3733,7 +3748,7 @@ function renderCycModalList(){
 function selectCycInModal(cycleId){
   var body=gi('cycModalBody'); if(!body) return;
   var c=DB.cycles.find(function(x){return x.id===cycleId;}); if(!c) return;
-  var h='<div onclick="renderCycModalList()" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--pur);font-weight:600;cursor:pointer;margin-bottom:10px;">‹ Volver a ciclos</div>';
+  var h='<div onclick="renderCycModalList()" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);font-weight:600;cursor:pointer;margin-bottom:10px;">‹ Volver a ciclos</div>';
   h+='<div class="modal-title">'+c.name+'</div>';
   h+='<p class="tip" style="margin-bottom:14px;">'+fD(c.start)+' — '+fD(c.end)+'</p>';
   h+=cycPubsTableHTML(c.brand,cycleId);
@@ -3798,7 +3813,7 @@ function renderAObj() {
     var _oav=_oLogo?'<div class="bcard-av has-logo"><img src="'+_oLogo+'"></div>':'<div class="bcard-av">'+(name.charAt(0)||'?').toUpperCase()+'</div>';
     html+='<div class="bcard" style="gap:10px;cursor:pointer;" onclick="openObjModal(\''+b+'\')">';
     html+='<div class="bcard-head"><div class="bcard-id">'+_oav+'<div style="min-width:0;"><div class="bcard-name">'+name+'</div><div class="bcard-user">'+n+' '+(n===1?'objetivo':'objetivos')+'</div></div></div></div>';
-    html+='<div style="font-size:11px;color:var(--pur);font-weight:600;">Ver objetivos</div>';
+    html+='<div style="font-size:11px;color:var(--t2);font-weight:600;">Ver objetivos</div>';
     html+='</div>';
   });
   html+='</div>';
@@ -3835,8 +3850,12 @@ function renderObjModalList(){
   });
   body.innerHTML=h;
 }
+function clearObjForm(){
+  ['aOReels','aOCarr','aOPosts','aOSt','aOF','aOGrowth'].forEach(function(id){var e=gi(id);if(e)e.value=0;});
+}
 function loadObj(brand, cycle, plat) {
   closeObjModal();
+  var acc=gi("accObjForm"); if(acc) acc.classList.add("open");
   sv("aOB", brand);
   popCyc("aOC", brand);       // popCyc es sincrono: las opciones ya existen
   sv("aOC", cycle);
