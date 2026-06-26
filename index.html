@@ -2454,9 +2454,21 @@ function renderResumen(cycId) {
   html+='<div class="adv-prog-bar"><div class="adv-prog-fill" style="width:'+pct+'%"></div></div>';
   html+='<div class="adv-prog-pct">'+pct+'%  ('+dl+' d\u00edas)</div></div>';
 
+  // Metas de contenido: preferir lo definido en Objetivos (DB.objectives); si no hay, usar el ciclo.
+  var _cobjs=(DB.objectives||[]).filter(function(o){return o.brand===CU&&o.cycle===cycId;});
+  var goals={reels:Number(cyc.reels)||0,carruseles:Number(cyc.carruseles)||0,posts:Number(cyc.posts)||0,historias:Number(cyc.historias)||0,videos:Number(cyc.videos)||0,shorts:Number(cyc.shorts)||0};
+  if(_cobjs.length){
+    var _s={reels:0,carruseles:0,posts:0,historias:0};
+    _cobjs.forEach(function(o){ _s.reels+=Number(o.reels)||0; _s.carruseles+=Number(o.carruseles)||0; _s.posts+=Number(o.posts)||0; _s.historias+=Number(o.stories)||0; });
+    // El objetivo manda si trae valor; si trae 0 en un campo, se conserva el del ciclo
+    if(_s.reels)      goals.reels=_s.reels;
+    if(_s.carruseles) goals.carruseles=_s.carruseles;
+    if(_s.posts)      goals.posts=_s.posts;
+    if(_s.historias)  goals.historias=_s.historias;
+  }
   // Contenido
   var totalProm=0;
-  [{k:'reels'},{k:'carruseles'},{k:'posts'},{k:'historias'},{k:'videos'},{k:'shorts'}].forEach(function(t){totalProm+=Number(cyc[t.k])||0;});
+  [{k:'reels'},{k:'carruseles'},{k:'posts'},{k:'historias'},{k:'videos'},{k:'shorts'}].forEach(function(t){totalProm+=Number(goals[t.k])||0;});
   if(totalProm>0){
     var pctDel=Math.min(100,Math.round((pubsInCyc.length/totalProm)*100));
     html+='<div class="adv-prog-row"><div class="adv-prog-lbl">Contenido</div>';
@@ -2468,11 +2480,11 @@ function renderResumen(cycId) {
   var promCreat=0, entrCreat=0;
   var creatiTypes=[{k:'reels',sing:'Reel',lbl:'Reels'},{k:'carruseles',sing:'Carrusel',lbl:'Carruseles'},{k:'posts',sing:'Post',lbl:'Posts'}];
   creatiTypes.forEach(function(t){
-    promCreat+=Number(cyc[t.k])||0;
+    promCreat+=Number(goals[t.k])||0;
     entrCreat+=pubsInCyc.filter(function(p){return p.type===t.sing||p.type===t.lbl;}).length;
   });
   // Historias: metrica independiente
-  var promHist=Number(cyc.historias)||0;
+  var promHist=Number(goals.historias)||0;
   var entrHist=pubsInCyc.filter(function(p){return p.type==='Historia'||p.type==='Historias';}).length;
   var histPubs2=pubsInCyc.filter(function(p){return p.type==='Historia';});
   var totalSV2=histPubs2.reduce(function(a,p){return a+(Number(p.storiesViews)||0);},0);
@@ -2494,7 +2506,7 @@ function renderResumen(cycId) {
       if(hasGoalC) html+='<div class="kpi-bar"><div class="kpi-fill '+clC+'" style="width:'+Math.min(100,pctC)+'%"></div></div>';
       html+='<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">';
       creatiTypes.forEach(function(t){
-        var m2=Number(cyc[t.k])||0;
+        var m2=Number(goals[t.k])||0;
         var d2=pubsInCyc.filter(function(p){return p.type===t.sing||p.type===t.lbl;}).length;
         if(!m2&&!d2) return;
         if(m2>0){
