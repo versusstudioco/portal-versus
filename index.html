@@ -2069,6 +2069,7 @@ function deleteUser(u) {
   if(DB.notifications)delete DB.notifications[u];
   saveDB();
   flushSave();              // escribir la eliminacion a Firebase de inmediato (evita que el sync la revierta)
+  var bm=gi('brandModal'); if(bm) bm.classList.remove('open');
   renderUserList();
   renderConfig();
   populateAdminSelects();
@@ -2109,12 +2110,21 @@ function startFirebaseSync() {
     try { localStorage.setItem(DB_KEY, JSON.stringify(DB)); } catch(e) {}
     if(CU&&CREDS[CU]&&CREDS[CU].type!=="admin") {
       var cid=actCyc[CU];
-      // Only render if the cycle belongs to this user's brand
       if(cid) {
         var ownCyc=DB.cycles&&DB.cycles.find(function(c){return c.id===cid&&c.brand===CU;});
-        if(ownCyc) renderResumen(cid);
-        else { actCyc[CU]=null; initDash(); }
-      }
+        if(!ownCyc){ actCyc[CU]=null; initDash(); }
+        else {
+          // Refrescar la pestana que el cliente tenga abierta (no solo el resumen)
+          var ap=document.querySelector("#dashScreen .panel.active");
+          var tab=ap?ap.id.replace("p-",""):"resumen";
+          try{
+            if(tab==="contenido") renderContenido(cid);
+            else if(tab==="comparativo") renderComparativo();
+            else if(tab==="pauta") renderPautaClient(cid);
+            else renderResumen(cid);
+          }catch(e){}
+        }
+      } else { initDash(); }
     }
   });
   FBDB.ref("vsportal/creds").on("value", function(snap) {
@@ -3534,7 +3544,7 @@ function renderConfig() {
     return;
   }
 
-  // Tarjetas compactas de marca (orden alfabetico): redes + logos + plataformas + pauta + acciones
+  // Tarjetas compactas de marca (orden alfabetico). Al tocarlas se abre el popup de configuracion.
   var sorted=BRANDS.slice().sort(function(a,b){
     var na=(CREDS[a]?CREDS[a].name:a).toLowerCase(), nb=(CREDS[b]?CREDS[b].name:b).toLowerCase();
     return na<nb?-1:na>nb?1:0;
@@ -3545,47 +3555,61 @@ function renderConfig() {
     var cfg=DB.platCfg[b]||{};
     var pOn=DB.pautaOn[b]||false;
     var name=CREDS[b]?CREDS[b].name:b;
-    html+='<div class="bcard">';
-    // Header: avatar + nombre + usuario + acciones
     var _avLogo=bc.logoLight||bc.logoDark;
     var _av=_avLogo?'<div class="bcard-av has-logo"><img src="'+_avLogo+'"></div>':'<div class="bcard-av">'+(name.charAt(0)||'?').toUpperCase()+'</div>';
-    html+='<div class="bcard-head"><div class="bcard-id">'+_av+'<div style="min-width:0;"><div class="bcard-name">'+name+'</div><div class="bcard-user">@'+b+'</div></div></div>';
-    html+='<div class="bcard-acts">';
-    html+='<button title="Editar acceso" onclick="loadUser(\''+b+'\')">✎</button>';
-    html+='<button class="del" title="Eliminar marca" onclick="deleteUser(\''+b+'\')">✕</button>';
-    html+='</div></div>';
-    // Logos
-    html+='<div><div class="bcard-lbl">Logos</div><div class="bcard-logos">';
-    html+='<div class="bcard-logo"><div class="lname">Claro</div>';
-    html+=(bc.logoLight?'<img src="'+bc.logoLight+'" style="background:#fff;">':'<div class="ph">▢</div>');
-    html+='<input type="file" id="bll-'+b+'" accept="image/png,image/jpeg,image/svg+xml" style="display:none" onchange="uploadBrandLogo(this,\''+b+'\',\'light\')">';
-    html+='<button onclick="gi(\'bll-'+b+'\').click()">'+(bc.logoLight?'Cambiar':'+ Subir')+'</button></div>';
-    html+='<div class="bcard-logo"><div class="lname">Oscuro</div>';
-    html+=(bc.logoDark?'<img src="'+bc.logoDark+'" style="background:#111;">':'<div class="ph">▢</div>');
-    html+='<input type="file" id="bld-'+b+'" accept="image/png,image/jpeg,image/svg+xml" style="display:none" onchange="uploadBrandLogo(this,\''+b+'\',\'dark\')">';
-    html+='<button onclick="gi(\'bld-'+b+'\').click()">'+(bc.logoDark?'Cambiar':'+ Subir')+'</button></div>';
-    html+='</div></div>';
-    // Redes
-    html+='<div><div class="bcard-lbl">Redes</div><div class="brand-cfg-handles">';
-    html+='<div class="bcf-row"><span class="bcf-plat ig-dot">IG</span><span style="color:var(--t2);font-size:12px;">@</span><input class="bcf-input" type="text" placeholder="handle" value="'+(bc.instagram||'')+'" data-brand="'+b+'" data-plat="instagram" onchange="saveBrandHandle(this)"></div>';
-    html+='<div class="bcf-row"><span class="bcf-plat tk-dot">TK</span><span style="color:var(--t2);font-size:12px;">@</span><input class="bcf-input" type="text" placeholder="handle" value="'+(bc.tiktok||'')+'" data-brand="'+b+'" data-plat="tiktok" onchange="saveBrandHandle(this)"></div>';
-    html+='<div class="bcf-row"><span class="bcf-plat yt-dot">YT</span><input class="bcf-input" type="text" placeholder="canal o @" value="'+(bc.youtube||'')+'" data-brand="'+b+'" data-plat="youtube" onchange="saveBrandHandle(this)"></div>';
-    html+='</div></div>';
-    // Plataformas (pills)
-    html+='<div><div class="bcard-lbl">Plataformas</div><div class="bcard-plats">';
-    PLATS.forEach(function(pl){
-      html+='<label class="ptog"><input type="checkbox" '+(cfg[pl]?'checked':'')+' onchange="togglePlat(\''+b+'\',\''+pl+'\',this.checked)"><span>'+pl+'</span></label>';
-    });
-    html+='</div></div>';
-    // Pauta
-    html+='<div class="bcard-pauta"><span class="pl">Pauta activa</span><label class="sw"><input type="checkbox" '+(pOn?'checked':'')+' onchange="togglePauta(\''+b+'\',this.checked)"><span class="sl"></span></label></div>';
+    html+='<div class="bcard" style="gap:12px;cursor:pointer;" onclick="openBrandModal(\''+b+'\')">';
+    html+='<div class="bcard-head"><div class="bcard-id">'+_av+'<div style="min-width:0;"><div class="bcard-name">'+name+'</div><div class="bcard-user">@'+b+'</div></div></div></div>';
+    // Resumen: plataformas activas + pauta
+    var actPl=PLATS.filter(function(pl){return cfg[pl];});
+    html+='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;min-height:22px;">';
+    if(actPl.length) actPl.forEach(function(pl){ html+='<span style="font-size:10px;font-weight:600;padding:3px 9px;border-radius:99px;background:rgba(34,197,94,.12);color:#16a34a;">'+pl+'</span>'; });
+    else html+='<span style="font-size:11px;color:var(--t3);">Sin plataformas</span>';
+    if(pOn) html+='<span style="font-size:10px;font-weight:600;padding:3px 9px;border-radius:99px;background:var(--bg4);color:var(--t2);">Pauta</span>';
+    html+='</div>';
+    html+='<div style="font-size:11px;color:var(--t2);font-weight:600;">Configurar marca</div>';
     html+='</div>';
   });
   html+='</div>';
   if(abEl) abEl.innerHTML=html;
-  // Plataformas y pauta ahora viven dentro de cada tarjeta: ocultar las cards separadas
   if(pcEl){ pcEl.style.display='none'; pcEl.innerHTML=''; }
   if(paEl){ paEl.style.display='none'; paEl.innerHTML=''; }
+}
+
+// ===== POPUP DE CONFIGURACION DE MARCA =====
+var _brandModal=null;
+function openBrandModal(brand){ _brandModal=brand; renderBrandModalBody(); var m=gi('brandModal'); if(m) m.classList.add('open'); }
+function closeBrandModal(){ var m=gi('brandModal'); if(m) m.classList.remove('open'); if(typeof renderConfig==='function') renderConfig(); }
+function renderBrandModalBody(){
+  var body=gi('brandModalBody'); if(!body) return;
+  var b=_brandModal; if(!b) return;
+  var bc=DB.brandCfg[b]||{}, cfg=DB.platCfg[b]||{}, pOn=DB.pautaOn[b]||false;
+  var name=CREDS[b]?CREDS[b].name:b;
+  var h='<div class="modal-title">'+name+'</div><div style="font-size:11px;color:var(--t2);font-family:monospace;margin-bottom:16px;">@'+b+'</div>';
+  // Logos
+  h+='<div class="bcard-lbl">Logos</div><div class="bcard-logos" style="margin-bottom:16px;">';
+  h+='<div class="bcard-logo"><div class="lname">Claro</div>'+(bc.logoLight?'<img src="'+bc.logoLight+'" style="background:#fff;">':'<div class="ph">▢</div>');
+  h+='<input type="file" id="bll-'+b+'" accept="image/png,image/jpeg,image/svg+xml" style="display:none" onchange="uploadBrandLogo(this,\''+b+'\',\'light\')">';
+  h+='<button onclick="gi(\'bll-'+b+'\').click()">'+(bc.logoLight?'Cambiar':'+ Subir')+'</button></div>';
+  h+='<div class="bcard-logo"><div class="lname">Oscuro</div>'+(bc.logoDark?'<img src="'+bc.logoDark+'" style="background:#111;">':'<div class="ph">▢</div>');
+  h+='<input type="file" id="bld-'+b+'" accept="image/png,image/jpeg,image/svg+xml" style="display:none" onchange="uploadBrandLogo(this,\''+b+'\',\'dark\')">';
+  h+='<button onclick="gi(\'bld-'+b+'\').click()">'+(bc.logoDark?'Cambiar':'+ Subir')+'</button></div></div>';
+  // Redes
+  h+='<div class="bcard-lbl">Redes</div><div class="brand-cfg-handles" style="margin-bottom:16px;">';
+  h+='<div class="bcf-row"><span class="bcf-plat ig-dot">IG</span><span style="color:var(--t2);font-size:12px;">@</span><input class="bcf-input" type="text" placeholder="handle" value="'+(bc.instagram||'')+'" data-brand="'+b+'" data-plat="instagram" onchange="saveBrandHandle(this)"></div>';
+  h+='<div class="bcf-row"><span class="bcf-plat tk-dot">TK</span><span style="color:var(--t2);font-size:12px;">@</span><input class="bcf-input" type="text" placeholder="handle" value="'+(bc.tiktok||'')+'" data-brand="'+b+'" data-plat="tiktok" onchange="saveBrandHandle(this)"></div>';
+  h+='<div class="bcf-row"><span class="bcf-plat yt-dot">YT</span><input class="bcf-input" type="text" placeholder="canal o @" value="'+(bc.youtube||'')+'" data-brand="'+b+'" data-plat="youtube" onchange="saveBrandHandle(this)"></div></div>';
+  // Plataformas
+  h+='<div class="bcard-lbl">Plataformas</div><div class="bcard-plats" style="margin-bottom:16px;">';
+  PLATS.forEach(function(pl){ h+='<label class="ptog"><input type="checkbox" '+(cfg[pl]?'checked':'')+' onchange="togglePlat(\''+b+'\',\''+pl+'\',this.checked)"><span>'+pl+'</span></label>'; });
+  h+='</div>';
+  // Pauta
+  h+='<div class="bcard-pauta" style="margin-bottom:16px;"><span class="pl">Pauta activa</span><label class="sw"><input type="checkbox" '+(pOn?'checked':'')+' onchange="togglePauta(\''+b+'\',this.checked)"><span class="sl"></span></label></div>';
+  // Acciones
+  h+='<div style="display:flex;gap:8px;border-top:0.5px solid var(--bd);padding-top:14px;">';
+  h+='<button class="btn btn-ghost" onclick="closeBrandModal();loadUser(\''+b+'\')">Editar acceso</button>';
+  h+='<button class="btn" style="color:#F90000;border:1px solid rgba(249,0,0,.3);background:transparent;" onclick="deleteUser(\''+b+'\')">Eliminar marca</button>';
+  h+='</div>';
+  body.innerHTML=h;
 }
 
 function togglePlat(brand, plat, val) {
@@ -4395,7 +4419,10 @@ function uploadBrandLogo(input,brand,mode){
       if(!DB.brandCfg[brand]) DB.brandCfg[brand]={};
       if(mode==="light") DB.brandCfg[brand].logoLight=img;
       else DB.brandCfg[brand].logoDark=img;
-      saveDB(); renderConfig(); showToast("Logo guardado");
+      saveDB();
+      var bm=gi('brandModal');
+      if(bm&&bm.classList.contains('open')) renderBrandModalBody(); else renderConfig();
+      showToast("Logo guardado");
     });
   };
   reader.readAsDataURL(file);
@@ -4728,6 +4755,13 @@ function cancelImport() {
   <div class="modal" style="max-width:560px;">
     <button class="modal-close" onclick="closeObjModal()">&#10005;</button>
     <div id="objModalBody"></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="brandModal">
+  <div class="modal" style="max-width:520px;">
+    <button class="modal-close" onclick="closeBrandModal()">&#10005;</button>
+    <div id="brandModalBody"></div>
   </div>
 </div>
 
