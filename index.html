@@ -712,6 +712,39 @@ img{max-width:100%;display:block;}
 .cyc-acc-info{flex:1;min-width:0;}
 .cyc-acc-chevron{font-size:10px;color:var(--t3);transition:transform .2s;}
 .cyc-acc-body{padding:0 16px 14px;border-top:0.5px solid var(--bd);}
+
+/* ===== LIQUID GLASS: botones y switches ===== */
+.btn{
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,.14);
+  box-shadow:0 2px 10px rgba(0,0,0,.10), inset 0 1px 0 rgba(255,255,255,.30), inset 0 -1px 0 rgba(0,0,0,.06);
+}
+.btn:active{transform:translateY(1px);}
+.btn-red{background:linear-gradient(180deg,rgba(255,255,255,.24),rgba(255,255,255,0) 48%),var(--red);color:#fff;}
+.btn-red:hover{background:linear-gradient(180deg,rgba(255,255,255,.30),rgba(255,255,255,0) 48%),#e00000;}
+.btn-pur{background:linear-gradient(180deg,rgba(255,255,255,.24),rgba(255,255,255,0) 48%),var(--pur);color:#fff;}
+.btn-pur:hover{background:linear-gradient(180deg,rgba(255,255,255,.30),rgba(255,255,255,0) 48%),#5a0dd6;}
+.btn-ghost{background:rgba(150,150,160,.12);border:1px solid var(--bd2);color:var(--t2);}
+.btn-ghost:hover{background:rgba(150,150,160,.20);border-color:var(--red);color:var(--red);}
+.dark .btn{border-color:rgba(255,255,255,.10);box-shadow:0 2px 12px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.14), inset 0 -1px 0 rgba(0,0,0,.20);}
+.dark .btn-ghost{background:rgba(255,255,255,.06);}
+/* Switches glass */
+.sw .sl{
+  background:rgba(120,120,132,.30);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  border:1px solid rgba(255,255,255,.16);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.18);
+}
+.sw .sl:before{
+  background:linear-gradient(180deg,#ffffff,#e8e8ef);
+  box-shadow:0 1px 3px rgba(0,0,0,.35);
+}
+.sw input:checked+.sl{
+  background:linear-gradient(180deg,rgba(255,255,255,.28),rgba(255,255,255,0) 52%),var(--grn);
+  border-color:rgba(255,255,255,.28);
+}
+/* Pills de plataforma glass */
+.ptog input:checked + span{box-shadow:0 2px 8px rgba(34,197,94,.35), inset 0 1px 0 rgba(255,255,255,.35);}
 </style>
 </head>
 <body>
@@ -3519,7 +3552,44 @@ function popCyc(selId, brand) {
     '<option value="">Sin ciclos</option>';
 }
 
-function refreshCycs() { renderACycles(); }
+// Calcula el cierre de un ciclo: ultimos seguidores (semana mas reciente) + total de vistas
+function cycleClose(brand, cycleId){
+  var eps=PLATS.filter(function(p){return (DB.platCfg[brand]||{})[p];});
+  if(!eps.length) eps=PLATS.slice();
+  var latF=0, totV=0, wk;
+  for(var w=4;w>=1;w--){
+    for(var i=0;i<eps.length;i++){
+      wk=DB.weekMetrics&&DB.weekMetrics[brand+'__'+cycleId+'__'+eps[i]];
+      if(wk&&wk[w]&&Number(wk[w].followers)){ latF=Number(wk[w].followers); break; }
+    }
+    if(latF) break;
+  }
+  for(var wa=1;wa<=4;wa++){
+    for(var j=0;j<eps.length;j++){
+      wk=DB.weekMetrics&&DB.weekMetrics[brand+'__'+cycleId+'__'+eps[j]];
+      if(wk&&wk[wa]){ totV+=Number(wk[wa].views)||0; break; }
+    }
+  }
+  return {followers:latF, views:totV};
+}
+// Al elegir marca en el formulario de NUEVO ciclo, precarga los datos de cierre del ciclo anterior
+function prefillPrevCycle(brand){
+  if(!brand) return;
+  var titleEl=gi('cycFormTitle'); if(titleEl&&titleEl.dataset.editing) return; // no tocar en edicion
+  var bcy=(DB.cycles||[]).filter(function(c){return c.brand===brand;})
+    .sort(function(a,b){return (b.start||'').localeCompare(a.start||'');});
+  if(!bcy.length) return;
+  var prev=bcy[0];
+  var cl=cycleClose(brand, prev.id);
+  var f=cl.followers||Number(prev.prevFollowers)||Number(prev.baseFollowers)||0;
+  var v=cl.views||Number(prev.baseViews)||0;
+  if(f>0||v>0){
+    sv('aCPF', f); sv('aCPV', v); sv('aCBF', f);
+    var pe=gi('aCPE'); if(pe) pe.checked=true;
+    showToast('Cargado del ciclo anterior ('+prev.name+'): '+fN(f)+' seg. · '+fN(v)+' vistas');
+  }
+}
+function refreshCycs() { renderACycles(); if(gi('aCB')) prefillPrevCycle(gi('aCB').value); }
 
 // ===== CONFIG =====
 function saveBrandHandle(el) {
