@@ -745,6 +745,11 @@ img{max-width:100%;display:block;}
 }
 /* Pills de plataforma glass */
 .ptog input:checked + span{box-shadow:0 2px 8px rgba(34,197,94,.35), inset 0 1px 0 rgba(255,255,255,.35);}
+/* Workspace por marca: pestanas */
+.bw-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+.bw-tab{font-size:12px;font-weight:600;padding:8px 15px;border-radius:99px;background:var(--bg3);color:var(--t2);cursor:pointer;white-space:nowrap;border:1px solid var(--bd);transition:.15s;backdrop-filter:blur(6px);}
+.bw-tab:hover{background:var(--bg4);}
+.bw-tab.on{background:var(--tx);color:var(--bg2);border-color:var(--tx);}
 </style>
 </head>
 <body>
@@ -819,14 +824,16 @@ img{max-width:100%;display:block;}
     <img src="logo.png" alt="VS">
     <span class="sb-badge">ADMIN</span>
   </div>
-  <div class="nav-sec">Backend</div>
-  <div class="ni on" id="at-btn-config"  onclick="showAT(this,'at-config')">&#9632; Config</div>
+  <div class="nav-sec">Gestion</div>
+  <div class="ni on" id="at-btn-marcas"  onclick="showAT(this,'at-marcas')">&#9673; Marcas</div>
+  <div class="nav-sec">Avanzado</div>
+  <div class="ni"    id="at-btn-config"  onclick="showAT(this,'at-config')">&#9632; Config</div>
   <div class="ni"    id="at-btn-ciclos"  onclick="showAT(this,'at-ciclos')">&#9654; Ciclos</div>
   <div class="ni"    id="at-btn-obj"     onclick="showAT(this,'at-obj')">&#9675; Objetivos</div>
   <div class="ni"    id="at-btn-pubs"    onclick="showAT(this,'at-pubs')">&#9635; Publicaciones</div>
   <div class="ni"    id="at-btn-pauta"   onclick="showAT(this,'at-pauta')">&#9670; Pauta</div>
   <div class="ni"    id="at-btn-logros"  onclick="showAT(this,'at-logros')">&#9733; Logros</div>
-  
+
 
   <div class="sb-foot">
     <div style="display:flex;align-items:center;justify-content:space-between;">
@@ -840,6 +847,22 @@ img{max-width:100%;display:block;}
   <div class="topbar">
     <div class="tb-left"><h1>Panel Admin</h1><div class="sub">VERSUS Studio</div></div>
     <div class="tb-right"><button class="tgl" onclick="toggleTheme()"></button></div>
+  </div>
+
+  <!-- MARCAS (home por marca) -->
+  <div id="at-marcas" class="panel">
+    <div class="card">
+      <div class="card-title">Marcas</div>
+      <p class="tip">Toca una marca para gestionar todo lo suyo: ciclos, objetivos, publicaciones, pauta y configuracion.</p>
+      <div id="aMarcasGrid"></div>
+    </div>
+  </div>
+
+  <!-- WORKSPACE DE MARCA -->
+  <div id="at-brand" class="panel">
+    <div id="bwHead"></div>
+    <div id="bwTabs" class="bw-tabs"></div>
+    <div id="bwBody"></div>
   </div>
 
   <!-- CONFIG -->
@@ -3505,7 +3528,8 @@ function showAT(el,panel) {
   if(panel==="at-ciclos") _acycBrand=null;
   var _p=panel;
   setTimeout(function(){
-    if(_p==="at-config") renderConfig();
+    if(_p==="at-marcas") renderMarcasHome();
+    else if(_p==="at-config") renderConfig();
     else if(_p==="at-users"){try{renderUserList();}catch(e){}}
     else if(_p==="at-ciclos") renderACycles();
     else if(_p==="at-pubs") renderAPubs();
@@ -3523,9 +3547,13 @@ function initAdmin(){
   document.querySelectorAll("#adminScreen .panel").forEach(function(p){
     p.style.display="none";p.classList.remove("active");
   });
-  var cfg=gi("at-config");
-  if(cfg){cfg.style.cssText="display:block";cfg.classList.add("active");}
+  // Vista por defecto: Marcas (workspace por marca)
+  document.querySelectorAll("#sbAdmin .ni").forEach(function(n){n.classList.remove("on");});
+  var mb=gi("at-btn-marcas"); if(mb) mb.classList.add("on");
+  var mp=gi("at-marcas");
+  if(mp){mp.style.cssText="display:block";mp.classList.add("active");}
   try{populateAdminSelects();}catch(e){}
+  try{renderMarcasHome();}catch(e){console.error(e);}
   try{renderConfig();}catch(e){console.error(e);}
   try{renderUserList();}catch(e){console.error(e);}
   try{renderACycles();}catch(e){console.error(e);}
@@ -3647,14 +3675,118 @@ function renderConfig() {
 
 // ===== POPUP DE CONFIGURACION DE MARCA =====
 var _brandModal=null;
+// ===== WORKSPACE POR MARCA =====
+function bwShowPanel(id){
+  document.querySelectorAll('#adminScreen .panel').forEach(function(p){p.style.display='none';p.classList.remove('active');});
+  var el=gi(id); if(el){el.style.cssText='display:block';el.classList.add('active');}
+}
+function renderMarcasHome(){
+  var el=gi('aMarcasGrid'); if(!el) return;
+  var sorted=BRANDS.slice().sort(function(a,z){var na=(CREDS[a]?CREDS[a].name:a).toLowerCase(),nb=(CREDS[z]?CREDS[z].name:z).toLowerCase();return na<nb?-1:na>nb?1:0;});
+  if(!sorted.length){ el.innerHTML="<div class='empty'>Sin marcas. Crea una en Config &rarr; Usuarios.</div>"; return; }
+  var h='<div class="brand-grid">';
+  sorted.forEach(function(b){
+    var bc=DB.brandCfg[b]||{}, name=CREDS[b]?CREDS[b].name:b;
+    var logo=bc.logoLight||bc.logoDark;
+    var av=logo?'<div class="bcard-av has-logo"><img src="'+logo+'"></div>':'<div class="bcard-av">'+(name.charAt(0)||'?').toUpperCase()+'</div>';
+    var nc=(DB.cycles||[]).filter(function(c){return c.brand===b;}).length;
+    var act=(DB.cycles||[]).filter(function(c){return c.brand===b&&c.status==='active';}).length;
+    h+='<div class="bcard" style="gap:12px;cursor:pointer;" onclick="openBrandWorkspace(\''+b+'\')">';
+    h+='<div class="bcard-head"><div class="bcard-id">'+av+'<div style="min-width:0;"><div class="bcard-name">'+name+'</div><div class="bcard-user">@'+b+'</div></div></div></div>';
+    h+='<div style="display:flex;gap:6px;flex-wrap:wrap;min-height:22px;align-items:center;">';
+    h+='<span style="font-size:10px;font-weight:600;padding:3px 9px;border-radius:99px;background:var(--bg4);color:var(--t2);">'+nc+' '+(nc===1?'ciclo':'ciclos')+'</span>';
+    if(act) h+='<span style="font-size:10px;font-weight:600;padding:3px 9px;border-radius:99px;background:rgba(249,0,0,.10);color:var(--red);">Activo</span>';
+    h+='</div><div style="font-size:11px;color:var(--t2);font-weight:600;">Gestionar marca</div></div>';
+  });
+  h+='</div>'; el.innerHTML=h;
+}
+var _bwBrand=null, _bwTab='resumen';
+var BW_TABS=[['resumen','Resumen'],['ciclos','Ciclos'],['objetivos','Objetivos'],['pubs','Publicaciones'],['pauta','Pauta'],['logros','Logros'],['config','Config']];
+function openBrandWorkspace(brand){ _bwBrand=brand; _bwTab='resumen'; bwShowPanel('at-brand'); bwRenderHead(); bwRenderTabs(); bwRenderBody(); window.scrollTo(0,0); }
+function bwRenderHead(){
+  var b=_bwBrand, bc=DB.brandCfg[b]||{}, name=CREDS[b]?CREDS[b].name:b;
+  var logo=bc.logoLight||bc.logoDark;
+  var av=logo?'<div class="bcard-av has-logo"><img src="'+logo+'"></div>':'<div class="bcard-av">'+(name.charAt(0)||'?').toUpperCase()+'</div>';
+  var h='<div onclick="showAT(document.getElementById(\'at-btn-marcas\'),\'at-marcas\')" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);font-weight:600;cursor:pointer;margin-bottom:12px;">&#8249; Marcas</div>';
+  h+='<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">'+av+'<div><div style="font-size:20px;font-weight:800;">'+name+'</div><div style="font-size:11px;color:var(--t2);font-family:monospace;">@'+b+'</div></div></div>';
+  gi('bwHead').innerHTML=h;
+}
+function bwRenderTabs(){ var h=''; BW_TABS.forEach(function(t){ h+='<div class="bw-tab'+(_bwTab===t[0]?' on':'')+'" onclick="bwShowTab(\''+t[0]+'\')">'+t[1]+'</div>'; }); gi('bwTabs').innerHTML=h; }
+function bwShowTab(tab){ _bwTab=tab; bwRenderTabs(); bwRenderBody(); }
+function bwRenderBody(){
+  var b=_bwBrand, body=gi('bwBody'); if(!body) return;
+  if(_bwTab==='resumen') body.innerHTML=bwResumen(b);
+  else if(_bwTab==='ciclos') body.innerHTML=bwCiclos(b);
+  else if(_bwTab==='objetivos') body.innerHTML=bwObjetivos(b);
+  else if(_bwTab==='config') body.innerHTML='<div class="card">'+brandCfgHTML(b)+'</div>';
+  else body.innerHTML=bwPlaceholder(_bwTab);
+}
+function bwKpi(l,v){ return '<div class="kpi-card kpi-na"><div class="kpi-lbl">'+l+'</div><div class="kpi-val" style="font-size:17px;">'+v+'</div></div>'; }
+function bwResumen(b){
+  var cycles=(DB.cycles||[]).filter(function(c){return c.brand===b;});
+  var act=cycles.find(function(c){return c.status==='active';});
+  var pubs=(DB.publications||[]).filter(function(p){return p.brand===b;});
+  var objs=(DB.objectives||[]).filter(function(o){return o.brand===b;});
+  var h='<div class="card"><div class="card-title">Resumen</div><div class="adv-kpi-grid" style="margin-top:6px;">';
+  h+=bwKpi('Ciclo activo', act?act.name:'—');
+  h+=bwKpi('Ciclos', cycles.length);
+  h+=bwKpi('Objetivos', objs.length);
+  h+=bwKpi('Publicaciones', pubs.length);
+  h+=bwKpi('Pauta', (DB.pautaOn||{})[b]?'Activa':'Inactiva');
+  h+='</div></div>'; return h;
+}
+function bwCiclos(b){
+  var cycles=(DB.cycles||[]).filter(function(c){return c.brand===b;}).sort(function(a,z){return (z.start||'').localeCompare(a.start||'');});
+  var h='<div class="card"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><span>Ciclos</span><button class="btn btn-red btn-sm" onclick="bwCreateCycle()">+ Crear ciclo</button></div>';
+  if(!cycles.length) h+='<div class="empty" style="padding:16px 0;">Sin ciclos.</div>';
+  cycles.forEach(function(c){
+    var pubs=(DB.publications||[]).filter(function(p){return p.brand===b&&p.cycle===c.id;});
+    var pub=pubs.filter(function(p){return p.status==='published';}).length;
+    h+='<div onclick="bwCycContent(\''+c.id+'\')" style="background:var(--bg3);border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">';
+    h+='<div style="min-width:0;"><div style="display:flex;gap:8px;align-items:center;"><span style="font-weight:700;">'+c.name+'</span>'+(c.status==='active'?'<span style="background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">Activo</span>':'')+'</div><div style="font-size:11px;color:var(--t2);margin-top:3px;">'+fD(c.start)+' &mdash; '+fD(c.end)+' &middot; '+pub+' publicadas &middot; '+pubs.length+' total</div></div>';
+    h+='<div style="display:flex;gap:6px;flex-shrink:0;"><button class="wmc-edit-btn" onclick="event.stopPropagation();bwEditCycle(\''+c.id+'\')">Editar</button><button class="wmc-edit-btn" style="color:#F90000;" onclick="event.stopPropagation();bwDeleteCycle(\''+c.id+'\')">Elim.</button></div>';
+    h+='</div></div>';
+  });
+  h+='</div>'; return h;
+}
+function bwCycContent(cycleId){
+  var c=DB.cycles.find(function(x){return x.id===cycleId;}); if(!c) return;
+  var h='<div class="card"><div onclick="bwShowTab(\'ciclos\')" style="display:inline-flex;gap:6px;font-size:12px;color:var(--t2);font-weight:600;cursor:pointer;margin-bottom:10px;">&#8249; Volver a ciclos</div>';
+  h+='<div class="card-title">'+c.name+'</div><p class="tip">'+fD(c.start)+' &mdash; '+fD(c.end)+'</p>'+cycPubsTableHTML(c.brand,cycleId)+'</div>';
+  gi('bwBody').innerHTML=h;
+}
+function bwCreateCycle(){ showAT(document.getElementById('at-btn-ciclos'),'at-ciclos'); setTimeout(function(){var s=gi('aCB');if(s){s.value=_bwBrand;if(typeof refreshCycs==='function')refreshCycs();}var t=gi('cycFormTitle');if(t)t.scrollIntoView({behavior:'smooth',block:'center'});},80); }
+function bwEditCycle(id){ showAT(document.getElementById('at-btn-ciclos'),'at-ciclos'); setTimeout(function(){editCycleLoad(id);},80); }
+function bwDeleteCycle(id){ deleteCycle(id); if(gi('at-brand')&&gi('at-brand').classList.contains('active')) bwShowTab('ciclos'); }
+function bwObjetivos(b){
+  var objs=(DB.objectives||[]).filter(function(o){return o.brand===b;});
+  var h='<div class="card"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><span>Objetivos</span><button class="btn btn-pur btn-sm" onclick="bwCreateObj()">+ Crear objetivo</button></div>';
+  if(!objs.length) h+='<div class="empty" style="padding:16px 0;">Sin objetivos.</div>';
+  objs.forEach(function(o){
+    var cyc=DB.cycles.find(function(c){return c.id===o.cycle;}), cn=cyc?cyc.name:o.cycle, i=DB.objectives.indexOf(o);
+    h+='<div style="background:var(--bg3);border-radius:12px;padding:12px 14px;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:8px;align-items:center;"><div style="font-weight:700;min-width:0;">'+cn+' &middot; '+o.platform+'</div><div style="display:flex;gap:6px;flex-shrink:0;"><button class="wmc-edit-btn" onclick="bwEditObj(\''+o.brand+'\',\''+o.cycle+'\',\''+o.platform+'\')">Editar</button><button class="wmc-edit-btn" style="color:#F90000;" onclick="bwDeleteObj('+i+')">Elim.</button></div></div>'+objChips(o)+'</div>';
+  });
+  h+='</div>'; return h;
+}
+function bwCreateObj(){ showAT(document.getElementById('at-btn-obj'),'at-obj'); setTimeout(function(){var s=gi('aOB');if(s){s.value=_bwBrand;popCyc('aOC',_bwBrand);}var a=gi('accObjForm');if(a){a.classList.add('open');a.scrollIntoView({behavior:'smooth',block:'center'});}},80); }
+function bwEditObj(brand,cycle,plat){ showAT(document.getElementById('at-btn-obj'),'at-obj'); setTimeout(function(){loadObj(brand,cycle,plat);},80); }
+function bwDeleteObj(i){ deleteObj(i); if(gi('at-brand')&&gi('at-brand').classList.contains('active')) bwShowTab('objetivos'); }
+function bwPlaceholder(tab){
+  var map={pubs:['Publicaciones','at-btn-pubs','at-pubs'],pauta:['Pauta','at-btn-pauta','at-pauta'],logros:['Logros','at-btn-logros','at-logros']};
+  var m=map[tab]||['','',''];
+  return '<div class="card"><div class="card-title">'+m[0]+'</div><p class="tip">Gestiona '+m[0].toLowerCase()+' de esta marca desde su panel (se integrara aqui en la siguiente etapa).</p><button class="btn btn-ghost" onclick="showAT(document.getElementById(\''+m[1]+'\'),\''+m[2]+'\')">Ir a '+m[0]+'</button></div>';
+}
 function openBrandModal(brand){ _brandModal=brand; renderBrandModalBody(); var m=gi('brandModal'); if(m) m.classList.add('open'); }
 function closeBrandModal(){ var m=gi('brandModal'); if(m) m.classList.remove('open'); if(typeof renderConfig==='function') renderConfig(); }
 function renderBrandModalBody(){
   var body=gi('brandModalBody'); if(!body) return;
   var b=_brandModal; if(!b) return;
-  var bc=DB.brandCfg[b]||{}, cfg=DB.platCfg[b]||{}, pOn=DB.pautaOn[b]||false;
   var name=CREDS[b]?CREDS[b].name:b;
-  var h='<div class="modal-title">'+name+'</div><div style="font-size:11px;color:var(--t2);font-family:monospace;margin-bottom:16px;">@'+b+'</div>';
+  body.innerHTML='<div class="modal-title">'+name+'</div><div style="font-size:11px;color:var(--t2);font-family:monospace;margin-bottom:16px;">@'+b+'</div>'+brandCfgHTML(b);
+}
+function brandCfgHTML(b){
+  var bc=DB.brandCfg[b]||{}, cfg=DB.platCfg[b]||{}, pOn=DB.pautaOn[b]||false;
+  var h='';
   // Logos
   h+='<div class="bcard-lbl">Logos</div><div class="bcard-logos" style="margin-bottom:16px;">';
   h+='<div class="bcard-logo"><div class="lname">Claro</div>'+(bc.logoLight?'<img src="'+bc.logoLight+'" style="background:#fff;">':'<div class="ph">▢</div>');
@@ -3676,10 +3808,10 @@ function renderBrandModalBody(){
   h+='<div class="bcard-pauta" style="margin-bottom:16px;"><span class="pl">Pauta activa</span><label class="sw"><input type="checkbox" '+(pOn?'checked':'')+' onchange="togglePauta(\''+b+'\',this.checked)"><span class="sl"></span></label></div>';
   // Acciones
   h+='<div style="display:flex;gap:8px;border-top:0.5px solid var(--bd);padding-top:14px;">';
-  h+='<button class="btn btn-ghost" onclick="closeBrandModal();loadUser(\''+b+'\')">Editar acceso</button>';
+  h+='<button class="btn btn-ghost" onclick="loadUser(\''+b+'\')">Editar acceso</button>';
   h+='<button class="btn" style="color:#F90000;border:1px solid rgba(249,0,0,.3);background:transparent;" onclick="deleteUser(\''+b+'\')">Eliminar marca</button>';
   h+='</div>';
-  body.innerHTML=h;
+  return h;
 }
 
 function togglePlat(brand, plat, val) {
