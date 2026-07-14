@@ -1040,7 +1040,7 @@ img{max-width:100%;display:block;}
 </div>
 
 <div id="at-ciclos" class="panel">
-    <div class="card">
+    <div class="card" id="cycFormCard">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;"><span id="cycFormTitle">Nuevo ciclo</span><button class="btn btn-ghost btn-sm" id="cancelCycBtn" onclick="cancelEditCycle()" style="display:none;font-size:11px;">✕ Cancelar edición</button></div>
       <div class="fr">
         <div class="ff"><label>Marca</label><select id="aCB" onchange="refreshCycs()"></select></div>
@@ -3720,8 +3720,6 @@ function bwRenderBody(){
   bwRestoreForms();
   var b=_bwBrand, body=gi('bwBody'); if(!body) return;
   if(_bwTab==='resumen') body.innerHTML=bwResumen(b);
-  else if(_bwTab==='ciclos') body.innerHTML=bwCiclos(b);
-  else if(_bwTab==='objetivos') body.innerHTML=bwObjetivos(b);
   else if(_bwTab==='config') body.innerHTML='<div class="card">'+brandCfgHTML(b)+'</div>';
   else if(BW_MANAGE[_bwTab]) bwManage(_bwTab);
   else body.innerHTML=bwPlaceholder(_bwTab);
@@ -3729,6 +3727,8 @@ function bwRenderBody(){
 // ===== Gestion inline por marca: relocar el formulario existente + lista filtrada =====
 var _bwReloc=null, _bwHomes={};
 var BW_MANAGE={
+  ciclos:{formCard:'cycFormCard', brandSel:'aCB', title:'Ciclos', list:function(b){return bwCiclosList(b);}},
+  objetivos:{formCard:'accObjForm', brandSel:'aOB', title:'Objetivos', openAcc:true, list:function(b){return bwObjetivosList(b);}},
   pauta:{formCard:'pautaFormCard', brandSel:'aPaB', title:'Pauta', list:function(b){return bwPautaList(b);}},
   pubs: {formCard:'pubFormCard',   brandSel:'aPB',  title:'Publicaciones', list:function(b){return bwPubsList(b);}}
 };
@@ -3736,6 +3736,7 @@ function bwManage(kind){
   var cfg=BW_MANAGE[kind], b=_bwBrand, body=gi('bwBody');
   body.innerHTML='<div class="card"><div class="card-title">'+cfg.title+' de la marca</div><div id="bwList">'+cfg.list(b)+'</div></div><div id="bwFormSlot" style="margin-top:14px;"></div>';
   var card=gi(cfg.formCard);
+  if(cfg.openAcc&&card) card.classList.add('open');
   if(card){
     if(!_bwHomes[cfg.formCard]) _bwHomes[cfg.formCard]=card.parentNode;
     gi('bwFormSlot').appendChild(card);
@@ -3791,41 +3792,38 @@ function bwResumen(b){
   h+=bwKpi('Pauta', (DB.pautaOn||{})[b]?'Activa':'Inactiva');
   h+='</div></div>'; return h;
 }
-function bwCiclos(b){
+function bwCiclosList(b){
   var cycles=(DB.cycles||[]).filter(function(c){return c.brand===b;}).sort(function(a,z){return (z.start||'').localeCompare(a.start||'');});
-  var h='<div class="card"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><span>Ciclos</span><button class="btn btn-red btn-sm" onclick="bwCreateCycle()">+ Crear ciclo</button></div>';
-  if(!cycles.length) h+='<div class="empty" style="padding:16px 0;">Sin ciclos.</div>';
+  if(!cycles.length) return '<div class="empty" style="padding:14px 0;">Sin ciclos. Crea el primero en el formulario de abajo.</div>';
+  var h='';
   cycles.forEach(function(c){
     var pubs=(DB.publications||[]).filter(function(p){return p.brand===b&&p.cycle===c.id;});
     var pub=pubs.filter(function(p){return p.status==='published';}).length;
     h+='<div onclick="bwCycContent(\''+c.id+'\')" style="background:var(--bg3);border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">';
     h+='<div style="min-width:0;"><div style="display:flex;gap:8px;align-items:center;"><span style="font-weight:700;">'+c.name+'</span>'+(c.status==='active'?'<span style="background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">Activo</span>':'')+'</div><div style="font-size:11px;color:var(--t2);margin-top:3px;">'+fD(c.start)+' &mdash; '+fD(c.end)+' &middot; '+pub+' publicadas &middot; '+pubs.length+' total</div></div>';
-    h+='<div style="display:flex;gap:6px;flex-shrink:0;"><button class="wmc-edit-btn" onclick="event.stopPropagation();bwEditCycle(\''+c.id+'\')">Editar</button><button class="wmc-edit-btn" style="color:#F90000;" onclick="event.stopPropagation();bwDeleteCycle(\''+c.id+'\')">Elim.</button></div>';
+    h+='<div style="display:flex;gap:6px;flex-shrink:0;"><button class="wmc-edit-btn" onclick="event.stopPropagation();editCycleLoad(\''+c.id+'\')">Editar</button><button class="wmc-edit-btn" style="color:#F90000;" onclick="event.stopPropagation();bwDeleteCycle(\''+c.id+'\')">Elim.</button></div>';
     h+='</div></div>';
   });
-  h+='</div>'; return h;
+  return h;
 }
 function bwCycContent(cycleId){
+  bwRestoreForms();
   var c=DB.cycles.find(function(x){return x.id===cycleId;}); if(!c) return;
   var h='<div class="card"><div onclick="bwShowTab(\'ciclos\')" style="display:inline-flex;gap:6px;font-size:12px;color:var(--t2);font-weight:600;cursor:pointer;margin-bottom:10px;">&#8249; Volver a ciclos</div>';
   h+='<div class="card-title">'+c.name+'</div><p class="tip">'+fD(c.start)+' &mdash; '+fD(c.end)+'</p>'+cycPubsTableHTML(c.brand,cycleId)+'</div>';
   gi('bwBody').innerHTML=h;
 }
-function bwCreateCycle(){ showAT(document.getElementById('at-btn-ciclos'),'at-ciclos'); setTimeout(function(){var s=gi('aCB');if(s){s.value=_bwBrand;if(typeof refreshCycs==='function')refreshCycs();}var t=gi('cycFormTitle');if(t)t.scrollIntoView({behavior:'smooth',block:'center'});},80); }
-function bwEditCycle(id){ showAT(document.getElementById('at-btn-ciclos'),'at-ciclos'); setTimeout(function(){editCycleLoad(id);},80); }
 function bwDeleteCycle(id){ deleteCycle(id); if(gi('at-brand')&&gi('at-brand').classList.contains('active')) bwShowTab('ciclos'); }
-function bwObjetivos(b){
+function bwObjetivosList(b){
   var objs=(DB.objectives||[]).filter(function(o){return o.brand===b;});
-  var h='<div class="card"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><span>Objetivos</span><button class="btn btn-pur btn-sm" onclick="bwCreateObj()">+ Crear objetivo</button></div>';
-  if(!objs.length) h+='<div class="empty" style="padding:16px 0;">Sin objetivos.</div>';
+  if(!objs.length) return '<div class="empty" style="padding:14px 0;">Sin objetivos. Crea uno en el formulario de abajo.</div>';
+  var h='';
   objs.forEach(function(o){
     var cyc=DB.cycles.find(function(c){return c.id===o.cycle;}), cn=cyc?cyc.name:o.cycle, i=DB.objectives.indexOf(o);
-    h+='<div style="background:var(--bg3);border-radius:12px;padding:12px 14px;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:8px;align-items:center;"><div style="font-weight:700;min-width:0;">'+cn+' &middot; '+o.platform+'</div><div style="display:flex;gap:6px;flex-shrink:0;"><button class="wmc-edit-btn" onclick="bwEditObj(\''+o.brand+'\',\''+o.cycle+'\',\''+o.platform+'\')">Editar</button><button class="wmc-edit-btn" style="color:#F90000;" onclick="bwDeleteObj('+i+')">Elim.</button></div></div>'+objChips(o)+'</div>';
+    h+='<div style="background:var(--bg3);border-radius:12px;padding:12px 14px;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:8px;align-items:center;"><div style="font-weight:700;min-width:0;">'+cn+' &middot; '+o.platform+'</div><div style="display:flex;gap:6px;flex-shrink:0;"><button class="wmc-edit-btn" onclick="loadObj(\''+o.brand+'\',\''+o.cycle+'\',\''+o.platform+'\')">Editar</button><button class="wmc-edit-btn" style="color:#F90000;" onclick="bwDeleteObj('+i+')">Elim.</button></div></div>'+objChips(o)+'</div>';
   });
-  h+='</div>'; return h;
+  return h;
 }
-function bwCreateObj(){ showAT(document.getElementById('at-btn-obj'),'at-obj'); setTimeout(function(){var s=gi('aOB');if(s){s.value=_bwBrand;popCyc('aOC',_bwBrand);}var a=gi('accObjForm');if(a){a.classList.add('open');a.scrollIntoView({behavior:'smooth',block:'center'});}},80); }
-function bwEditObj(brand,cycle,plat){ showAT(document.getElementById('at-btn-obj'),'at-obj'); setTimeout(function(){loadObj(brand,cycle,plat);},80); }
 function bwDeleteObj(i){ deleteObj(i); if(gi('at-brand')&&gi('at-brand').classList.contains('active')) bwShowTab('objetivos'); }
 function bwPlaceholder(tab){
   var map={pubs:['Publicaciones','at-btn-pubs','at-pubs'],pauta:['Pauta','at-btn-pauta','at-pauta'],logros:['Logros','at-btn-logros','at-logros']};
@@ -3929,6 +3927,7 @@ function saveCycle() {
   sv("aCBF","0"); sv("aCBV","0");
   renderACycles();
   populateAdminSelects();
+  if(typeof bwRefreshList==='function') bwRefreshList();
   } catch(e) { showToast("Error: "+e.message); console.error("saveCycle:",e); }
 }
 
@@ -4195,6 +4194,7 @@ function saveObj() {
   addLog("Objetivos guardados para " + brand + " / " + plat);
   showToast("Objetivos guardados!");
   renderAObj();
+  if(typeof bwRefreshList==='function') bwRefreshList();
 }
 
 // ===== METRICS =====
