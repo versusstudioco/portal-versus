@@ -828,13 +828,8 @@ img{max-width:100%;display:block;}
   </div>
   <div class="nav-sec">Gestion</div>
   <div class="ni on" id="at-btn-marcas"  onclick="showAT(this,'at-marcas')">&#9673; Marcas</div>
-  <div class="nav-sec">Avanzado</div>
-  <div class="ni"    id="at-btn-config"  onclick="showAT(this,'at-config')">&#9632; Config</div>
-  <div class="ni"    id="at-btn-ciclos"  onclick="showAT(this,'at-ciclos')">&#9654; Ciclos</div>
-  <div class="ni"    id="at-btn-obj"     onclick="showAT(this,'at-obj')">&#9675; Objetivos</div>
-  <div class="ni"    id="at-btn-pubs"    onclick="showAT(this,'at-pubs')">&#9635; Publicaciones</div>
-  <div class="ni"    id="at-btn-pauta"   onclick="showAT(this,'at-pauta')">&#9670; Pauta</div>
-  <div class="ni"    id="at-btn-logros"  onclick="showAT(this,'at-logros')">&#9733; Logros</div>
+  <div class="nav-sec">General VERSUS</div>
+  <div class="ni"    id="at-btn-config"  onclick="showAT(this,'at-config')">&#9881; Configuracion</div>
 
 
   <div class="sb-foot">
@@ -870,12 +865,16 @@ img{max-width:100%;display:block;}
   <!-- CONFIG -->
   <div id="at-config" class="panel" style="display:block">
 
-  <div class="card">
+  <div class="card" style="margin-bottom:4px;">
+    <div class="card-title">Configuracion general de VERSUS</div>
+    <p class="tip">Ajustes globales del portal. La gestion de cada marca esta en "Marcas".</p>
+  </div>
+  <div class="card" id="aBrandsCard" style="display:none;">
     <div class="card-title">Marcas configuradas</div>
     <div id="aBrands"></div>
   </div>
-  <div class="card" id="platCfg" style="margin-top:12px;"></div>
-  <div class="card" id="pautaCfg" style="margin-top:12px;"></div>
+  <div class="card" id="platCfg" style="margin-top:12px;display:none;"></div>
+  <div class="card" id="pautaCfg" style="margin-top:12px;display:none;"></div>
 
   <div class="acc" id="accUsers">
     <div class="acc-head" onclick="toggleAcc(this)"><span class="acc-t">Usuarios y accesos</span><span class="acc-chev"></span></div>
