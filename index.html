@@ -478,6 +478,7 @@ img{max-width:100%;display:block;}
 .bcard-id{display:flex;align-items:center;gap:11px;min-width:0;}
 .bcard-av{width:38px;height:38px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:var(--t2);background:var(--bg4);overflow:hidden;}
 .bcard-av.has-logo{background:#fff;border:0.5px solid var(--bd);padding:4px;}
+.bcard-av.has-logo.dark-logo{background:#111;}
 .bcard-av.has-logo img{width:100%;height:100%;object-fit:contain;}
 .bcard-name{font-size:15px;font-weight:800;color:var(--tx);line-height:1.15;}
 .bcard-user{font-size:11px;color:var(--t2);font-family:monospace;margin-top:3px;}
@@ -3650,7 +3651,7 @@ function renderConfig() {
     var pOn=DB.pautaOn[b]||false;
     var name=CREDS[b]?CREDS[b].name:b;
     var _avLogo=bc.logoLight||bc.logoDark;
-    var _av=_avLogo?'<div class="bcard-av has-logo"><img src="'+_avLogo+'"></div>':'<div class="bcard-av">'+(name.charAt(0)||'?').toUpperCase()+'</div>';
+    var _av=brandAvatar(b);
     html+='<div class="bcard" style="gap:12px;cursor:pointer;" onclick="openBrandModal(\''+b+'\')">';
     html+='<div class="bcard-head"><div class="bcard-id">'+_av+'<div style="min-width:0;"><div class="bcard-name">'+name+'</div><div class="bcard-user">@'+b+'</div></div></div></div>';
     // Resumen: plataformas activas + pauta
@@ -3676,6 +3677,13 @@ function bwShowPanel(id){
   document.querySelectorAll('#adminScreen .panel').forEach(function(p){p.style.display='none';p.classList.remove('active');});
   var el=gi(id); if(el){el.style.cssText='display:block';el.classList.add('active');}
 }
+// Avatar de marca: usa el logo si existe, con fondo acorde (claro/oscuro) para que sea visible
+function brandAvatar(b){
+  var bc=DB.brandCfg[b]||{}, name=CREDS[b]?CREDS[b].name:b;
+  if(bc.logoLight) return '<div class="bcard-av has-logo"><img src="'+bc.logoLight+'"></div>';
+  if(bc.logoDark)  return '<div class="bcard-av has-logo dark-logo"><img src="'+bc.logoDark+'"></div>';
+  return '<div class="bcard-av">'+(name.charAt(0)||'?').toUpperCase()+'</div>';
+}
 function renderMarcasHome(){
   var el=gi('aMarcasGrid'); if(!el) return;
   var sorted=BRANDS.slice().sort(function(a,z){var na=(CREDS[a]?CREDS[a].name:a).toLowerCase(),nb=(CREDS[z]?CREDS[z].name:z).toLowerCase();return na<nb?-1:na>nb?1:0;});
@@ -3684,7 +3692,7 @@ function renderMarcasHome(){
   sorted.forEach(function(b){
     var bc=DB.brandCfg[b]||{}, name=CREDS[b]?CREDS[b].name:b;
     var logo=bc.logoLight||bc.logoDark;
-    var av=logo?'<div class="bcard-av has-logo"><img src="'+logo+'"></div>':'<div class="bcard-av">'+(name.charAt(0)||'?').toUpperCase()+'</div>';
+    var av=brandAvatar(b);
     var nc=(DB.cycles||[]).filter(function(c){return c.brand===b;}).length;
     var act=(DB.cycles||[]).filter(function(c){return c.brand===b&&c.status==='active';}).length;
     h+='<div class="bcard" style="gap:12px;cursor:pointer;" onclick="openBrandWorkspace(\''+b+'\')">';
@@ -3702,7 +3710,7 @@ function openBrandWorkspace(brand){ _bwBrand=brand; _bwTab='resumen'; bwShowPane
 function bwRenderHead(){
   var b=_bwBrand, bc=DB.brandCfg[b]||{}, name=CREDS[b]?CREDS[b].name:b;
   var logo=bc.logoLight||bc.logoDark;
-  var av=logo?'<div class="bcard-av has-logo"><img src="'+logo+'"></div>':'<div class="bcard-av">'+(name.charAt(0)||'?').toUpperCase()+'</div>';
+  var av=brandAvatar(b);
   var h='<div onclick="showAT(document.getElementById(\'at-btn-marcas\'),\'at-marcas\')" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);font-weight:600;cursor:pointer;margin-bottom:12px;">Marcas</div>';
   h+='<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">'+av+'<div><div style="font-size:20px;font-weight:800;">'+name+'</div><div style="font-size:11px;color:var(--t2);font-family:monospace;">@'+b+'</div></div></div>';
   gi('bwHead').innerHTML=h;
@@ -4142,7 +4150,7 @@ function renderAObj() {
     var name=CREDS[b]?CREDS[b].name:b;
     var _obc=DB.brandCfg[b]||{};
     var _oLogo=_obc.logoLight||_obc.logoDark;
-    var _oav=_oLogo?'<div class="bcard-av has-logo"><img src="'+_oLogo+'"></div>':'<div class="bcard-av">'+(name.charAt(0)||'?').toUpperCase()+'</div>';
+    var _oav=brandAvatar(b);
     html+='<div class="bcard" style="gap:10px;cursor:pointer;" onclick="openObjModal(\''+b+'\')">';
     html+='<div class="bcard-head"><div class="bcard-id">'+_oav+'<div style="min-width:0;"><div class="bcard-name">'+name+'</div><div class="bcard-user">'+n+' '+(n===1?'objetivo':'objetivos')+'</div></div></div></div>';
     html+='<div style="font-size:11px;color:var(--t2);font-weight:600;">Ver objetivos</div>';
