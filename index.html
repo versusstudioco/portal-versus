@@ -1177,7 +1177,7 @@ img{max-width:100%;display:block;}
 
   <!-- PUBLICACIONES -->
   <div id="at-pubs" class="panel">
-    <div class="card">
+    <div class="card" id="pubFormCard">
       <div class="card-title">Nueva publicacion</div>
       <div class="fr">
         <div class="ff"><label>Marca</label><select id="aPB" onchange="popCyc('aPC',this.value)"></select></div>
@@ -1223,7 +1223,7 @@ img{max-width:100%;display:block;}
 
   <!-- PAUTA -->
   <div id="at-pauta" class="panel">
-    <div class="card">
+    <div class="card" id="pautaFormCard">
       <div class="card-title">Configurar pauta</div>
       <div class="fr">
         <div class="ff"><label>Marca</label><select id="aPaB" onchange="popCyc('aPaC',this.value)"></select></div>
@@ -3519,6 +3519,7 @@ function printReport() { window.print(); }
 
 // ===== ADMIN PANELS =====
 function showAT(el,panel) {
+  if(typeof bwRestoreForms==="function") bwRestoreForms();
   document.querySelectorAll("#adminScreen .panel").forEach(function(p){
     p.style.display="none"; p.classList.remove("active");
   });
@@ -3716,12 +3717,65 @@ function bwRenderHead(){
 function bwRenderTabs(){ var h=''; BW_TABS.forEach(function(t){ h+='<div class="bw-tab'+(_bwTab===t[0]?' on':'')+'" onclick="bwShowTab(\''+t[0]+'\')">'+t[1]+'</div>'; }); gi('bwTabs').innerHTML=h; }
 function bwShowTab(tab){ _bwTab=tab; bwRenderTabs(); bwRenderBody(); }
 function bwRenderBody(){
+  bwRestoreForms();
   var b=_bwBrand, body=gi('bwBody'); if(!body) return;
   if(_bwTab==='resumen') body.innerHTML=bwResumen(b);
   else if(_bwTab==='ciclos') body.innerHTML=bwCiclos(b);
   else if(_bwTab==='objetivos') body.innerHTML=bwObjetivos(b);
   else if(_bwTab==='config') body.innerHTML='<div class="card">'+brandCfgHTML(b)+'</div>';
+  else if(BW_MANAGE[_bwTab]) bwManage(_bwTab);
   else body.innerHTML=bwPlaceholder(_bwTab);
+}
+// ===== Gestion inline por marca: relocar el formulario existente + lista filtrada =====
+var _bwReloc=null, _bwHomes={};
+var BW_MANAGE={
+  pauta:{formCard:'pautaFormCard', brandSel:'aPaB', title:'Pauta', list:function(b){return bwPautaList(b);}},
+  pubs: {formCard:'pubFormCard',   brandSel:'aPB',  title:'Publicaciones', list:function(b){return bwPubsList(b);}}
+};
+function bwManage(kind){
+  var cfg=BW_MANAGE[kind], b=_bwBrand, body=gi('bwBody');
+  body.innerHTML='<div class="card"><div class="card-title">'+cfg.title+' de la marca</div><div id="bwList">'+cfg.list(b)+'</div></div><div id="bwFormSlot" style="margin-top:14px;"></div>';
+  var card=gi(cfg.formCard);
+  if(card){
+    if(!_bwHomes[cfg.formCard]) _bwHomes[cfg.formCard]=card.parentNode;
+    gi('bwFormSlot').appendChild(card);
+    var s=gi(cfg.brandSel);
+    _bwReloc={node:card, homeKey:cfg.formCard, brandSel:s};
+    if(s){ s.value=b; var ff=s.closest('.ff'); if(ff) ff.style.display='none'; try{s.dispatchEvent(new Event('change'));}catch(e){} }
+  }
+}
+function bwRestoreForms(){
+  if(_bwReloc){
+    var home=_bwHomes[_bwReloc.homeKey];
+    if(_bwReloc.node&&home) home.appendChild(_bwReloc.node);
+    if(_bwReloc.brandSel){ var ff=_bwReloc.brandSel.closest('.ff'); if(ff) ff.style.display=''; }
+    _bwReloc=null;
+  }
+}
+function bwRefreshList(){ if(gi('bwList')&&BW_MANAGE[_bwTab]) gi('bwList').innerHTML=BW_MANAGE[_bwTab].list(_bwBrand); }
+function bwPautaList(b){
+  var items=(DB.pauta||[]).map(function(p,i){return {p:p,i:i};}).filter(function(x){return x.p.brand===b;});
+  if(!items.length) return '<div class="empty" style="padding:14px 0;">Sin pauta. Agrega una en el formulario de abajo.</div>';
+  return items.map(function(x){
+    var p=x.p, cyc=DB.cycles.find(function(c){return c.id===p.cycle;}), cn=cyc?cyc.name:p.cycle;
+    return '<div class="ptr" style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--bd)"><div><b style="font-size:13px;">'+cn+'</b> <span style="font-size:11px;color:var(--t2)">'+(p.platform||'')+' &middot; '+fM(p.investment)+'</span></div><div style="display:flex;gap:6px"><button class="wmc-edit-btn" onclick="loadPauta('+x.i+')">Editar</button><button class="wmc-edit-btn" style="color:#F90000;" onclick="deletePauta('+x.i+')">Elim.</button></div></div>';
+  }).join('');
+}
+function bwPubsList(b){
+  var pubs=(DB.publications||[]).map(function(p,i){return p;}).filter(function(p){return p.brand===b;});
+  if(!pubs.length) return '<div class="empty" style="padding:14px 0;">Sin publicaciones. Agrega una en el formulario de abajo.</div>';
+  // agrupar por ciclo
+  var byC={}; pubs.forEach(function(p){ (byC[p.cycle]=byC[p.cycle]||[]).push(p); });
+  var h='';
+  Object.keys(byC).forEach(function(cid){
+    var cyc=DB.cycles.find(function(c){return c.id===cid;});
+    h+='<div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 6px;">'+(cyc?cyc.name:cid)+'</div>';
+    byC[cid].forEach(function(p){
+      var st={published:'Pub',scheduled:'Prog',production:'Prod',draft:'Bor'}[p.status]||'Bor';
+      h+='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--bd)"><div style="min-width:0;"><span class="ttag '+(TCLS[p.type]||'t-post')+'">'+(p.type||'?')+'</span> <span style="font-size:12px;">'+((p.desc||'—').slice(0,40))+'</span><div style="font-size:10px;color:var(--t3);">'+fD(p.date)+' &middot; '+st+'</div></div><div style="display:flex;gap:6px;flex-shrink:0;"><button class="wmc-edit-btn" onclick="openEdit(\''+p.id+'\')">Editar</button><button class="wmc-edit-btn" style="color:#F90000;" onclick="deletePub(\''+p.id+'\')">Elim.</button></div></div>';
+    });
+  });
+  return h;
 }
 function bwKpi(l,v){ return '<div class="kpi-card kpi-na"><div class="kpi-lbl">'+l+'</div><div class="kpi-val" style="font-size:17px;">'+v+'</div></div>'; }
 function bwResumen(b){
@@ -4202,12 +4256,12 @@ function savePub() {
   showToast("Publicacion guardada!");
   ["aPD","aPDe","aPL","aPVi","aPLi","aPCo","aPSh","aPAl"].forEach(function(id){sv(id,"");});
   gi("aPFe").checked = false;
-  renderAPubs();
+  renderAPubs(); bwRefreshList();
 }
 function deletePub(id) {
   if(!confirm("Eliminar publicacion?")) return;
   DB.publications = DB.publications.filter(function(p){return p.id!==id;});
-  saveDB(); addLog("Publicacion eliminada"); renderAPubs(); renderACycles();
+  saveDB(); addLog("Publicacion eliminada"); renderAPubs(); renderACycles(); bwRefreshList();
 }
 function openEdit(id) {
   var p = DB.publications.find(function(x){return x.id===id;}); if(!p) return;
@@ -4422,7 +4476,7 @@ function savePauta() {
   _pautaEditIdx=-1;
   saveDB(); addLog("Pauta guardada para " + brand); showToast("Pauta guardada!");
   clearPautaForm();
-  renderAPauta();
+  renderAPauta(); bwRefreshList();
 }
 function renderAPauta() {
   if(!DB.pauta) DB.pauta=[];
@@ -4545,7 +4599,7 @@ function deletePauta(idx){
   DB.pauta.splice(idx,1);
   if(_pautaEditIdx===idx) clearPautaForm();
   _pautaEditIdx=-1;
-  saveDB(); renderAPauta(); showToast('Pauta eliminada');
+  saveDB(); renderAPauta(); bwRefreshList(); showToast('Pauta eliminada');
 }
 
 function deleteObj(idx){
