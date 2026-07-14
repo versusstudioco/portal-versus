@@ -1266,36 +1266,36 @@ img{max-width:100%;display:block;}
   </div>
 
   <!-- LOGROS -->
-  <div id="at-logros" class="panel">
+  <div id="at-notif" class="panel"></div>
+  <div id="at-import" class="panel">
     <div class="card">
-      <div class="card-title">Logro / Mensaje de invitación a feedback por marca</div>
-<div id="at-notif" class="panel"></div>
-<div id="at-import" class="panel">
-  <div class="card">
-    <div class="section-header"><span class="sh-title">Importar publicaciones desde Excel</span></div>
-    <p style="font-size:12px;color:var(--t2);margin:0 0 14px;">Descarga la plantilla, llénala con los datos de Instagram y súbela aquí.</p>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
-      <button class="btn" onclick="downloadTemplate()">&#8659; Descargar plantilla Excel</button>
-      <button class="btn btn-ghost" onclick="downloadTemplateCSV()">&#8659; Descargar plantilla CSV</button>
-    </div>
-    <div style="background:rgba(108,0,255,.04);border:1.5px dashed var(--pur);border-radius:12px;padding:20px;text-align:center;cursor:pointer;" onclick="gi('importFile').click()" id="importDropZone">
-      <div style="font-size:24px;margin-bottom:6px;">&#128196;</div>
-      <div style="font-size:13px;font-weight:600;color:var(--tx);">Haz click o arrastra tu archivo aquí</div>
-      <div style="font-size:11px;color:var(--t2);margin-top:4px;">.xlsx o .csv</div>
-      <input type="file" id="importFile" accept=".xlsx,.csv" style="display:none" onchange="handleImportFile(this)">
-    </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center;">
-      <div class="ff" style="flex:1;min-width:140px;"><label>Marca</label><select id="importBrand" onchange="popCyc('importCycle',this.value)"><option value="">- selecciona -</option></select></div>
-      <div class="ff" style="flex:1;min-width:140px;"><label>Ciclo</label><select id="importCycle"><option value="">- selecciona marca -</option></select></div>
-    </div>
-    <div id="importPreview" style="margin-top:14px;"></div>
-    <div id="importActions" style="display:none;margin-top:10px;">
-      <button class="btn" onclick="confirmImport()">&#10003; Importar publicaciones</button>
-      <button class="btn btn-ghost" onclick="cancelImport()" style="margin-left:8px;">Cancelar</button>
+      <div class="section-header"><span class="sh-title">Importar publicaciones desde Excel</span></div>
+      <p style="font-size:12px;color:var(--t2);margin:0 0 14px;">Descarga la plantilla, llénala con los datos de Instagram y súbela aquí.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+        <button class="btn" onclick="downloadTemplate()">&#8659; Descargar plantilla Excel</button>
+        <button class="btn btn-ghost" onclick="downloadTemplateCSV()">&#8659; Descargar plantilla CSV</button>
+      </div>
+      <div style="background:rgba(108,0,255,.04);border:1.5px dashed var(--pur);border-radius:12px;padding:20px;text-align:center;cursor:pointer;" onclick="gi('importFile').click()" id="importDropZone">
+        <div style="font-size:24px;margin-bottom:6px;">&#128196;</div>
+        <div style="font-size:13px;font-weight:600;color:var(--tx);">Haz click o arrastra tu archivo aquí</div>
+        <div style="font-size:11px;color:var(--t2);margin-top:4px;">.xlsx o .csv</div>
+        <input type="file" id="importFile" accept=".xlsx,.csv" style="display:none" onchange="handleImportFile(this)">
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center;">
+        <div class="ff" style="flex:1;min-width:140px;"><label>Marca</label><select id="importBrand" onchange="popCyc('importCycle',this.value)"><option value="">- selecciona -</option></select></div>
+        <div class="ff" style="flex:1;min-width:140px;"><label>Ciclo</label><select id="importCycle"><option value="">- selecciona marca -</option></select></div>
+      </div>
+      <div id="importPreview" style="margin-top:14px;"></div>
+      <div id="importActions" style="display:none;margin-top:10px;">
+        <button class="btn" onclick="confirmImport()">&#10003; Importar publicaciones</button>
+        <button class="btn btn-ghost" onclick="cancelImport()" style="margin-left:8px;">Cancelar</button>
+      </div>
     </div>
   </div>
-</div>
 
+  <div id="at-logros" class="panel">
+    <div class="card" id="logrosFormCard">
+      <div class="card-title">Logro / Mensaje de invitación a feedback por marca</div>
       <p class="tip">Aparece como banner en el portal del cliente.</p>
       <div class="fr">
         <div class="ff"><label>Marca</label><select id="aLB" onchange="popCyc('aLC',this.value)"></select></div>
@@ -3729,8 +3729,19 @@ var BW_MANAGE={
   ciclos:{formCard:'cycFormCard', brandSel:'aCB', title:'Ciclos', list:function(b){return bwCiclosList(b);}},
   objetivos:{formCard:'accObjForm', brandSel:'aOB', title:'Objetivos', openAcc:true, list:function(b){return bwObjetivosList(b);}},
   pauta:{formCard:'pautaFormCard', brandSel:'aPaB', title:'Pauta', list:function(b){return bwPautaList(b);}},
-  pubs: {formCard:'pubFormCard',   brandSel:'aPB',  title:'Publicaciones', list:function(b){return bwPubsList(b);}}
+  pubs: {formCard:'pubFormCard',   brandSel:'aPB',  title:'Publicaciones', list:function(b){return bwPubsList(b);}},
+  logros:{formCard:'logrosFormCard', brandSel:'aLB', title:'Logros', list:function(b){return bwLogrosList(b);}}
 };
+function bwLogrosList(b){
+  var lg=(DB.logros&&DB.logros[b])||{};
+  var cids=Object.keys(lg);
+  if(!cids.length) return '<div class="empty" style="padding:14px 0;">Sin logros. Crea uno en el formulario de abajo.</div>';
+  return cids.map(function(cid){
+    var l=lg[cid]||{}, cyc=DB.cycles.find(function(c){return c.id===cid;}), cn=cyc?cyc.name:cid;
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--bd)"><div style="min-width:0;"><b style="font-size:13px;">'+cn+'</b><div style="font-size:11px;color:var(--t2);">'+((l.title||'')+(l.msg?' &middot; '+l.msg:''))+'</div></div><div style="display:flex;gap:6px;flex-shrink:0;"><button class="wmc-edit-btn" onclick="loadLogro(\''+b+'\',\''+cid+'\')">Editar</button><button class="wmc-edit-btn" style="color:#F90000;" onclick="bwDeleteLogro(\''+b+'\',\''+cid+'\')">Elim.</button></div></div>';
+  }).join('');
+}
+function bwDeleteLogro(b,cid){ deleteLogro(b,cid); if(gi('at-brand')&&gi('at-brand').classList.contains('active')) bwShowTab('logros'); }
 function bwManage(kind){
   var cfg=BW_MANAGE[kind], b=_bwBrand, body=gi('bwBody');
   body.innerHTML='<div class="card"><div class="card-title">'+cfg.title+' de la marca</div><div id="bwList">'+cfg.list(b)+'</div></div><div id="bwFormSlot" style="margin-top:14px;"></div>';
@@ -4503,7 +4514,7 @@ function saveLogro() {
   if(!DB.renewalCfg[brand]) DB.renewalCfg[brand] = {};
   DB.renewalCfg[brand] = {msg:gv("aRMsg")};
   saveDB(); addLog("Logro guardado para " + brand); showToast("Guardado!");
-  renderALogros();
+  renderALogros(); if(typeof bwRefreshList==='function') bwRefreshList();
 }
 function renderALogros() {
   if(!DB.cycles) DB.cycles=[];
