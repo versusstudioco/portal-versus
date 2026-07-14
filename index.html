@@ -504,11 +504,7 @@ img{max-width:100%;display:block;}
 .acc-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;cursor:pointer;user-select:none;}
 .acc-head:hover{background:var(--bg3);}
 .acc-t{font-size:14px;font-weight:700;color:var(--tx);}
-.acc-chev{position:relative;width:18px;height:18px;flex-shrink:0;color:var(--t2);}
-.acc-chev::before,.acc-chev::after{content:"";position:absolute;background:currentColor;border-radius:2px;transition:.2s;}
-.acc-chev::before{top:8px;left:3px;width:12px;height:2px;}
-.acc-chev::after{left:8px;top:3px;width:2px;height:12px;}
-.acc.open .acc-chev::after{transform:scaleY(0);}
+.acc-chev{display:none;}
 .acc-body{display:none;padding:2px 18px 20px;}
 .acc.open .acc-body{display:block;}
 .acc-sub{font-size:12px;font-weight:700;color:var(--tx);margin-bottom:8px;}
@@ -777,7 +773,7 @@ img{max-width:100%;display:block;}
     <div class="field"><label>Contrasena</label>
       <input id="lp" type="password" placeholder="..." autocomplete="current-password">
     </div>
-    <button class="btn btn-red btn-full" onclick="doLogin()" id="loginBtn">Ingresar &rarr;</button>
+    <button class="btn btn-red btn-full" onclick="doLogin()" id="loginBtn">Ingresar</button>
     <div class="form-err" id="le">Usuario o contrasena incorrectos</div>
   </div>
 </div>
@@ -803,7 +799,7 @@ img{max-width:100%;display:block;}
       <button class="tgl" onclick="toggleTheme()"></button>
     </div>
     <button class="btn btn-ghost btn-sm" onclick="printReport()">&#128438; PDF</button>
-    <button class="btn btn-ghost btn-sm" onclick="doLogout()">&larr; Cerrar sesion</button>
+    <button class="btn btn-ghost btn-sm" onclick="doLogout()">Cerrar sesion</button>
   </div>
 </nav>
 <main class="main">
@@ -837,7 +833,7 @@ img{max-width:100%;display:block;}
       <span style="font-size:10px;color:var(--t2);">Tema</span>
       <button class="tgl" onclick="toggleTheme()"></button>
     </div>
-    <button class="btn btn-ghost btn-sm" onclick="doLogout()">&larr; Cerrar sesion</button>
+    <button class="btn btn-ghost btn-sm" onclick="doLogout()">Cerrar sesion</button>
   </div>
 </nav>
 <main class="main">
@@ -1108,12 +1104,6 @@ img{max-width:100%;display:block;}
         </div>
         <div class="fr">
           <div class="ff"><label>Historias (ciclo)</label><input type="number" id="aOSt" value="0" min="0"></div>
-        </div>
-        <div class="div"></div>
-        <p class="tip">Meta de crecimiento</p>
-        <div class="fr">
-          <div class="ff"><label>Seguidores objetivo</label><input type="number" id="aOF" value="0" min="0" placeholder="Ej: 5000"></div>
-          <div class="ff"><label>Nuevos seguidores meta</label><input type="number" id="aOGrowth" value="0" min="0" placeholder="Ej: 200"></div>
         </div>
         <div style="display:flex;gap:8px;">
           <button class="btn btn-pur" onclick="saveObj()">Guardar objetivo</button>
@@ -2976,7 +2966,7 @@ function openPubDetail(pubId, cycId) {
   html+='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;font-size:12px;color:var(--t2);">';
   html+='<span>'+fD(p.date)+'</span>';
   html+='<span>'+(p.platform||'')+'</span>';
-  if(p.link) html+='<a href="'+p.link+'" target="_blank" rel="noopener" style="color:var(--pur);font-weight:600;">Ver publicaci\u00f3n \u2192</a>';
+  if(p.link) html+='<a href="'+p.link+'" target="_blank" rel="noopener" style="color:var(--pur);font-weight:600;">Ver publicaci\u00f3n</a>';
   html+='</div>';
   // Metrics
   html+='<div class="cont-metrics" style="margin-bottom:16px;">';
@@ -3072,7 +3062,7 @@ function renderPautaClient(cycId){
     html+='<div style="background:var(--bg3);border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:background .15s;" onclick="openPautaDetail('+idx+')">';
     html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">';
     html+='<span style="font-size:13px;font-weight:700;color:var(--tx);">'+platName+(pt.period?' \u00b7 '+pt.period:'')+'</span>';
-    html+='<span style="font-size:11px;color:var(--pur);font-weight:600;">Ver detalle \u2192</span>';
+    html+='<span style="font-size:11px;color:var(--pur);font-weight:600;">Ver detalle</span>';
     html+='</div>';
     html+='<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--t2);">';
     if(pt.investment) html+='<span>\uD83D\uDCB0 $'+fN(pt.investment)+'</span>';
@@ -3608,16 +3598,20 @@ function prefillPrevCycle(brand){
   var titleEl=gi('cycFormTitle'); if(titleEl&&titleEl.dataset.editing) return; // no tocar en edicion
   var bcy=(DB.cycles||[]).filter(function(c){return c.brand===brand;})
     .sort(function(a,b){return (b.start||'').localeCompare(a.start||'');});
-  if(!bcy.length) return;
+  if(!bcy.length){
+    // Primer ciclo de la marca: entrada manual (limpiar campos)
+    sv('aCPF',0); sv('aCPV',0); sv('aCBF',0); sv('aCBV',0);
+    var pe0=gi('aCPE'); if(pe0) pe0.checked=false;
+    return;
+  }
+  // 2do+ ciclo: total del ciclo anterior (seguidores de cierre + vistas del ciclo completo)
   var prev=bcy[0];
   var cl=cycleClose(brand, prev.id);
   var f=cl.followers||Number(prev.prevFollowers)||Number(prev.baseFollowers)||0;
   var v=cl.views||Number(prev.baseViews)||0;
-  if(f>0||v>0){
-    sv('aCPF', f); sv('aCPV', v); sv('aCBF', f);
-    var pe=gi('aCPE'); if(pe) pe.checked=true;
-    showToast('Cargado del ciclo anterior ('+prev.name+'): '+fN(f)+' seg. · '+fN(v)+' vistas');
-  }
+  sv('aCPF', f); sv('aCPV', v); sv('aCBF', f);
+  var pe=gi('aCPE'); if(pe) pe.checked=true;
+  if(f>0||v>0) showToast('Cargado del ciclo anterior ('+prev.name+'): '+fN(f)+' seg. · '+fN(v)+' vistas');
 }
 function refreshCycs() { renderACycles(); if(gi('aCB')) prefillPrevCycle(gi('aCB').value); }
 
@@ -3685,7 +3679,7 @@ function bwShowPanel(id){
 function renderMarcasHome(){
   var el=gi('aMarcasGrid'); if(!el) return;
   var sorted=BRANDS.slice().sort(function(a,z){var na=(CREDS[a]?CREDS[a].name:a).toLowerCase(),nb=(CREDS[z]?CREDS[z].name:z).toLowerCase();return na<nb?-1:na>nb?1:0;});
-  if(!sorted.length){ el.innerHTML="<div class='empty'>Sin marcas. Crea una en Config &rarr; Usuarios.</div>"; return; }
+  if(!sorted.length){ el.innerHTML="<div class='empty'>Sin marcas. Crea una en Config, Usuarios.</div>"; return; }
   var h='<div class="brand-grid">';
   sorted.forEach(function(b){
     var bc=DB.brandCfg[b]||{}, name=CREDS[b]?CREDS[b].name:b;
@@ -3703,13 +3697,13 @@ function renderMarcasHome(){
   h+='</div>'; el.innerHTML=h;
 }
 var _bwBrand=null, _bwTab='resumen';
-var BW_TABS=[['resumen','Resumen'],['ciclos','Ciclos'],['objetivos','Objetivos'],['pubs','Publicaciones'],['pauta','Pauta'],['logros','Logros'],['config','Config']];
+var BW_TABS=[['resumen','Resumen'],['ciclos','Ciclos'],['objetivos','Objetivos'],['pubs','Publicaciones'],['pauta','Pauta'],['logros','Logros'],['feedback','Feedback'],['config','Config']];
 function openBrandWorkspace(brand){ _bwBrand=brand; _bwTab='resumen'; bwShowPanel('at-brand'); bwRenderHead(); bwRenderTabs(); bwRenderBody(); window.scrollTo(0,0); }
 function bwRenderHead(){
   var b=_bwBrand, bc=DB.brandCfg[b]||{}, name=CREDS[b]?CREDS[b].name:b;
   var logo=bc.logoLight||bc.logoDark;
   var av=logo?'<div class="bcard-av has-logo"><img src="'+logo+'"></div>':'<div class="bcard-av">'+(name.charAt(0)||'?').toUpperCase()+'</div>';
-  var h='<div onclick="showAT(document.getElementById(\'at-btn-marcas\'),\'at-marcas\')" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);font-weight:600;cursor:pointer;margin-bottom:12px;">&#8249; Marcas</div>';
+  var h='<div onclick="showAT(document.getElementById(\'at-btn-marcas\'),\'at-marcas\')" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);font-weight:600;cursor:pointer;margin-bottom:12px;">Marcas</div>';
   h+='<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">'+av+'<div><div style="font-size:20px;font-weight:800;">'+name+'</div><div style="font-size:11px;color:var(--t2);font-family:monospace;">@'+b+'</div></div></div>';
   gi('bwHead').innerHTML=h;
 }
@@ -3719,9 +3713,28 @@ function bwRenderBody(){
   bwRestoreForms();
   var b=_bwBrand, body=gi('bwBody'); if(!body) return;
   if(_bwTab==='resumen') body.innerHTML=bwResumen(b);
+  else if(_bwTab==='feedback') body.innerHTML=bwFeedback(b);
   else if(_bwTab==='config') body.innerHTML='<div class="card">'+brandCfgHTML(b)+'</div>';
   else if(BW_MANAGE[_bwTab]) bwManage(_bwTab);
   else body.innerHTML=bwPlaceholder(_bwTab);
+}
+function bwFeedback(b){
+  var fbs=(DB.feedback&&DB.feedback[b])||{};
+  var cids=Object.keys(fbs);
+  var stars=function(n){var s="";for(var i=1;i<=5;i++)s+=(i<=n?"★":"☆");return s;};
+  var h='<div class="card"><div class="card-title">Feedback de la marca</div><p class="tip">Calificaciones y comentarios del cliente por ciclo.</p>';
+  if(!cids.length){ return h+'<div class="empty" style="padding:16px 0;">Sin feedback aun.</div></div>'; }
+  cids.forEach(function(cid){
+    var fb=fbs[cid]||{}, cyc=DB.cycles.find(function(c){return c.id===cid;})||{}, avg=(((fb.comm||0)+(fb.sin||0)+(fb.cump||0)+(fb.exp||0))/4).toFixed(1);
+    h+="<div class='fb-item'><div class='fb-head'><span class='fb-cycle'>"+(cyc.name||cid)+"</span><span class='fb-avg'>★ "+avg+"/5</span></div><div class='fb-grid'>"
+      +"<div class='fb-dim'><div class='fb-dim-lbl'>Comunicacion</div><div class='fb-stars'>"+stars(fb.comm)+"</div></div>"
+      +"<div class='fb-dim'><div class='fb-dim-lbl'>Sinergia</div><div class='fb-stars'>"+stars(fb.sin)+"</div></div>"
+      +"<div class='fb-dim'><div class='fb-dim-lbl'>Cumplimiento</div><div class='fb-stars'>"+stars(fb.cump)+"</div></div>"
+      +"<div class='fb-dim'><div class='fb-dim-lbl'>Expectativa</div><div class='fb-stars'>"+stars(fb.exp)+"</div></div></div>"
+      +(fb.text?"<div class='fb-text'>“"+fb.text+"”</div>":"")
+      +"<div class='fb-ts'>"+(fb.ts?new Date(fb.ts).toLocaleDateString("es-CO"):"")+"</div></div>";
+  });
+  return h+'</div>';
 }
 // ===== Gestion inline por marca: relocar el formulario existente + lista filtrada =====
 var _bwReloc=null, _bwHomes={};
@@ -3819,7 +3832,7 @@ function bwCiclosList(b){
 function bwCycContent(cycleId){
   bwRestoreForms();
   var c=DB.cycles.find(function(x){return x.id===cycleId;}); if(!c) return;
-  var h='<div class="card"><div onclick="bwShowTab(\'ciclos\')" style="display:inline-flex;gap:6px;font-size:12px;color:var(--t2);font-weight:600;cursor:pointer;margin-bottom:10px;">&#8249; Volver a ciclos</div>';
+  var h='<div class="card"><div onclick="bwShowTab(\'ciclos\')" style="display:inline-flex;gap:6px;font-size:12px;color:var(--t2);font-weight:600;cursor:pointer;margin-bottom:10px;">Volver a ciclos</div>';
   h+='<div class="card-title">'+c.name+'</div><p class="tip">'+fD(c.start)+' &mdash; '+fD(c.end)+'</p>'+cycPubsTableHTML(c.brand,cycleId)+'</div>';
   gi('bwBody').innerHTML=h;
 }
@@ -4067,7 +4080,7 @@ function renderCycModalList(){
 function selectCycInModal(cycleId){
   var body=gi('cycModalBody'); if(!body) return;
   var c=DB.cycles.find(function(x){return x.id===cycleId;}); if(!c) return;
-  var h='<div onclick="renderCycModalList()" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);font-weight:600;cursor:pointer;margin-bottom:10px;">‹ Volver a ciclos</div>';
+  var h='<div onclick="renderCycModalList()" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);font-weight:600;cursor:pointer;margin-bottom:10px;">Volver a ciclos</div>';
   h+='<div class="modal-title">'+c.name+'</div>';
   h+='<p class="tip" style="margin-bottom:14px;">'+fD(c.start)+' — '+fD(c.end)+'</p>';
   h+=cycPubsTableHTML(c.brand,cycleId);
