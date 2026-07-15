@@ -3815,26 +3815,78 @@ function bwPautaList(b){
   }).join('');
 }
 function bwTogglePubCyc(el){ var b=el.parentNode.querySelector('.pubc-body'); if(b) b.style.display=(b.style.display==='none'?'block':'none'); }
+function bwPubToggle(el){ var b=el.nextElementSibling; if(b) b.style.display=(b.style.display==='none'?'block':'none'); }
+function bwPubItemRow(p){
+  var st={published:'Pub',scheduled:'Prog',production:'Prod',draft:'Bor'}[p.status]||'Bor';
+  return '<div onclick="bwPubDetail(\''+p.id+'\')" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--bd);cursor:pointer;"><div style="min-width:0;"><span class="ttag '+(TCLS[p.type]||'t-post')+'">'+(p.type||'?')+'</span> <span style="font-size:12px;">'+((p.desc||'—').slice(0,36))+'</span><div style="font-size:10px;color:var(--t3);">'+fD(p.date)+' &middot; '+st+(p.link?' &middot; 🔗':'')+'</div></div><div style="display:flex;gap:6px;flex-shrink:0;" onclick="event.stopPropagation();"><button class="wmc-edit-btn" onclick="openEdit(\''+p.id+'\')">Editar</button><button class="wmc-edit-btn" style="color:#F90000;" onclick="deletePub(\''+p.id+'\')">Elim.</button></div></div>';
+}
+function bwPubCat(title, items){
+  if(!items.length) return '';
+  var h='<div style="margin:6px 0;"><div onclick="bwPubToggle(this)" style="display:flex;justify-content:space-between;align-items:center;padding:8px 11px;background:var(--bg4);border-radius:9px;cursor:pointer;"><b style="font-size:12px;">'+title+' ('+items.length+')</b><span style="font-size:11px;color:var(--pur);font-weight:600;">Ver</span></div>';
+  h+='<div style="display:none;padding:2px 8px 4px;">'+items+'</div></div>';
+  return h;
+}
 function bwPubsList(b){
   var pubs=(DB.publications||[]).filter(function(p){return p.brand===b;});
   if(!pubs.length) return '<div class="empty" style="padding:14px 0;">Sin publicaciones aun.</div>';
   var byC={}; pubs.forEach(function(p){ (byC[p.cycle]=byC[p.cycle]||[]).push(p); });
-  // Ciclos mas recientes primero
   var cids=Object.keys(byC).sort(function(a,z){ var ca=DB.cycles.find(function(c){return c.id===a;})||{}, cz=DB.cycles.find(function(c){return c.id===z;})||{}; return (cz.start||'').localeCompare(ca.start||''); });
   var h='';
   cids.forEach(function(cid){
     var cyc=DB.cycles.find(function(c){return c.id===cid;})||{}, list=byC[cid];
+    var hist=list.filter(function(p){return p.type==='Historia'||p.type==='Historias';});
+    var feed=list.filter(function(p){return !(p.type==='Historia'||p.type==='Historias');});
     var pub=list.filter(function(p){return p.status==='published';}).length;
+    // Nivel 1: Ciclo
     h+='<div style="border:0.5px solid var(--bd);border-radius:12px;margin-bottom:10px;overflow:hidden;">';
     h+='<div onclick="bwTogglePubCyc(this)" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;cursor:pointer;background:var(--bg3);"><div><b style="font-size:13px;">'+(cyc.name||cid)+'</b> <span style="font-size:11px;color:var(--t2);">'+list.length+' publicaciones &middot; '+pub+' publicadas</span></div><span style="font-size:11px;color:var(--pur);font-weight:600;">Ver</span></div>';
-    h+='<div class="pubc-body" style="display:none;padding:4px 14px 10px;">';
-    list.forEach(function(p){
-      var st={published:'Pub',scheduled:'Prog',production:'Prod',draft:'Bor'}[p.status]||'Bor';
-      h+='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--bd)"><div style="min-width:0;"><span class="ttag '+(TCLS[p.type]||'t-post')+'">'+(p.type||'?')+'</span> <span style="font-size:12px;">'+((p.desc||'—').slice(0,40))+'</span><div style="font-size:10px;color:var(--t3);">'+fD(p.date)+' &middot; '+st+'</div></div><div style="display:flex;gap:6px;flex-shrink:0;"><button class="wmc-edit-btn" onclick="openEdit(\''+p.id+'\')">Editar</button><button class="wmc-edit-btn" style="color:#F90000;" onclick="deletePub(\''+p.id+'\')">Elim.</button></div></div>';
-    });
+    h+='<div class="pubc-body" style="display:none;padding:8px 12px 12px;">';
+    // Nivel 2: Historias
+    var histRows=''; hist.forEach(function(p){ histRows+=bwPubItemRow(p); });
+    h+=bwPubCat('Historias', histRows);
+    // Nivel 2: Contenido feed -> Nivel 3: por tipo (Reels, Carruseles, Posts...)
+    if(feed.length){
+      var feedInner='';
+      ['Reel','Carrusel','Post','Video','Short'].forEach(function(t){
+        var items=feed.filter(function(p){return p.type===t;});
+        if(!items.length) return;
+        feedInner+='<div style="font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin:8px 0 2px;">'+t+'s ('+items.length+')</div>';
+        items.forEach(function(p){ feedInner+=bwPubItemRow(p); });
+      });
+      h+=bwPubCat('Contenido feed', feedInner);
+    }
     h+='</div></div>';
   });
   return h;
+}
+// Popup de detalle de una publicacion: info + link de redireccion
+function bwPubDetail(id){
+  var p=(DB.publications||[]).find(function(x){return x.id===id;}); if(!p) return;
+  var modal=gi('pubDetailModal'), body=gi('pubDetailBody'); if(!modal||!body) return;
+  var cyc=DB.cycles.find(function(c){return c.id===p.cycle;})||{};
+  var er=engRate(p);
+  var stLbl={published:'Publicado',scheduled:'Programado',production:'En produccion',draft:'Borrador'}[p.status]||p.status||'';
+  var h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="ttag '+(TCLS[p.type]||'t-post')+'">'+(p.type||'?')+'</span><span style="font-size:11px;color:var(--t2);">'+(cyc.name||'')+' &middot; '+(p.platform||'')+'</span></div>';
+  h+='<div style="font-size:14px;font-weight:700;margin-bottom:4px;">'+(p.desc||'Sin descripcion')+'</div>';
+  h+='<div style="font-size:11px;color:var(--t2);margin-bottom:12px;">'+fD(p.date)+' &middot; '+stLbl+(p.featured?' &middot; ⭐ Destacada':'')+'</div>';
+  var mets = (p.type==='Historia'||p.type==='Historias')
+    ? [['Vistas',p.storiesViews],['Interacciones',p.storiesInt]]
+    : [['Vistas',p.views],['Me gusta',p.likes],['Comentarios',p.comments],['Compartidos',p.shares],['Guardados',p.saved]];
+  h+='<div class="cont-metrics" style="margin-bottom:14px;">';
+  var any=false;
+  mets.forEach(function(m){ if(m[1]==null||m[1]==='') return; any=true; h+='<div class="cont-m"><div class="cont-m-lbl">'+m[0]+'</div><div class="cont-m-val">'+fN(m[1])+'</div></div>'; });
+  if(er){ any=true; h+='<div class="cont-m"><div class="cont-m-lbl">ER</div><div class="cont-m-val">'+er+'</div></div>'; }
+  if(!any) h+='<div style="font-size:12px;color:var(--t3);">Sin metricas cargadas.</div>';
+  h+='</div>';
+  if(p.link){
+    h+='<a href="'+p.link+'" target="_blank" rel="noopener" class="btn btn-red" style="width:100%;text-decoration:none;">Ver contenido publicado</a>';
+    h+='<div style="font-size:10px;color:var(--t3);margin-top:6px;word-break:break-all;">'+p.link+'</div>';
+  } else {
+    h+='<div style="font-size:12px;color:var(--t3);text-align:center;padding:8px;">Esta publicacion no tiene link de redireccion.</div>';
+  }
+  body.innerHTML=h;
+  var mt=modal.querySelector('.modal-title'); if(mt) mt.textContent=(p.type||'Publicacion');
+  modal.classList.add('open');
 }
 function bwKpi(l,v){ return '<div class="kpi-card kpi-na"><div class="kpi-lbl">'+l+'</div><div class="kpi-val" style="font-size:17px;">'+v+'</div></div>'; }
 function bwResumen(b){
