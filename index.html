@@ -44,7 +44,7 @@ window.addEventListener("beforeunload", function(){ try{ if(typeof flushSave==="
 }
 .dark{
   --bg:#141414;--bg2:#1c1c1c;--bg3:#242424;--bg4:#2e2e2e;--bg5:#383838;
-  --tx:#ffffff;--t2:#a0a0a0;--t3:#555555;
+  --tx:#ffffff;--t2:#b4b4b4;--t3:#8a8a8a;
   --bd:rgba(255,255,255,.08);--bd2:rgba(255,255,255,.16);
   --card:#1e1e1e;--sh:0 4px 32px rgba(0,0,0,.5);
 }
@@ -477,8 +477,7 @@ img{max-width:100%;display:block;}
 .bcard-head{display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .bcard-id{display:flex;align-items:center;gap:11px;min-width:0;}
 .bcard-av{width:42px;height:42px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:var(--t2);background:var(--bg4);overflow:hidden;}
-.bcard-av.has-logo{background:#fff;border:0.5px solid var(--bd);padding:6px;}
-.bcard-av.has-logo.dark-logo{background:#111;}
+.bcard-av.has-logo{background:transparent;border:none;padding:3px;overflow:visible;}
 .bcard-av.has-logo img{width:100%;height:100%;object-fit:contain;display:block;}
 /* Avatar mas grande en el encabezado del workspace */
 #bwHead .bcard-av{width:56px;height:56px;border-radius:15px;font-size:22px;padding:8px;}
@@ -3685,8 +3684,10 @@ function bwShowPanel(id){
 // Avatar de marca: usa el logo si existe, con fondo acorde (claro/oscuro) para que sea visible
 function brandAvatar(b){
   var bc=DB.brandCfg[b]||{}, name=CREDS[b]?CREDS[b].name:b;
-  if(bc.logoLight) return '<div class="bcard-av has-logo"><img src="'+bc.logoLight+'"></div>';
-  if(bc.logoDark)  return '<div class="bcard-av has-logo dark-logo"><img src="'+bc.logoDark+'"></div>';
+  var isDark=document.body.classList.contains('dark')||document.documentElement.classList.contains('dark');
+  // Elige el logo segun el tema para que se vea sobre el fondo actual (sin recuadro blanco)
+  var logo=isDark?(bc.logoDark||bc.logoLight):(bc.logoLight||bc.logoDark);
+  if(logo) return '<div class="bcard-av has-logo"><img src="'+logo+'"></div>';
   return '<div class="bcard-av">'+(name.charAt(0)||'?').toUpperCase()+'</div>';
 }
 function renderMarcasHome(){
