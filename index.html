@@ -2136,6 +2136,9 @@ function loadFromFirebase(callback) {
     if(data) {
       if(data.db) { DB=data.db; sanitizeDB(); try{localStorage.setItem(DB_KEY,JSON.stringify(DB));}catch(e){} }
       if(data.creds) {
+        // Firebase es la fuente de verdad: REEMPLAZAR (no fusionar) para respetar eliminaciones
+        // (antes las marcas quemadas por defecto, como 90minuti, reaparecian al cargar)
+        Object.keys(CREDS).forEach(function(k){ delete CREDS[k]; });
         Object.keys(data.creds).forEach(function(k){CREDS[k]=data.creds[k];});
         BRANDS.length=0; Object.keys(CREDS).forEach(function(k){if(CREDS[k]&&CREDS[k].type==="client")BRANDS.push(k);});
         try{localStorage.setItem(DB_KEY+"_creds",JSON.stringify(CREDS));}catch(e){}
