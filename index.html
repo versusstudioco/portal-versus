@@ -476,10 +476,12 @@ img{max-width:100%;display:block;}
 .bcard:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(0,0,0,.12);}
 .bcard-head{display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .bcard-id{display:flex;align-items:center;gap:11px;min-width:0;}
-.bcard-av{width:38px;height:38px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:var(--t2);background:var(--bg4);overflow:hidden;}
-.bcard-av.has-logo{background:#fff;border:0.5px solid var(--bd);padding:4px;}
+.bcard-av{width:42px;height:42px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:var(--t2);background:var(--bg4);overflow:hidden;}
+.bcard-av.has-logo{background:#fff;border:0.5px solid var(--bd);padding:6px;}
 .bcard-av.has-logo.dark-logo{background:#111;}
-.bcard-av.has-logo img{width:100%;height:100%;object-fit:contain;}
+.bcard-av.has-logo img{width:100%;height:100%;object-fit:contain;display:block;}
+/* Avatar mas grande en el encabezado del workspace */
+#bwHead .bcard-av{width:56px;height:56px;border-radius:15px;font-size:22px;padding:8px;}
 .bcard-name{font-size:15px;font-weight:800;color:var(--tx);line-height:1.15;}
 .bcard-user{font-size:11px;color:var(--t2);font-family:monospace;margin-top:3px;}
 .bcard-acts{display:flex;gap:6px;flex-shrink:0;}
@@ -3711,7 +3713,7 @@ function bwRenderHead(){
   var b=_bwBrand, bc=DB.brandCfg[b]||{}, name=CREDS[b]?CREDS[b].name:b;
   var logo=bc.logoLight||bc.logoDark;
   var av=brandAvatar(b);
-  var h='<div onclick="showAT(document.getElementById(\'at-btn-marcas\'),\'at-marcas\')" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);font-weight:600;cursor:pointer;margin-bottom:12px;">Marcas</div>';
+  var h='<button class="btn btn-ghost btn-sm" onclick="showAT(document.getElementById(\'at-btn-marcas\'),\'at-marcas\')" style="margin-bottom:14px;">Volver a marcas</button>';
   h+='<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">'+av+'<div><div style="font-size:20px;font-weight:800;">'+name+'</div><div style="font-size:11px;color:var(--t2);font-family:monospace;">@'+b+'</div></div></div>';
   gi('bwHead').innerHTML=h;
 }
@@ -3765,7 +3767,7 @@ function bwLogrosList(b){
 function bwDeleteLogro(b,cid){ deleteLogro(b,cid); if(gi('at-brand')&&gi('at-brand').classList.contains('active')) bwShowTab('logros'); }
 function bwManage(kind){
   var cfg=BW_MANAGE[kind], b=_bwBrand, body=gi('bwBody');
-  body.innerHTML='<div class="card"><div class="card-title">'+cfg.title+' de la marca</div><div id="bwList">'+cfg.list(b)+'</div></div><div id="bwFormSlot" style="margin-top:14px;"></div>';
+  body.innerHTML='<div id="bwFormSlot"></div><div class="card" style="margin-top:14px;"><div class="card-title">'+cfg.title+' de la marca</div><div id="bwList">'+cfg.list(b)+'</div></div>';
   var card=gi(cfg.formCard);
   if(cfg.openAcc&&card) card.classList.add('open');
   if(card){
@@ -3793,19 +3795,25 @@ function bwPautaList(b){
     return '<div class="ptr" style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--bd)"><div><b style="font-size:13px;">'+cn+'</b> <span style="font-size:11px;color:var(--t2)">'+(p.platform||'')+' &middot; '+fM(p.investment)+'</span></div><div style="display:flex;gap:6px"><button class="wmc-edit-btn" onclick="loadPauta('+x.i+')">Editar</button><button class="wmc-edit-btn" style="color:#F90000;" onclick="deletePauta('+x.i+')">Elim.</button></div></div>';
   }).join('');
 }
+function bwTogglePubCyc(el){ var b=el.parentNode.querySelector('.pubc-body'); if(b) b.style.display=(b.style.display==='none'?'block':'none'); }
 function bwPubsList(b){
-  var pubs=(DB.publications||[]).map(function(p,i){return p;}).filter(function(p){return p.brand===b;});
-  if(!pubs.length) return '<div class="empty" style="padding:14px 0;">Sin publicaciones. Agrega una en el formulario de abajo.</div>';
-  // agrupar por ciclo
+  var pubs=(DB.publications||[]).filter(function(p){return p.brand===b;});
+  if(!pubs.length) return '<div class="empty" style="padding:14px 0;">Sin publicaciones aun.</div>';
   var byC={}; pubs.forEach(function(p){ (byC[p.cycle]=byC[p.cycle]||[]).push(p); });
+  // Ciclos mas recientes primero
+  var cids=Object.keys(byC).sort(function(a,z){ var ca=DB.cycles.find(function(c){return c.id===a;})||{}, cz=DB.cycles.find(function(c){return c.id===z;})||{}; return (cz.start||'').localeCompare(ca.start||''); });
   var h='';
-  Object.keys(byC).forEach(function(cid){
-    var cyc=DB.cycles.find(function(c){return c.id===cid;});
-    h+='<div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 6px;">'+(cyc?cyc.name:cid)+'</div>';
-    byC[cid].forEach(function(p){
+  cids.forEach(function(cid){
+    var cyc=DB.cycles.find(function(c){return c.id===cid;})||{}, list=byC[cid];
+    var pub=list.filter(function(p){return p.status==='published';}).length;
+    h+='<div style="border:0.5px solid var(--bd);border-radius:12px;margin-bottom:10px;overflow:hidden;">';
+    h+='<div onclick="bwTogglePubCyc(this)" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;cursor:pointer;background:var(--bg3);"><div><b style="font-size:13px;">'+(cyc.name||cid)+'</b> <span style="font-size:11px;color:var(--t2);">'+list.length+' publicaciones &middot; '+pub+' publicadas</span></div><span style="font-size:11px;color:var(--pur);font-weight:600;">Ver</span></div>';
+    h+='<div class="pubc-body" style="display:none;padding:4px 14px 10px;">';
+    list.forEach(function(p){
       var st={published:'Pub',scheduled:'Prog',production:'Prod',draft:'Bor'}[p.status]||'Bor';
       h+='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--bd)"><div style="min-width:0;"><span class="ttag '+(TCLS[p.type]||'t-post')+'">'+(p.type||'?')+'</span> <span style="font-size:12px;">'+((p.desc||'—').slice(0,40))+'</span><div style="font-size:10px;color:var(--t3);">'+fD(p.date)+' &middot; '+st+'</div></div><div style="display:flex;gap:6px;flex-shrink:0;"><button class="wmc-edit-btn" onclick="openEdit(\''+p.id+'\')">Editar</button><button class="wmc-edit-btn" style="color:#F90000;" onclick="deletePub(\''+p.id+'\')">Elim.</button></div></div>';
     });
+    h+='</div></div>';
   });
   return h;
 }
