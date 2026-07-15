@@ -2269,10 +2269,25 @@ function toggleTheme() {
   }
   localStorage.setItem("vs_theme", dark ? "dark" : "light");
 
-  // Re-render logo on theme change
-  if(CU&&CREDS[CU]&&CREDS[CU].type!=="admin"&&actCyc[CU]){
-    var _ap3=document.querySelector(".panel.active");
-    if(_ap3&&_ap3.id==="p-resumen") renderResumen(actCyc[CU]);
+  // Admin: re-render la vista activa para que los logos usen la variante del tema
+  if(CU&&CREDS[CU]&&CREDS[CU].type==="admin"){
+    var ap=document.querySelector("#adminScreen .panel.active"); var id=ap?ap.id:"";
+    try{
+      if(id==="at-marcas") renderMarcasHome();
+      else if(id==="at-brand"){ bwRenderHead(); bwRenderBody(); }
+      else if(id==="at-config") renderConfig();
+    }catch(e){}
+  }
+  // Cliente: re-render la pestana activa (logo + graficas segun tema)
+  else if(CU&&CREDS[CU]&&actCyc[CU]){
+    var _ap3=document.querySelector("#dashScreen .panel.active");
+    var t=_ap3?_ap3.id.replace("p-",""):"resumen";
+    try{
+      if(t==="contenido") renderContenido(actCyc[CU]);
+      else if(t==="comparativo") renderComparativo();
+      else if(t==="pauta") renderPautaClient(actCyc[CU]);
+      else renderResumen(actCyc[CU]);
+    }catch(e){}
   }
 }
 
@@ -4722,7 +4737,9 @@ function uploadBrandLogo(input,brand,mode){
       else DB.brandCfg[brand].logoDark=img;
       saveDB();
       var bm=gi('brandModal');
-      if(bm&&bm.classList.contains('open')) renderBrandModalBody(); else renderConfig();
+      if(bm&&bm.classList.contains('open')) renderBrandModalBody();
+      else if(gi('at-brand')&&gi('at-brand').classList.contains('active')){ bwRenderHead(); bwRenderBody(); }
+      else renderConfig();
       showToast("Logo guardado");
     });
   };
