@@ -3726,7 +3726,7 @@ function renderMarcasHome(){
   h+='</div>'; el.innerHTML=h;
 }
 var _bwBrand=null, _bwTab='resumen';
-var BW_TABS=[['resumen','Resumen'],['ciclos','Ciclos'],['objetivos','Objetivos'],['pubs','Publicaciones'],['pauta','Pauta'],['logros','Logros'],['feedback','Feedback'],['config','Config']];
+var BW_TABS=[['resumen','Resumen'],['ciclos','Ciclos'],['objetivos','Objetivos'],['metricas','Metricas'],['pubs','Publicaciones'],['pauta','Pauta'],['logros','Logros'],['feedback','Feedback'],['config','Config']];
 function openBrandWorkspace(brand){ _bwBrand=brand; _bwTab='resumen'; bwShowPanel('at-brand'); bwRenderHead(); bwRenderTabs(); bwRenderBody(); window.scrollTo(0,0); }
 function bwRenderHead(){
   var b=_bwBrand, bc=DB.brandCfg[b]||{}, name=CREDS[b]?CREDS[b].name:b;
@@ -3772,7 +3772,8 @@ var BW_MANAGE={
   objetivos:{formCard:'accObjForm', brandSel:'aOB', title:'Objetivos', openAcc:true, list:function(b){return bwObjetivosList(b);}},
   pauta:{formCard:'pautaFormCard', brandSel:'aPaB', title:'Pauta', list:function(b){return bwPautaList(b);}},
   pubs: {formCard:'pubFormCard',   brandSel:'aPB',  title:'Publicaciones', list:function(b){return bwPubsList(b);}},
-  logros:{formCard:'logrosFormCard', brandSel:'aLB', title:'Logros', list:function(b){return bwLogrosList(b);}}
+  logros:{formCard:'logrosFormCard', brandSel:'aLB', title:'Logros', list:function(b){return bwLogrosList(b);}},
+  metricas:{formCard:'accMetForm', brandSel:'aMB', title:'Metricas por semana', openAcc:true, noList:true, list:function(){return '';}}
 };
 function bwLogrosList(b){
   var lg=(DB.logros&&DB.logros[b])||{};
@@ -3786,7 +3787,8 @@ function bwLogrosList(b){
 function bwDeleteLogro(b,cid){ deleteLogro(b,cid); if(gi('at-brand')&&gi('at-brand').classList.contains('active')) bwShowTab('logros'); }
 function bwManage(kind){
   var cfg=BW_MANAGE[kind], b=_bwBrand, body=gi('bwBody');
-  body.innerHTML='<div id="bwFormSlot"></div><div class="card" style="margin-top:14px;"><div class="card-title">'+cfg.title+' de la marca</div><div id="bwList">'+cfg.list(b)+'</div></div>';
+  if(cfg.noList){ body.innerHTML='<div id="bwFormSlot"></div>'; }
+  else { body.innerHTML='<div id="bwFormSlot"></div><div class="card" style="margin-top:14px;"><div class="card-title">'+cfg.title+' de la marca</div><div id="bwList">'+cfg.list(b)+'</div></div>'; }
   var card=gi(cfg.formCard);
   if(cfg.openAcc&&card) card.classList.add('open');
   if(card){
