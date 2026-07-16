@@ -1694,7 +1694,7 @@ function cycWeeks(cyc, plat) {
 function weekLabel(w) {
   return 'Sem '+w.num+' ('+fmtDateShort(w.start)+' - '+fmtDateShort(w.end)+')';
 }
-function pubsInWeek(pubs,w) {
+function pubsInWeek(pubs,w,weeks) {
   // Format date object as YYYY-MM-DD in LOCAL time (avoid UTC offset issues)
   function toLocal(d) {
     if(!d) return "";
@@ -1706,10 +1706,18 @@ function pubsInWeek(pubs,w) {
   }
   var wStartStr = toLocal(w.start);
   var wEndStr   = toLocal(w.end);
+  // Manda el CICLO, no la fecha: publicaciones con fecha fuera del rango del
+  // ciclo se absorben en la primera/ultima semana para que no desaparezcan.
+  var isFirst, isLast;
+  if(weeks&&weeks.length){ isFirst=(w.num===weeks[0].num); isLast=(w.num===weeks[weeks.length-1].num); }
+  else { isFirst=(w.num===1); isLast=(w.num===4); }
   return pubs.filter(function(p) {
     if(!p.date) return false;
     var d = p.date.slice(0,10);
-    return d >= wStartStr && d <= wEndStr;
+    if(d >= wStartStr && d <= wEndStr) return true;
+    if(isFirst && d < wStartStr) return true;
+    if(isLast && d > wEndStr) return true;
+    return false;
   });
 }
 function isCurrentWeek(w) { var n=new Date(); return n>=w.start && n<=w.end; }
@@ -2755,7 +2763,7 @@ function renderResumen(cycId) {
     html+='<div class="adv-card-title">Semana a semana</div>';
     html+='<div class="wk-compact-grid">';
     weeks.forEach(function(w){
-      var wPubs=pubsInWeek(pubsInCyc,w);
+      var wPubs=pubsInWeek(pubsInCyc,w,weeks);
       var wCreat=wPubs.filter(function(p){return p.type==='Reel'||p.type==='Carrusel'||p.type==='Post';});
       var isCur=isCurrentWeek(w);
       var isPast=new Date()>w.end;
@@ -3021,7 +3029,7 @@ function openWeekDetail(weekNum, cycId){
   var pubs2=(DB.publications||[]).filter(function(p){return p.brand===CU&&p.cycle===cycId&&p.status==='published';});
   var weeks2=cycWeeks(cyc2,ep2[0]||'Instagram');
   var w=weeks2.find(function(x){return x.num===weekNum;}); if(!w) return;
-  var wPubs=pubsInWeek(pubs2,w);
+  var wPubs=pubsInWeek(pubs2,w,weeks2);
   var wCreat=wPubs.filter(function(p){return p.type==='Reel'||p.type==='Carrusel'||p.type==='Post';});
   var wHist=wPubs.filter(function(p){return p.type==='Historia'||p.type==='Historias';});
   var wM=null;
@@ -4379,6 +4387,12 @@ function togglePubFields(pfx) {
 function savePub() {
   var brand = gv("aPB"), cycle = gv("aPC");
   if(!cycle) { alert("Selecciona un ciclo."); return; }
+  // Aviso si la fecha queda fuera del rango del ciclo (manda el ciclo, pero puede ser error)
+  var _pc=(DB.cycles||[]).find(function(c){return c.id===cycle;});
+  var _pd=gv("aPD");
+  if(_pc&&_pd&&_pc.start&&_pc.end&&(_pd<_pc.start||_pd>_pc.end)){
+    if(!confirm('La fecha ('+fD(_pd)+') esta FUERA del rango del ciclo "'+_pc.name+'" ('+fD(_pc.start)+' a '+fD(_pc.end)+').\nLa publicacion contara en este ciclo de todas formas.\n\nGuardar asi?')) return;
+  }
   var pub = {
     id:uid(), brand:brand, cycle:cycle, platform:gv("aPPl"), type:gv("aPTy"),
     date:gv("aPD"), desc:gv("aPDe"), link:gv("aPL"), status:gv("aPSt"),
