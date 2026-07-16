@@ -1732,6 +1732,14 @@ function editWeek(n, brand, cycle, plat) {
     if(el) el.scrollIntoView({behavior:"smooth", block:"center"});
   }, 50);
 }
+// Inicio de la semana N: 7 dias por semana desde el inicio del ciclo (la 4a absorbe los dias extra)
+function weekStartFor(cycleId, week){
+  var c=(DB.cycles||[]).find(function(x){return x.id===cycleId;});
+  if(!c||!c.start) return "";
+  var d=new Date(c.start+"T00:00:00");
+  d.setDate(d.getDate()+(week-1)*7);
+  return d.toISOString().slice(0,10);
+}
 function loadWeekMetrics() {
   var brand=gv("aMB"), cycle=gv("aMC"), plat=gv("aMP"), week=Number(gv("aMWeek")||1);
   if(!brand||!cycle) return;
@@ -1739,9 +1747,9 @@ function loadWeekMetrics() {
   var data=DB.weekMetrics&&DB.weekMetrics[key]&&DB.weekMetrics[key][week];
   if(data) {
     sv("aMF",data.followers||0); sv("aMV",data.views||0);
-    sv("aMWeekDate",data.weekDate||"");
+    sv("aMWeekDate",data.weekDate||weekStartFor(cycle,week));
   } else {
-    sv("aMF",0); sv("aMV",0); sv("aMWeekDate","");
+    sv("aMF",0); sv("aMV",0); sv("aMWeekDate",weekStartFor(cycle,week));
   }
   renderWeekMetricsList();
 }
@@ -4316,6 +4324,23 @@ function saveMet() {
   if(!DB.weekMetrics) DB.weekMetrics={};
   var key=brand+"__"+cycle+"__"+plat;
   if(!DB.weekMetrics[key]) DB.weekMetrics[key]={};
+  // Coherencia: los seguidores no deberian BAJAR vs la semana anterior / cierre del ciclo anterior
+  var newF=Number(gv("aMF"))||0;
+  if(newF>0){
+    var ref=0, refDesc='';
+    if(week>1){
+      var pw=DB.weekMetrics[key][week-1];
+      if(pw&&Number(pw.followers)){ ref=Number(pw.followers); refDesc='la semana '+(week-1)+' ('+fN(ref)+' seg.)'; }
+    } else {
+      var cur=(DB.cycles||[]).find(function(c){return c.id===cycle;})||{};
+      var prevC=(DB.cycles||[]).filter(function(c){return c.brand===brand&&c.id!==cycle&&(c.start||'')<(cur.start||'');})
+        .sort(function(a,b){return (b.start||'').localeCompare(a.start||'');})[0];
+      if(prevC){ var cl=cycleClose(brand,prevC.id); if(cl.followers){ ref=cl.followers; refDesc='el cierre del ciclo anterior ('+fN(ref)+' seg.)'; } }
+    }
+    if(ref&&newF<ref){
+      if(!confirm('ATENCION: los seguidores ingresados ('+fN(newF)+') son MENORES que '+refDesc+'.\nNormalmente una marca no pierde seguidores; puede ser un error de digitacion.\n\nGuardar de todas formas?')) return;
+    }
+  }
   DB.weekMetrics[key][week] = {
     week:week, weekDate:gv("aMWeekDate"),
     followers:Number(gv("aMF")), views:Number(gv("aMV"))
