@@ -1494,16 +1494,19 @@ function _fbPush() {
 }
 // Escribe a Firebase de inmediato cualquier cambio pendiente (al cerrar sesion/pestana)
 function flushSave() { if(_fbSaveTimer){ clearTimeout(_fbSaveTimer); _fbPush(); } }
+var _dbStr='';
 function saveDB() {
   sanitizeDB();
-  // Persistencia local: instantanea
+  // Persistencia local: instantanea (una sola serializacion, reutilizada por el sync)
+  var s=JSON.stringify(DB);
+  _dbStr=s;
   try {
-    localStorage.setItem(DB_KEY, JSON.stringify(DB));
+    localStorage.setItem(DB_KEY, s);
     localStorage.setItem(DB_KEY+"_creds", JSON.stringify(CREDS));
   } catch(e) {}
-  // Persistencia en Firebase: agrupada (debounce) para no escribir la BD entera en cada cambio
+  // Persistencia en Firebase: debounce corto (agrupa rafagas pero propaga casi de inmediato)
   if(_fbSaveTimer) clearTimeout(_fbSaveTimer);
-  _fbSaveTimer=setTimeout(_fbPush, 600);
+  _fbSaveTimer=setTimeout(_fbPush, 150);
 }
 var DB = loadDB();
 // Ensure DB always has required arrays
@@ -2149,7 +2152,7 @@ function loadFromFirebase(callback) {
   FBDB.ref("vsportal").once("value", function(snap) {
     var data = snap.val();
     if(data) {
-      if(data.db) { DB=data.db; sanitizeDB(); try{localStorage.setItem(DB_KEY,JSON.stringify(DB));}catch(e){} }
+      if(data.db) { DB=data.db; sanitizeDB(); _dbStr=JSON.stringify(DB); try{localStorage.setItem(DB_KEY,_dbStr);}catch(e){} }
       if(data.creds) {
         // Firebase es la fuente de verdad: REEMPLAZAR (no fusionar) para respetar eliminaciones
         // (antes las marcas quemadas por defecto, como 90minuti, reaparecian al cargar)
@@ -2168,8 +2171,12 @@ function startFirebaseSync() {
   if(!FBDB || typeof FBDB.ref !== "function") return;
   FBDB.ref("vsportal/db").on("value", function(snap) {
     if(!snap.val()||!FB_LOADED) return;
+    if(_fbSaveTimer) return; // hay cambios locales pendientes de subir: no pisarlos con un eco viejo
     var newDB = snap.val();
-    if(JSON.stringify(newDB)===JSON.stringify(DB)) return;
+    // Comparar contra la ultima serializacion conocida (1 stringify en vez de 2)
+    var ns=JSON.stringify(newDB);
+    if(ns===_dbStr) return;
+    _dbStr=ns;
     DB = newDB;
     if(!DB.weekMetrics) DB.weekMetrics={};
     if(!DB.feedback)    DB.feedback={};
@@ -2907,7 +2914,8 @@ function renderContenido(cycId) {
   var el=gi('contPanel'); if(!el) return;
   var cyc=cycId?DB.cycles.find(function(c){return c.id===cycId&&c.brand===CU;}):null;
   if(!cyc){el.innerHTML='<div class="empty">Sin ciclo seleccionado.</div>';return;}
-  var pubs=DB.publications.filter(function(p){return p.brand===CU&&p.cycle===cycId&&p.status==='published';});
+  var pubs=DB.publications.filter(function(p){return p.brand===CU&&p.cycle===cycId&&p.status==='published';})
+    .sort(function(a,b){return (a.date||'').localeCompare(b.date||'');}); // mas viejo -> mas nuevo
   if(!pubs.length){el.innerHTML='<div class="empty">Sin publicaciones en este ciclo.</div>';return;}
 
   var html='';
@@ -3847,6 +3855,7 @@ function bwPubCat(title, items){
 function bwPubsList(b){
   var pubs=(DB.publications||[]).filter(function(p){return p.brand===b;});
   if(!pubs.length) return '<div class="empty" style="padding:14px 0;">Sin publicaciones aun.</div>';
+  pubs=pubs.slice().sort(function(a,b){return (a.date||'').localeCompare(b.date||'');}); // mas viejo -> mas nuevo
   var byC={}; pubs.forEach(function(p){ (byC[p.cycle]=byC[p.cycle]||[]).push(p); });
   var cids=Object.keys(byC).sort(function(a,z){ var ca=DB.cycles.find(function(c){return c.id===a;})||{}, cz=DB.cycles.find(function(c){return c.id===z;})||{}; return (cz.start||'').localeCompare(ca.start||''); });
   var h='';
@@ -4108,7 +4117,7 @@ function renderACycles() {
 
 // Tabla de publicaciones (contenido) de un ciclo
 function cycPubsTableHTML(brand,cycleId){
-  var cycPubs=DB.publications.filter(function(p){return p.brand===brand&&p.cycle===cycleId;});
+  var cycPubs=DB.publications.filter(function(p){return p.brand===brand&&p.cycle===cycleId;}).sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
   if(!cycPubs.length){
     return '<div style="padding:16px;font-size:12px;color:var(--t3);text-align:center;">Sin publicaciones en este ciclo. Agrégalas desde el panel Publicaciones.</div>';
   }
