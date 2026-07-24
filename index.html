@@ -3846,10 +3846,11 @@ function bwPubItemRow(p){
   var st={published:'Pub',scheduled:'Prog',production:'Prod',draft:'Bor'}[p.status]||'Bor';
   return '<div onclick="bwPubDetail(\''+p.id+'\')" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--bd);cursor:pointer;"><div style="min-width:0;"><span class="ttag '+(TCLS[p.type]||'t-post')+'">'+(p.type||'?')+'</span> <span style="font-size:12px;">'+((p.desc||'—').slice(0,36))+'</span><div style="font-size:10px;color:var(--t3);">'+fD(p.date)+' &middot; '+st+(p.link?' &middot; 🔗':'')+'</div></div><div style="display:flex;gap:6px;flex-shrink:0;" onclick="event.stopPropagation();"><button class="wmc-edit-btn" onclick="openEdit(\''+p.id+'\')">Editar</button><button class="wmc-edit-btn" style="color:#F90000;" onclick="deletePub(\''+p.id+'\')">Elim.</button></div></div>';
 }
-function bwPubCat(title, items){
-  if(!items.length) return '';
-  var h='<div style="margin:6px 0;"><div onclick="bwPubToggle(this)" style="display:flex;justify-content:space-between;align-items:center;padding:8px 11px;background:var(--bg4);border-radius:9px;cursor:pointer;"><b style="font-size:12px;">'+title+' ('+items.length+')</b><span style="font-size:11px;color:var(--pur);font-weight:600;">Ver</span></div>';
-  h+='<div style="display:none;padding:2px 8px 4px;">'+items+'</div></div>';
+// count = cantidad real de publicaciones; html = filas ya renderizadas
+function bwPubCat(title, count, html){
+  if(!count) return '';
+  var h='<div style="margin:6px 0;"><div onclick="bwPubToggle(this)" style="display:flex;justify-content:space-between;align-items:center;padding:8px 11px;background:var(--bg4);border-radius:9px;cursor:pointer;"><b style="font-size:12px;">'+title+' ('+count+')</b><span style="font-size:11px;color:var(--t2);font-weight:600;">Ver</span></div>';
+  h+='<div style="display:none;padding:2px 8px 4px;">'+html+'</div></div>';
   return h;
 }
 function bwPubsList(b){
@@ -3870,7 +3871,7 @@ function bwPubsList(b){
     h+='<div class="pubc-body" style="display:none;padding:8px 12px 12px;">';
     // Nivel 2: Historias
     var histRows=''; hist.forEach(function(p){ histRows+=bwPubItemRow(p); });
-    h+=bwPubCat('Historias', histRows);
+    h+=bwPubCat('Historias', hist.length, histRows);
     // Nivel 2: Contenido feed -> Nivel 3: por tipo (Reels, Carruseles, Posts...)
     if(feed.length){
       var feedInner='';
@@ -3880,7 +3881,7 @@ function bwPubsList(b){
         feedInner+='<div style="font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin:8px 0 2px;">'+t+'s ('+items.length+')</div>';
         items.forEach(function(p){ feedInner+=bwPubItemRow(p); });
       });
-      h+=bwPubCat('Contenido feed', feedInner);
+      h+=bwPubCat('Contenido feed', feed.length, feedInner);
     }
     h+='</div></div>';
   });
