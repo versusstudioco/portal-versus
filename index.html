@@ -1351,7 +1351,7 @@ img{max-width:100%;display:block;}
     </div>
     <div class="fr t3">
       <div class="ff"><label>Plataforma</label><select id="ePPl"><option>Instagram</option><option>YouTube</option><option>TikTok</option></select></div>
-      <div class="ff"><label>Tipo</label><select id="ePTy" onchange="togglePubFields('eP')"><option>Reel</option><option>Carrusel</option><option>Post</option><option>Historia</option><option>Video</option><option>Short</option></select></div>
+      <div class="ff"><label>Tipo</label><select id="ePTy" onchange="togglePubFields('eP')"><option>Reel</option><option>Carrusel</option><option>Post</option><option>Historia</option><option>Video</option><option>Short</option><option>Pauta</option><option>Banner</option></select></div>
       <div class="ff"><label>Fecha</label><input type="date" id="ePD"></div>
     </div>
     <div class="fr s1"><div class="ff"><label>Descripcion</label><input type="text" id="ePDe"></div></div>
@@ -3865,44 +3865,45 @@ function bwPubCat(title, count, html){
   h+='<div style="display:none;padding:2px 8px 4px;">'+html+'</div></div>';
   return h;
 }
+// Categorias segmentadas de un conjunto de publicaciones: Historias, Creativos, Pauta, Banner
+function pubCatsHTML(list){
+  if(!list||!list.length) return '<div class="empty" style="padding:12px 0;">Sin publicaciones.</div>';
+  var pubs=list.slice().sort(function(a,b){return (a.date||'').localeCompare(b.date||'');}); // mas viejo -> mas nuevo
+  var hist=pubs.filter(function(p){return p.type==='Historia'||p.type==='Historias';});
+  var pautaC=pubs.filter(function(p){return p.type==='Pauta';});
+  var bannerC=pubs.filter(function(p){return p.type==='Banner';});
+  var creat=pubs.filter(function(p){return !(p.type==='Historia'||p.type==='Historias'||p.type==='Pauta'||p.type==='Banner');});
+  var h='';
+  var histRows=''; hist.forEach(function(p){ histRows+=bwPubItemRow(p); });
+  h+=bwPubCat('Historias', hist.length, histRows);
+  if(creat.length){
+    var cInner='';
+    ['Reel','Carrusel','Post','Video','Short'].forEach(function(t){
+      var items=creat.filter(function(p){return p.type===t;});
+      if(!items.length) return;
+      cInner+='<div style="font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin:8px 0 2px;">'+t+'s ('+items.length+')</div>';
+      items.forEach(function(p){ cInner+=bwPubItemRow(p); });
+    });
+    h+=bwPubCat('Creativos', creat.length, cInner);
+  }
+  var pautaRows=''; pautaC.forEach(function(p){ pautaRows+=bwPubItemRow(p); });
+  h+=bwPubCat('Pauta', pautaC.length, pautaRows);
+  var bannerRows=''; bannerC.forEach(function(p){ bannerRows+=bwPubItemRow(p); });
+  h+=bwPubCat('Banner', bannerC.length, bannerRows);
+  return h;
+}
 function bwPubsList(b){
   var pubs=(DB.publications||[]).filter(function(p){return p.brand===b;});
   if(!pubs.length) return '<div class="empty" style="padding:14px 0;">Sin publicaciones aun.</div>';
-  pubs=pubs.slice().sort(function(a,b){return (a.date||'').localeCompare(b.date||'');}); // mas viejo -> mas nuevo
   var byC={}; pubs.forEach(function(p){ (byC[p.cycle]=byC[p.cycle]||[]).push(p); });
   var cids=Object.keys(byC).sort(function(a,z){ var ca=DB.cycles.find(function(c){return c.id===a;})||{}, cz=DB.cycles.find(function(c){return c.id===z;})||{}; return (cz.start||'').localeCompare(ca.start||''); });
   var h='';
   cids.forEach(function(cid){
     var cyc=DB.cycles.find(function(c){return c.id===cid;})||{}, list=byC[cid];
-    var hist=list.filter(function(p){return p.type==='Historia'||p.type==='Historias';});
-    var pautaC=list.filter(function(p){return p.type==='Pauta';});
-    var bannerC=list.filter(function(p){return p.type==='Banner';});
-    var feed=list.filter(function(p){return !(p.type==='Historia'||p.type==='Historias'||p.type==='Pauta'||p.type==='Banner');});
     var pub=list.filter(function(p){return p.status==='published';}).length;
-    // Nivel 1: Ciclo
     h+='<div style="border:0.5px solid var(--bd);border-radius:12px;margin-bottom:10px;overflow:hidden;">';
-    h+='<div onclick="bwTogglePubCyc(this)" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;cursor:pointer;background:var(--bg3);"><div><b style="font-size:13px;">'+(cyc.name||cid)+'</b> <span style="font-size:11px;color:var(--t2);">'+list.length+' publicaciones &middot; '+pub+' publicadas</span></div><span style="font-size:11px;color:var(--pur);font-weight:600;">Ver</span></div>';
-    h+='<div class="pubc-body" style="display:none;padding:8px 12px 12px;">';
-    // Nivel 2: Historias
-    var histRows=''; hist.forEach(function(p){ histRows+=bwPubItemRow(p); });
-    h+=bwPubCat('Historias', hist.length, histRows);
-    // Nivel 2: Contenido feed -> Nivel 3: por tipo (Reels, Carruseles, Posts...)
-    if(feed.length){
-      var feedInner='';
-      ['Reel','Carrusel','Post','Video','Short'].forEach(function(t){
-        var items=feed.filter(function(p){return p.type===t;});
-        if(!items.length) return;
-        feedInner+='<div style="font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin:8px 0 2px;">'+t+'s ('+items.length+')</div>';
-        items.forEach(function(p){ feedInner+=bwPubItemRow(p); });
-      });
-      h+=bwPubCat('Contenido feed', feed.length, feedInner);
-    }
-    // Nivel 2: Pauta y Banner (sin metricas)
-    var pautaRows=''; pautaC.forEach(function(p){ pautaRows+=bwPubItemRow(p); });
-    h+=bwPubCat('Pauta', pautaC.length, pautaRows);
-    var bannerRows=''; bannerC.forEach(function(p){ bannerRows+=bwPubItemRow(p); });
-    h+=bwPubCat('Banner', bannerC.length, bannerRows);
-    h+='</div></div>';
+    h+='<div onclick="bwTogglePubCyc(this)" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;cursor:pointer;background:var(--bg3);"><div><b style="font-size:13px;">'+(cyc.name||cid)+'</b> <span style="font-size:11px;color:var(--t2);">'+list.length+' publicaciones &middot; '+pub+' publicadas</span></div><span style="font-size:11px;color:var(--t2);font-weight:600;">Ver</span></div>';
+    h+='<div class="pubc-body" style="display:none;padding:8px 12px 12px;">'+pubCatsHTML(list)+'</div></div>';
   });
   return h;
 }
@@ -3970,8 +3971,9 @@ function bwCiclosList(b){
 function bwCycContent(cycleId){
   bwRestoreForms();
   var c=DB.cycles.find(function(x){return x.id===cycleId;}); if(!c) return;
+  var cycPubs=(DB.publications||[]).filter(function(p){return p.brand===c.brand&&p.cycle===cycleId;});
   var h='<div class="card"><div onclick="bwShowTab(\'ciclos\')" style="display:inline-flex;gap:6px;font-size:12px;color:var(--t2);font-weight:600;cursor:pointer;margin-bottom:10px;">Volver a ciclos</div>';
-  h+='<div class="card-title">'+c.name+'</div><p class="tip">'+fD(c.start)+' &mdash; '+fD(c.end)+'</p>'+cycPubsTableHTML(c.brand,cycleId)+'</div>';
+  h+='<div class="card-title">'+c.name+'</div><p class="tip">'+fD(c.start)+' &mdash; '+fD(c.end)+' &middot; '+cycPubs.length+' publicaciones</p>'+pubCatsHTML(cycPubs)+'</div>';
   gi('bwBody').innerHTML=h;
 }
 function bwDeleteCycle(id){ deleteCycle(id); if(gi('at-brand')&&gi('at-brand').classList.contains('active')) bwShowTab('ciclos'); }
