@@ -157,6 +157,7 @@ img{max-width:100%;display:block;}
 .t-hist{background:rgba(34,197,94,.15);color:var(--grn);}
 .t-vid{background:rgba(255,100,0,.15);color:var(--ora);}
 .t-sho{background:rgba(245,158,11,.15);color:var(--yel);}
+.t-pauta{background:rgba(29,29,29,.9);color:#fff;}
 .cp-text{flex:1;}.cp-count{font-size:11px;font-weight:600;}
 .mini-bar{height:4px;background:var(--bg4);border-radius:99px;overflow:hidden;margin-top:4px;}
 .mini-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--red),var(--pur));transition:width .7s;}
@@ -1176,7 +1177,7 @@ img{max-width:100%;display:block;}
       </div>
       <div class="fr t3">
         <div class="ff"><label>Plataforma</label><select id="aPPl"><option>Instagram</option><option>YouTube</option><option>TikTok</option></select></div>
-        <div class="ff"><label>Tipo</label><select id="aPTy" onchange="togglePubFields('aP')"><option>Reel</option><option>Carrusel</option><option>Post</option><option>Historia</option><option>Video</option><option>Short</option></select></div>
+        <div class="ff"><label>Tipo</label><select id="aPTy" onchange="togglePubFields('aP')"><option>Reel</option><option>Carrusel</option><option>Post</option><option>Historia</option><option>Video</option><option>Short</option><option>Pauta</option></select></div>
         <div class="ff"><label>Fecha</label><input type="date" id="aPD"></div>
       </div>
       <div class="fr s1"><div class="ff"><label>Descripcion</label><input type="text" id="aPDe" placeholder="Describe el contenido"></div></div>
@@ -1410,7 +1411,7 @@ var CREDS = {
 // Do not hardcode \u2014 managed by sanitizeDB()
 var BRANDS = Object.keys(CREDS).filter(function(k){ return CREDS[k] && CREDS[k].type==="client"; });
 var PLATS = ["Instagram","YouTube","TikTok"];
-var TCLS = {Reel:"t-reel",Carrusel:"t-carr",Post:"t-post",Historia:"t-hist",Video:"t-vid",Short:"t-sho"};
+var TCLS = {Reel:"t-reel",Carrusel:"t-carr",Post:"t-post",Historia:"t-hist",Video:"t-vid",Short:"t-sho",Pauta:"t-pauta"};
 
 // ===== STATE =====
 var CU = null;
@@ -2583,6 +2584,9 @@ function renderResumen(cycId) {
     promCreat+=Number(goals[t.k])||0;
     entrCreat+=pubsInCyc.filter(function(p){return p.type===t.sing||p.type===t.lbl;}).length;
   });
+  // Contenido de pauta (banners): cuenta en el contenido pactado, sin metricas
+  var entrPauta=pubsInCyc.filter(function(p){return p.type==='Pauta';}).length;
+  entrCreat+=entrPauta;
   // Historias: metrica independiente
   var promHist=Number(goals.historias)||0;
   var entrHist=pubsInCyc.filter(function(p){return p.type==='Historia'||p.type==='Historias';}).length;
@@ -2619,6 +2623,9 @@ function renderResumen(cycId) {
             +t.lbl+': '+d2+'</span>';
         }
       });
+      if(entrPauta>0){
+        html+='<span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;background:rgba(29,29,29,.12);color:var(--tx);">Pauta: '+entrPauta+'</span>';
+      }
       html+='</div>';
       if(hasGoalC) html+='<div class="kpi-diff">'+(pctC>=100?'\u2713 Completo':entrCreat+'/'+promCreat)+'</div>';
       else html+='<div class="kpi-diff">'+entrCreat+' creativos publicados</div>';
@@ -3863,7 +3870,8 @@ function bwPubsList(b){
   cids.forEach(function(cid){
     var cyc=DB.cycles.find(function(c){return c.id===cid;})||{}, list=byC[cid];
     var hist=list.filter(function(p){return p.type==='Historia'||p.type==='Historias';});
-    var feed=list.filter(function(p){return !(p.type==='Historia'||p.type==='Historias');});
+    var pautaC=list.filter(function(p){return p.type==='Pauta';});
+    var feed=list.filter(function(p){return !(p.type==='Historia'||p.type==='Historias'||p.type==='Pauta');});
     var pub=list.filter(function(p){return p.status==='published';}).length;
     // Nivel 1: Ciclo
     h+='<div style="border:0.5px solid var(--bd);border-radius:12px;margin-bottom:10px;overflow:hidden;">';
@@ -3883,6 +3891,9 @@ function bwPubsList(b){
       });
       h+=bwPubCat('Contenido feed', feed.length, feedInner);
     }
+    // Nivel 2: Pauta (banners, sin metricas)
+    var pautaRows=''; pautaC.forEach(function(p){ pautaRows+=bwPubItemRow(p); });
+    h+=bwPubCat('Pauta (banners)', pautaC.length, pautaRows);
     h+='</div></div>';
   });
   return h;
@@ -3897,15 +3908,19 @@ function bwPubDetail(id){
   var h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="ttag '+(TCLS[p.type]||'t-post')+'">'+(p.type||'?')+'</span><span style="font-size:11px;color:var(--t2);">'+(cyc.name||'')+' &middot; '+(p.platform||'')+'</span></div>';
   h+='<div style="font-size:14px;font-weight:700;margin-bottom:4px;">'+(p.desc||'Sin descripcion')+'</div>';
   h+='<div style="font-size:11px;color:var(--t2);margin-bottom:12px;">'+fD(p.date)+' &middot; '+stLbl+(p.featured?' &middot; ⭐ Destacada':'')+'</div>';
-  var mets = (p.type==='Historia'||p.type==='Historias')
-    ? [['Vistas',p.storiesViews],['Interacciones',p.storiesInt]]
-    : [['Vistas',p.views],['Me gusta',p.likes],['Comentarios',p.comments],['Compartidos',p.shares],['Guardados',p.saved]];
-  h+='<div class="cont-metrics" style="margin-bottom:14px;">';
-  var any=false;
-  mets.forEach(function(m){ if(m[1]==null||m[1]==='') return; any=true; h+='<div class="cont-m"><div class="cont-m-lbl">'+m[0]+'</div><div class="cont-m-val">'+fN(m[1])+'</div></div>'; });
-  if(er){ any=true; h+='<div class="cont-m"><div class="cont-m-lbl">ER</div><div class="cont-m-val">'+er+'</div></div>'; }
-  if(!any) h+='<div style="font-size:12px;color:var(--t3);">Sin metricas cargadas.</div>';
-  h+='</div>';
+  if(p.type==='Pauta'){
+    h+='<div style="font-size:12px;color:var(--t2);background:var(--bg3);border-radius:8px;padding:10px 12px;margin-bottom:14px;">Contenido de pauta (banner): cuenta en el contenido pactado, sin metricas organicas.</div>';
+  } else {
+    var mets = (p.type==='Historia'||p.type==='Historias')
+      ? [['Vistas',p.storiesViews],['Interacciones',p.storiesInt]]
+      : [['Vistas',p.views],['Me gusta',p.likes],['Comentarios',p.comments],['Compartidos',p.shares],['Guardados',p.saved]];
+    h+='<div class="cont-metrics" style="margin-bottom:14px;">';
+    var any=false;
+    mets.forEach(function(m){ if(m[1]==null||m[1]==='') return; any=true; h+='<div class="cont-m"><div class="cont-m-lbl">'+m[0]+'</div><div class="cont-m-val">'+fN(m[1])+'</div></div>'; });
+    if(er){ any=true; h+='<div class="cont-m"><div class="cont-m-lbl">ER</div><div class="cont-m-val">'+er+'</div></div>'; }
+    if(!any) h+='<div style="font-size:12px;color:var(--t3);">Sin metricas cargadas.</div>';
+    h+='</div>';
+  }
   if(p.link){
     h+='<a href="'+p.link+'" target="_blank" rel="noopener" class="btn btn-red" style="width:100%;text-decoration:none;">Ver contenido publicado</a>';
     h+='<div style="font-size:10px;color:var(--t3);margin-top:6px;word-break:break-all;">'+p.link+'</div>';
@@ -4382,17 +4397,17 @@ function saveMet() {
 function togglePubFields(pfx) {
   var tipo = gv(pfx+"Ty");
   var isHist = tipo === "Historia";
+  var isPauta = tipo === "Pauta"; // contenido de pauta (banner): sin metricas
   var reg  = gi(pfx+"RegFields");
   var hist = gi(pfx+"HistFields");
-  if(reg)  reg.style.display  = isHist ? "none"  : "";
+  if(reg)  reg.style.display  = (isHist||isPauta) ? "none"  : "";
   if(hist) hist.style.display = isHist ? "" : "none";
   // Clear hidden fields to avoid saving stale data
-  if(isHist) {
+  if(isHist || isPauta) {
     sv(pfx+"Vi",""); sv(pfx+"Li",""); sv(pfx+"Co","");
     sv(pfx+"Sh",""); sv(pfx+"Sav","");
-  } else {
-    sv(pfx+"HV",""); sv(pfx+"HI","");
   }
+  if(!isHist) { sv(pfx+"HV",""); sv(pfx+"HI",""); }
 }
 function savePub() {
   var brand = gv("aPB"), cycle = gv("aPC");
