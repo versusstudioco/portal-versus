@@ -7,26 +7,35 @@
    ============================================================ */
 (function () {
   const RTDB = 'https://versus-portal-default-rtdb.firebaseio.com/vsportal';
-  const SESS = 'versus_gestor_sesion';
+  const EMAIL_DOM = '@portal.versusstudio.co';
+  const FBCFG = { apiKey: 'AIzaSyAKgL0la08wjXBL4VhlcqRlE8Ory1KKC80', authDomain: 'versus-portal.firebaseapp.com', databaseURL: 'https://versus-portal-default-rtdb.firebaseio.com', projectId: 'versus-portal', storageBucket: 'versus-portal.firebasestorage.app', messagingSenderId: '689127935637', appId: '1:689127935637:web:0d42a61192c4e1440b559c' };
+  try { if (window.firebase && !firebase.apps.length) firebase.initializeApp(FBCFG); } catch (_) {}
+  const _authReady = new Promise(res => { try { firebase.auth().onAuthStateChanged(u => res(u)); } catch (_) { res(null); } });
+  async function token() { try { const u = firebase.auth().currentUser; return u ? await u.getIdToken() : null; } catch (_) { return null; } }
+  function withAuth(url, t) { return url + (t ? (url.indexOf('?') >= 0 ? '&' : '?') + 'auth=' + t : ''); }
 
-  /* ---- Firebase REST ---- */
+  /* ---- Firebase REST (con token de sesión segura) ---- */
   async function fbGet(path) {
-    const r = await fetch(`${RTDB}/${path}.json`);
+    const t = await token();
+    const r = await fetch(withAuth(`${RTDB}/${path}.json`, t));
     if (!r.ok) throw new Error('fb get ' + r.status);
     return r.json();
   }
   async function fbPut(path, data) {
-    const r = await fetch(`${RTDB}/${path}.json`, { method: 'PUT', body: JSON.stringify(data) });
+    const t = await token();
+    const r = await fetch(withAuth(`${RTDB}/${path}.json`, t), { method: 'PUT', body: JSON.stringify(data) });
     if (!r.ok) throw new Error('fb put ' + r.status);
     return r.json();
   }
   async function fbPatch(path, data) {
-    const r = await fetch(`${RTDB}/${path}.json`, { method: 'PATCH', body: JSON.stringify(data) });
+    const t = await token();
+    const r = await fetch(withAuth(`${RTDB}/${path}.json`, t), { method: 'PATCH', body: JSON.stringify(data) });
     if (!r.ok) throw new Error('fb patch ' + r.status);
     return r.json();
   }
   async function fbDelete(path) {
-    const r = await fetch(`${RTDB}/${path}.json`, { method: 'DELETE' });
+    const t = await token();
+    const r = await fetch(withAuth(`${RTDB}/${path}.json`, t), { method: 'DELETE' });
     if (!r.ok) throw new Error('fb del ' + r.status);
     return true;
   }
@@ -160,21 +169,22 @@
     return { marcas, total: marcas.reduce((s, m) => s + m.invertido, 0), gastoSemanaTotal: marcas.reduce((s, m) => s + m.gastoSemana, 0), cfg };
   }
 
-  /* ---- SESIÓN (login casero, prototipo) ---- */
-  function getSesion() { try { return JSON.parse(localStorage.getItem(SESS) || 'null'); } catch (_) { return null; } }
-  async function teamUsers() {
-    let u = await fbGet('gestor/team/users').catch(() => null);
-    if (!u) { u = { versus_admin: { name: 'Versus Admin', pass: 'VERSUS2026', area: 'Administrativa', role: 'admin' } }; await fbPut('gestor/team/users', u).catch(() => {}); }
-    return u;
-  }
+  /* ---- SESIÓN con Firebase Authentication (segura) ---- */
   async function login(username, password) {
-    const users = await teamUsers();
-    const key = String(username || '').trim();
-    const u = users[key] || users[key.toLowerCase()];
-    if (!u || u.pass !== password) return { ok: false, data: { error: 'Usuario o contraseña incorrectos' } };
-    const sesion = { username: key, name: u.name || key, area: u.area || '', role: u.role || 'miembro' };
-    try { localStorage.setItem(SESS, JSON.stringify(sesion)); } catch (_) {}
-    return { ok: true, data: { ok: true, name: sesion.name } };
+    const email = String(username || '').trim().toLowerCase() + EMAIL_DOM;
+    try { await firebase.auth().signInWithEmailAndPassword(email, password); }
+    catch (e) { return { ok: false, data: { error: 'Usuario o contraseña incorrectos' } }; }
+    return { ok: true, data: { ok: true } };
+  }
+  async function sesionActual() {
+    const u = firebase.auth().currentUser || await _authReady;
+    if (!u) return null;
+    const username = (u.email || '').split('@')[0];
+    let perfil = null;
+    try { perfil = await fbGet('db/profiles/' + username); } catch (_) {}
+    perfil = perfil || {};
+    const esAdmin = perfil.type === 'admin';
+    return { username, name: perfil.name || username, area: esAdmin ? 'Administrativa' : (perfil.brand || ''), role: esAdmin ? 'admin' : 'miembro', type: perfil.type || 'client' };
   }
 
   const META = {
@@ -192,16 +202,16 @@
     try {
       // ---- Auth ----
       if (p === '/api/login' && method === 'POST') return await login(body.username, body.password);
-      if (p === '/api/logout') { try { localStorage.removeItem(SESS); } catch (_) {} return { ok: true, data: { ok: true } }; }
+      if (p === '/api/logout') { try { await firebase.auth().signOut(); } catch (_) {} return { ok: true, data: { ok: true } }; }
       if (p === '/api/me') {
-        const s = getSesion();
+        const s = await sesionActual();
         if (!s) return { ok: true, data: { authenticated: false } };
         return { ok: true, data: { authenticated: true, name: s.name, area: s.area, role: s.role, aiEnabled: !!window.VFB_GEMINI, provider: window.VFB_GEMINI ? 'gemini' : null } };
       }
       if (p === '/api/meta') return { ok: true, data: META };
 
       // ---- Equipo (tareas) — fase posterior: por ahora vacío ----
-      if (p === '/api/team/mytasks') { const s = getSesion() || {}; return { ok: true, data: { tasks: [], me: { name: s.name, area: s.area, role: s.role } } }; }
+      if (p === '/api/team/mytasks') { const s = (await sesionActual()) || {}; return { ok: true, data: { tasks: [], me: { name: s.name, area: s.area, role: s.role } } }; }
       if (p.startsWith('/api/team/')) return { ok: true, data: { people: [], areas: [], tasks: [], resumen: {} } };
 
       // ---- Piezas ----
@@ -224,7 +234,7 @@
         return { ok: true, data: { ok: true, pieza: p2 } };
       }
       if (p === '/api/piezas/comentario' && method === 'POST') {
-        const s = getSesion() || {};
+        const s = (await sesionActual()) || {};
         await fbPost('gestor/piezas/' + body.id + '/comentarios', { autor: s.name || 'Equipo', texto: String(body.texto || '').trim(), fecha: new Date().toISOString() });
         const p2 = normPieza(await fbGet('gestor/piezas/' + body.id));
         return { ok: true, data: { ok: true, pieza: p2 } };
