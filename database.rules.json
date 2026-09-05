@@ -12,6 +12,10 @@
       "creds": {
         ".write": true,
         ".validate": "newData.hasChildren()"
+      },
+      "gestor": {
+        ".read": true,
+        ".write": true
       }
     }
   }
