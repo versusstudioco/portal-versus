@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VERSUS · Migración a login seguro</title>
+<style>
+  body { font-family: "Bricolage Grotesque", system-ui, sans-serif; background: #f5f5f5; color: #111; max-width: 780px; margin: 0 auto; padding: 24px; }
+  h1 { font-size: 22px; }
+  .card { background: #fff; border: 1px solid rgba(0,0,0,.08); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
+  .warn { background: #fff7ed; border-color: #fed7aa; }
+  button { font-family: inherit; font-size: 15px; font-weight: 700; background: #F90000; color: #fff; border: 0; border-radius: 10px; padding: 12px 20px; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid #eee; }
+  .ok { color: #1e8e3e; font-weight: 700; } .skip { color: #999; } .err { color: #F90000; font-weight: 700; }
+  .np { font-weight: 700; background: #fff7ed; padding: 2px 6px; border-radius: 6px; }
+  code { background: #eee; padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+  <h1>🔐 Migración a login seguro (Firebase Authentication)</h1>
+  <div class="card">
+    <p>Esto crea una cuenta segura para cada cliente y para el equipo, con la <b>misma contraseña</b>
+    (encriptada por Google). <b>No borra nada</b> y se puede correr varias veces sin problema.</p>
+    <p>Los clientes seguirán entrando con su <b>mismo usuario y contraseña</b> de siempre.</p>
+    <button id="run">▶ Migrar cuentas ahora</button>
+    <p id="status" style="margin-top:12px;color:#666"></p>
+  </div>
+  <div class="card warn" id="notaBox" hidden>
+    <b>⚠️ Estas cuentas tenían contraseña muy corta.</b> Les puse una nueva (más segura) —
+    <b>pásale a estos clientes su clave nueva:</b>
+    <div id="nueva"></div>
+  </div>
+  <div class="card"><div id="log">El registro de la migración aparecerá aquí.</div></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyAKgL0la08wjXBL4VhlcqRlE8Ory1KKC80",
+  authDomain: "versus-portal.firebaseapp.com",
+  databaseURL: "https://versus-portal-default-rtdb.firebaseio.com",
+  projectId: "versus-portal",
+  storageBucket: "versus-portal.firebasestorage.app",
+  messagingSenderId: "689127935637",
+  appId: "1:689127935637:web:0d42a61192c4e1440b559c"
+};
+firebase.initializeApp(firebaseConfig);
+// App secundaria para crear usuarios SIN afectar la sesión principal.
+const secondary = firebase.initializeApp(firebaseConfig, "migrador");
+const EMAIL_DOM = "@portal.versusstudio.co";
+
+function emailDe(u){ return String(u).trim().toLowerCase() + EMAIL_DOM; }
+
+document.getElementById("run").addEventListener("click", async () => {
+  const btn = document.getElementById("run"); btn.disabled = true;
+  const st = document.getElementById("status"); st.textContent = "Leyendo cuentas…";
+  const log = document.getElementById("log");
+  const nuevas = [];
+  let creds;
+  try { creds = await firebase.database().ref("vsportal/creds").once("value").then(s=>s.val()); }
+  catch(e){ st.textContent = "No se pudo leer las cuentas: " + e.message; btn.disabled=false; return; }
+
+  const rows = [];
+  for (const [usuario, c] of Object.entries(creds || {})) {
+    let pass = String(c.pass || "");
+    let nota = "";
+    if (pass.length < 6) { pass = pass + "26"; nota = "clave nueva"; }  // Google exige mínimo 6
+    const email = emailDe(usuario);
+    let estado, clase;
+    try {
+      const cred = await secondary.auth().createUserWithEmailAndPassword(email, pass);
+      // Perfil legible tras el login (nombre, tipo, marca)
+      await firebase.database().ref("vsportal/db/profiles/" + usuario).set({
+        uid: cred.user.uid, name: c.name || usuario, type: c.type || "client",
+        brand: c.type === "client" ? usuario : ""
+      });
+      estado = "creada ✓"; clase = "ok";
+      if (nota) nuevas.push({ usuario, nombre: c.name || usuario, pass });
+    } catch (e) {
+      if (e.code === "auth/email-already-in-use") { estado = "ya existía"; clase = "skip"; }
+      else { estado = "ERROR: " + e.code; clase = "err"; }
+    }
+    rows.push(`<tr><td>${usuario}</td><td>${c.type||""}</td><td class="${clase}">${estado}</td><td>${nota?'<span class="np">'+nota+'</span>':''}</td></tr>`);
+    st.textContent = "Migrando… " + usuario;
+  }
+  try { await secondary.auth().signOut(); } catch(_){}
+  log.innerHTML = '<table><tr><th>Usuario</th><th>Tipo</th><th>Estado</th><th></th></tr>' + rows.join("") + '</table>';
+  st.textContent = "✅ Migración terminada.";
+  if (nuevas.length) {
+    document.getElementById("notaBox").hidden = false;
+    document.getElementById("nueva").innerHTML = nuevas.map(n =>
+      `<div style="margin-top:6px">• <b>${n.nombre}</b> (usuario <code>${n.usuario}</code>) → nueva contraseña: <span class="np">${n.pass}</span></div>`).join("");
+  }
+  btn.disabled = false;
+});
+</script>
+</body>
+</html>
