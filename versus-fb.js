@@ -13,6 +13,8 @@
   const _authReady = new Promise(res => { try { firebase.auth().onAuthStateChanged(u => res(u)); } catch (_) { res(null); } });
   async function token() { try { const u = firebase.auth().currentUser; return u ? await u.getIdToken() : null; } catch (_) { return null; } }
   function withAuth(url, t) { return url + (t ? (url.indexOf('?') >= 0 ? '&' : '?') + 'auth=' + t : ''); }
+  const AREAS = ['Estrategia', 'Producción', 'Creativa', 'Community', 'Pauta', 'Administrativa'];
+  const _secondary = (function () { try { return (firebase.apps || []).find(a => a.name === 'vfbSecondary') || firebase.initializeApp(FBCFG, 'vfbSecondary'); } catch (_) { return null; } })();
 
   /* ---- Firebase REST (con token de sesión segura) ---- */
   async function fbGet(path) {
@@ -211,9 +213,57 @@
       }
       if (p === '/api/meta') return { ok: true, data: META };
 
-      // ---- Equipo (tareas) — fase posterior: por ahora vacío ----
-      if (p === '/api/team/mytasks') { const s = (await sesionActual()) || {}; return { ok: true, data: { tasks: [], me: { name: s.name, area: s.area, role: s.role } } }; }
-      if (p.startsWith('/api/team/')) return { ok: true, data: { people: [], areas: [], tasks: [], resumen: {} } };
+      // ---- Equipo / tareas ----
+      if (p === '/api/team/mytasks') {
+        const s = (await sesionActual()) || {};
+        const all = Object.values((await fbGet('gestor/tasks').catch(() => null)) || {});
+        const hoyISO = new Date().toISOString().slice(0, 10);
+        const mias = all.filter(t => t.assignedTo === s.username).map(t => ({ ...t, overdue: t.status !== 'hecho' && t.dueDate && t.dueDate < hoyISO }));
+        return { ok: true, data: { tasks: mias, me: { name: s.name, area: s.area, role: s.role } } };
+      }
+      if (p === '/api/team/task-status' && method === 'POST') {
+        await fbPatch('gestor/tasks/' + body.id, { status: body.status });
+        return { ok: true, data: { ok: true } };
+      }
+      if (p.startsWith('/api/team/admin/')) {
+        const s = await sesionActual();
+        if (!s || s.role !== 'admin') return { ok: false, status: 403, data: { error: 'Solo el administrador' } };
+        const profilesObj = (await fbGet('db/profiles').catch(() => null)) || {};
+        const people = Object.entries(profilesObj)
+          .filter(([k, v]) => v && (v.type === 'team' || v.type === 'admin' || v.role === 'admin'))
+          .map(([k, v]) => ({ id: k, username: k, name: v.name || k, area: v.area || (v.areas && v.areas[0]) || '', role: (v.type === 'admin' || v.role === 'admin') ? 'admin' : 'miembro' }));
+        const tasks = Object.values((await fbGet('gestor/tasks').catch(() => null)) || {});
+        if (p === '/api/team/admin/people') return { ok: true, data: { people, areas: AREAS } };
+        if (p === '/api/team/admin/report') {
+          const hoyISO = new Date().toISOString().slice(0, 10);
+          const tk = tasks.map(t => ({ ...t, overdue: t.status !== 'hecho' && t.dueDate && t.dueDate < hoyISO }));
+          const porPersona = people.map(pe => { const mine = tasks.filter(t => t.assignedTo === pe.username); return { name: pe.name, area: pe.area, total: mine.length, hechas: mine.filter(t => t.status === 'hecho').length }; });
+          const porArea = AREAS.map(a => ({ area: a, total: tasks.filter(t => t.area === a).length })).filter(x => x.total);
+          return { ok: true, data: { resumen: { personas: people.length, tareas: tasks.length }, tasks: tk, porPersona, porArea } };
+        }
+        if (p === '/api/team/admin/person' && method === 'POST') {
+          const username = String(body.username || '').trim().toLowerCase();
+          if (!username || !body.name) return { ok: false, data: { error: 'Falta nombre o usuario' } };
+          const isAdmin = body.role === 'admin';
+          const area = body.area || '';
+          if (body.password) {
+            if (String(body.password).length < 6) return { ok: false, data: { error: 'La contraseña debe tener 6 o más caracteres' } };
+            try { if (_secondary) { await _secondary.auth().createUserWithEmailAndPassword(username + EMAIL_DOM, body.password); await _secondary.auth().signOut(); } }
+            catch (e) { if (e.code !== 'auth/email-already-in-use') return { ok: false, data: { error: e.code || e.message } }; }
+          }
+          await fbPut('db/profiles/' + username, { name: body.name, type: isAdmin ? 'admin' : 'team', role: isAdmin ? 'admin' : 'miembro', area, areas: area ? [area] : [] });
+          return { ok: true, data: { ok: true } };
+        }
+        if (p === '/api/team/admin/person-remove' && method === 'POST') { await fbDelete('db/profiles/' + body.id); return { ok: true, data: { ok: true } }; }
+        if (p === '/api/team/admin/task' && method === 'POST') {
+          const id = uid();
+          await fbPut('gestor/tasks/' + id, { id, title: body.title || '', assignedTo: body.assignedTo || '', area: body.area || '', cliente: body.cliente || '', dueDate: body.dueDate || null, priority: body.priority || 'media', status: 'pendiente', createdAt: new Date().toISOString() });
+          return { ok: true, data: { ok: true } };
+        }
+        if (p === '/api/team/admin/task-remove' && method === 'POST') { await fbDelete('gestor/tasks/' + body.id); return { ok: true, data: { ok: true } }; }
+        return { ok: true, data: { people, areas: AREAS } };
+      }
+      if (p.startsWith('/api/team/')) return { ok: true, data: { tasks: [] } };
 
       // ---- Piezas ----
       if (p === '/api/piezas') return { ok: true, data: await board() };

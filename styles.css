@@ -576,10 +576,10 @@ a.tag--platform { text-decoration: none; }
 .gw-card__foot { display: flex; gap: .5rem; justify-content: flex-end; border-top: 1px solid var(--line-soft); padding-top: .8rem; margin-top: auto; }
 
 /* ---------- Mi día ---------- */
-.hello { margin-bottom: 1.6rem; }
-.hello h2 { font-size: 1.7rem; font-weight: 800; letter-spacing: -.02em; }
-.hello p { color: var(--ink-60); font-size: .92rem; margin-top: .2rem; }
-.hello__frase { font-size: 1rem !important; color: var(--ink-60); font-style: italic; }
+.hello { margin-bottom: 1.2rem; }
+.hello h2 { font-size: 1.2rem; font-weight: 700; letter-spacing: -.01em; }
+.hello p { color: var(--ink-60); font-size: .88rem; margin-top: .15rem; }
+.hello__frase { font-size: .88rem !important; color: var(--ink-60); font-style: italic; margin-top: .15rem; }
 .hoy-head { display: flex; align-items: baseline; justify-content: space-between; margin: 0 0 .8rem; }
 
 .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: .6rem; margin-bottom: 1.8rem; }
