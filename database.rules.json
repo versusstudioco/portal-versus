@@ -3,15 +3,19 @@
     ".read": false,
     ".write": false,
     "vsportal": {
-      ".read": true,
+      ".read": "auth != null",
       ".write": false,
       "db": {
-        ".write": true,
+        ".write": "auth != null",
         ".validate": "newData.hasChildren()"
       },
       "creds": {
-        ".write": true,
+        ".write": "auth != null",
         ".validate": "newData.hasChildren()"
+      },
+      "gestor": {
+        ".read": "auth != null",
+        ".write": "auth != null"
       }
     }
   }
