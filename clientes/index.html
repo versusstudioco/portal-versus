@@ -2424,28 +2424,45 @@ function showDT(el, tab) {
 function vgNorm(s){ return String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]/g,""); }
 function vgEsc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];}); }
 var VG_EST = { idea:{l:"En propuesta",c:"#9aa0a6"}, aprobada:{l:"Aprobado",c:"#1e8e3e"}, grabada:{l:"En producción",c:"#1a73e8"}, editada:{l:"En edición",c:"#d19100"}, publicada:{l:"Publicado",c:"#7b3ff2"} };
+function vgKey(s){ return String(s||"").replace(/[.#$/\[\]]/g,"_"); }
+function vgNum(v){ var n=parseInt(String(v||"").replace(/[^\d-]/g,""),10); return isFinite(n)?n:0; }
+function vgLunes(iso){ var d=new Date(iso+"T00:00:00"); var g=(d.getDay()+6)%7; d.setDate(d.getDate()-g); return d; }
+function vgFmt(d){ return d.getDate()+"/"+(d.getMonth()+1); }
+var VG_TIPOS=[["Reel","reels"],["Carrusel","carruseles"],["Post","posts"],["Banner","banners"],["Historia","historias"]];
 function renderGestorContenido(){
   var el = gi("calGestorPanel"); if(!el) return;
   el.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:var(--t2)">Cargando tu contenido…</div>';
   if(!FBDB){ el.innerHTML=''; return; }
-  FBDB.ref("vsportal/gestor/piezas").once("value").then(function(snap){
-    var all = snap.val() || {};
-    var brandName = (CREDS[CU] && CREDS[CU].name) || CU || "";
-    var k1 = vgNorm(brandName), k2 = vgNorm(CU);
+  var brandName = (CREDS[CU] && CREDS[CU].name) || CU || "";
+  var k1 = vgNorm(brandName), k2 = vgNorm(CU);
+  Promise.all([
+    FBDB.ref("vsportal/gestor/piezas").once("value").then(function(s){return s.val()||{};}),
+    FBDB.ref("vsportal/gestor/marcas/"+vgKey(brandName)+"/ciclo").once("value").then(function(s){return s.val();}).catch(function(){return null;})
+  ]).then(function(res){
+    var all=res[0], ciclo=res[1]||{pactado:{}};
     var mine = Object.keys(all).map(function(k){return all[k];}).filter(function(p){ if(!p||!p.marca) return false; var pm=vgNorm(p.marca); return pm===k1||pm===k2||(k1&&pm.indexOf(k1)>=0)||(k1&&k1.indexOf(pm)>=0); });
-    var visibles = mine.filter(function(p){ return p.etapa==="editada"||p.etapa==="publicada"; }).sort(function(a,b){return String(b.fecha||"").localeCompare(String(a.fecha||""));});
-    if(!visibles.length){ el.innerHTML='<div class="card" style="padding:30px;text-align:center;color:var(--t2)">Aún no hay contenido listo para mostrar. Aquí verás tus piezas con su <b>link</b> y <b>métricas</b> cuando el equipo las publique.</div>'; return; }
-    var cards = visibles.map(function(p){
-      var e = VG_EST[p.etapa]||VG_EST.editada;
-      var met=[]; if(p.mViews)met.push("👁 "+vgEsc(p.mViews)); if(p.mLikes)met.push("❤️ "+vgEsc(p.mLikes)); if(p.mSaved)met.push("🔖 "+vgEsc(p.mSaved)); if(p.mShared)met.push("↗ "+vgEsc(p.mShared));
-      return '<div style="background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:14px">'
-        +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:11px;color:var(--t3)">'+vgEsc(p.tipo||"")+(p.fecha?" · "+vgEsc(p.fecha):"")+'</span><span style="font-size:10px;font-weight:700;color:#fff;background:'+e.c+';border-radius:999px;padding:2px 8px">'+e.l+'</span></div>'
-        +'<div style="font-weight:700;font-size:14px;margin-bottom:8px">'+vgEsc(p.idea||"")+'</div>'
-        +(met.length?'<div style="font-size:13px;color:var(--t2);margin-bottom:8px">'+met.join(" &nbsp; ")+'</div>':'')
-        +(p.link?'<a href="'+vgEsc(p.link)+'" target="_blank" rel="noopener" style="font-size:12px;font-weight:700;color:var(--red);text-decoration:none">Ver publicación →</a>':'<span style="font-size:12px;color:var(--t3)">Sin link aún</span>')
-        +'</div>';
+    var vis = mine.filter(function(p){ return p.etapa==="editada"||p.etapa==="publicada"; });
+    // Pactado vs realizado (realizado = publicadas)
+    var pub = mine.filter(function(p){return p.etapa==="publicada";});
+    var pac=ciclo.pactado||{}, totP=0, totR=0;
+    var barras = VG_TIPOS.map(function(t){ var p=+pac[t[1]]||0, r=pub.filter(function(x){return x.tipo===t[0];}).length; totP+=p; totR+=r; if(!p&&!r) return ""; var pct=p?Math.min(100,Math.round(r/p*100)):(r?100:0); return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><b>'+t[0]+'s</b><span>'+r+" / "+(p||"—")+(p&&r>=p?" ✅":"")+'</span></div><div style="height:8px;background:var(--bg3);border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+(p&&r>=p?"#1e8e3e":"var(--red)")+';border-radius:99px"></div></div></div>'; }).join("");
+    var head='<div class="card"><div class="card-title">'+(ciclo.periodo?vgEsc(ciclo.periodo):"Ciclo actual")+' · Pactado vs. Realizado <span style="font-weight:400;color:var(--t3)">('+totR+"/"+totP+')</span></div>'+(barras||'<div style="color:var(--t3);font-size:13px;margin-top:6px">El equipo aún no ha configurado el ciclo.</div>')+'</div>';
+    if(!vis.length){ el.innerHTML=head+'<div class="card" style="padding:30px;text-align:center;color:var(--t2)">Aún no hay contenido listo. Aquí verás tus piezas con su <b>link</b> y <b>métricas</b> cuando el equipo las publique.</div>'; return; }
+    // Agrupar por semana
+    var conF=vis.filter(function(p){return p.fecha;}), sinF=vis.filter(function(p){return !p.fecha;});
+    var semanas={};
+    conF.forEach(function(p){ var l=vgLunes(p.fecha); var key=l.toISOString().slice(0,10); (semanas[key]||(semanas[key]=[])).push(p); });
+    var keys=Object.keys(semanas).sort().reverse();
+    function card(p){ var e=VG_EST[p.etapa]||VG_EST.editada; var met=[]; if(p.mViews)met.push("👁 "+vgEsc(p.mViews)); if(p.mLikes)met.push("❤️ "+vgEsc(p.mLikes)); if(p.mSaved)met.push("🔖 "+vgEsc(p.mSaved)); if(p.mShared)met.push("↗ "+vgEsc(p.mShared));
+      return '<div style="background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:11px;color:var(--t3)">'+vgEsc(p.tipo||"")+(p.fecha?" · "+vgEsc(p.fecha):"")+'</span><span style="font-size:10px;font-weight:700;color:#fff;background:'+e.c+';border-radius:999px;padding:2px 8px">'+e.l+'</span></div><div style="font-weight:700;font-size:14px;margin-bottom:8px">'+vgEsc(p.idea||"")+'</div>'+(met.length?'<div style="font-size:13px;color:var(--t2);margin-bottom:8px">'+met.join(" &nbsp; ")+'</div>':'')+(p.link?'<a href="'+vgEsc(p.link)+'" target="_blank" rel="noopener" style="font-size:12px;font-weight:700;color:var(--red);text-decoration:none">Ver publicación →</a>':'<span style="font-size:12px;color:var(--t3)">Sin link aún</span>')+'</div>';
+    }
+    var body=keys.map(function(key){ var arr=semanas[key]; var l=new Date(key+"T00:00:00"); var fin=new Date(l); fin.setDate(fin.getDate()+6);
+      var tV=0,tL=0,tS=0,tSh=0; arr.forEach(function(p){tV+=vgNum(p.mViews);tL+=vgNum(p.mLikes);tS+=vgNum(p.mSaved);tSh+=vgNum(p.mShared);});
+      var tot=[]; if(tV)tot.push("👁 "+tV.toLocaleString("es-CO")); if(tL)tot.push("❤️ "+tL.toLocaleString("es-CO")); if(tS)tot.push("🔖 "+tS.toLocaleString("es-CO")); if(tSh)tot.push("↗ "+tSh.toLocaleString("es-CO"));
+      return '<div class="card"><div class="card-title" style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">Semana del '+vgFmt(l)+" al "+vgFmt(fin)+'<span style="font-weight:400;font-size:12px;color:var(--t2)">'+(tot.join(" &nbsp; ")||arr.length+" piezas")+'</span></div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:10px">'+arr.map(card).join("")+'</div></div>';
     }).join("");
-    el.innerHTML = '<div class="card"><div class="card-title">Tu contenido</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:10px">'+cards+'</div></div>';
+    if(sinF.length){ body+='<div class="card"><div class="card-title">Sin fecha</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:10px">'+sinF.map(card).join("")+'</div></div>'; }
+    el.innerHTML=head+body;
   }).catch(function(){ el.innerHTML='<div class="card" style="padding:20px;color:var(--t2)">No se pudo cargar el contenido.</div>'; });
 }
 
