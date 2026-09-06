@@ -183,8 +183,9 @@
     let perfil = null;
     try { perfil = await fbGet('db/profiles/' + username); } catch (_) {}
     perfil = perfil || {};
-    const esAdmin = perfil.type === 'admin';
-    return { username, name: perfil.name || username, area: esAdmin ? 'Administrativa' : (perfil.brand || ''), role: esAdmin ? 'admin' : 'miembro', type: perfil.type || 'client' };
+    const esAdmin = perfil.type === 'admin' || perfil.role === 'admin';
+    const area = perfil.area || (perfil.areas && perfil.areas[0]) || (esAdmin ? 'Administrativa' : (perfil.brand || ''));
+    return { username, name: perfil.name || username, area, areas: perfil.areas || (area ? [area] : []), role: esAdmin ? 'admin' : (perfil.role || 'miembro'), type: perfil.type || 'client' };
   }
 
   const META = {

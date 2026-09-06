@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VERSUS · Crear equipo</title>
+<style>
+  body { font-family: "Bricolage Grotesque", system-ui, sans-serif; background: #f5f5f5; color: #111; max-width: 620px; margin: 0 auto; padding: 24px; }
+  h1 { font-size: 21px; }
+  .card { background: #fff; border: 1px solid rgba(0,0,0,.08); border-radius: 14px; padding: 22px; margin-bottom: 16px; }
+  label { display:block; font-size:9px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#aaa; margin:10px 0 5px; }
+  input { width:100%; padding:11px 13px; background:#efefef; border:1.5px solid rgba(0,0,0,.07); border-radius:10px; font-size:14px; font-family:inherit; outline:none; }
+  button { font-family: inherit; font-size: 15px; font-weight: 700; background: #F90000; color: #fff; border: 0; border-radius: 10px; padding: 12px 20px; cursor: pointer; margin-top:14px; width:100%; }
+  button:disabled { opacity:.5; }
+  table { width:100%; border-collapse:collapse; margin-top:14px; font-size:14px; }
+  th,td { text-align:left; padding:8px; border-bottom:1px solid #eee; }
+  .np { font-weight:700; background:#fff7ed; padding:2px 6px; border-radius:6px; }
+  .ok{color:#1e8e3e;font-weight:700}.skip{color:#999}.err{color:#F90000;font-weight:700}
+</style>
+</head>
+<body>
+  <h1>👥 Crear cuentas del equipo</h1>
+  <div class="card">
+    <p style="font-size:14px;color:#666">Inicia sesión como <b>admin</b> y crea las cuentas de Verónica y Michelle
+    (login seguro, contraseña encriptada). Se puede correr varias veces sin duplicar.</p>
+    <label>Usuario admin</label>
+    <input id="u" value="versus_admin" autocomplete="username">
+    <label>Contraseña admin</label>
+    <input id="p" type="password" placeholder="tu clave de admin" autocomplete="current-password">
+    <button id="run">▶ Iniciar sesión y crear equipo</button>
+    <div id="log"></div>
+  </div>
+</body>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script>
+const cfg = { apiKey:"AIzaSyAKgL0la08wjXBL4VhlcqRlE8Ory1KKC80", authDomain:"versus-portal.firebaseapp.com", databaseURL:"https://versus-portal-default-rtdb.firebaseio.com", projectId:"versus-portal", storageBucket:"versus-portal.firebasestorage.app", messagingSenderId:"689127935637", appId:"1:689127935637:web:0d42a61192c4e1440b559c" };
+firebase.initializeApp(cfg);
+const secondary = firebase.initializeApp(cfg, "creador");
+const DOM = "@portal.versusstudio.co";
+
+const EQUIPO = [
+  { user:"veronica", pass:"VeroVersus26", name:"Verónica", type:"team", role:"miembro", area:"Estrategia", areas:["Creativa","Estrategia","Pauta"] },
+  { user:"michelle", pass:"MicheVersus26", name:"Michelle", type:"team", role:"admin", area:"Administrativa", areas:["Estrategia","Community"] }
+];
+
+document.getElementById("run").addEventListener("click", async () => {
+  const btn=document.getElementById("run"); const log=document.getElementById("log");
+  const u=document.getElementById("u").value.trim().toLowerCase(); const p=document.getElementById("p").value;
+  btn.disabled=true; log.innerHTML="Iniciando sesión…";
+  try { await firebase.auth().signInWithEmailAndPassword(u+DOM, p); }
+  catch(e){ log.innerHTML='<span class="err">No se pudo iniciar sesión: '+(e.code||e.message)+'</span>'; btn.disabled=false; return; }
+  const rows=[];
+  for (const m of EQUIPO){
+    let estado, clase;
+    try {
+      const cred = await secondary.auth().createUserWithEmailAndPassword(m.user+DOM, m.pass);
+      await firebase.database().ref("vsportal/db/profiles/"+m.user).set({
+        uid: cred.user.uid, name: m.name, type: m.type, role: m.role, area: m.area, areas: m.areas
+      });
+      estado="creada ✓"; clase="ok";
+    } catch(e){
+      if(e.code==="auth/email-already-in-use"){
+        // ya existe: al menos aseguramos su perfil/rol
+        try{ await firebase.database().ref("vsportal/db/profiles/"+m.user).update({ name:m.name, type:m.type, role:m.role, area:m.area, areas:m.areas }); }catch(_){}
+        estado="ya existía (perfil actualizado)"; clase="skip";
+      } else { estado="ERROR: "+e.code; clase="err"; }
+    }
+    rows.push('<tr><td><b>'+m.name+'</b><br><small>'+m.user+DOM+'</small></td><td>'+m.role+' · '+m.areas.join(", ")+'</td><td class="'+clase+'">'+estado+'</td><td><span class="np">'+m.pass+'</span></td></tr>');
+  }
+  try{ await secondary.auth().signOut(); await firebase.auth().signOut(); }catch(_){}
+  log.innerHTML = '<table><tr><th>Persona</th><th>Rol · Áreas</th><th>Estado</th><th>Contraseña</th></tr>'+rows.join("")+'</table>'
+    + '<p style="margin-top:10px;color:#666">Entran en <b>Portal Team</b> con su usuario (izquierda del @) y esa contraseña.</p>';
+  btn.disabled=false;
+});
+</script>
+</html>
