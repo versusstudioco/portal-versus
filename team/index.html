@@ -9,6 +9,26 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css" />
+  <style>
+    /* Login del Team — misma línea del portal cliente */
+    #login.tl-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
+      background: radial-gradient(ellipse 60% 50% at 80% 10%, rgba(249,0,0,.06), transparent), radial-gradient(ellipse 50% 60% at 10% 90%, rgba(108,0,255,.05), transparent), #f5f5f5; }
+    .tl-wrap { width: 100%; max-width: 400px; }
+    .tl-logo { text-align: center; margin-bottom: 20px; }
+    .tl-logo img { width: 110px; margin: 0 auto; display: block; }
+    .tl-logo .tl-sub { font-size: 9px; letter-spacing: 5px; color: #aaa; text-transform: uppercase; margin-top: 8px; }
+    .tl-card { background: #fff; border: 1px solid rgba(0,0,0,.07); border-radius: 16px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,.08); }
+    .tl-h2 { font-size: 20px; font-weight: 800; margin: 0 0 4px; letter-spacing: -.01em; }
+    .tl-hint { font-size: 11px; color: #666; margin-bottom: 22px; }
+    .tl-field { margin-bottom: 14px; }
+    .tl-field label { display: block; font-size: 9px; font-weight: 700; letter-spacing: 1.8px; text-transform: uppercase; color: #aaa; margin-bottom: 5px; }
+    .tl-field input { width: 100%; padding: 12px 14px; background: #efefef; border: 1.5px solid rgba(0,0,0,.07); border-radius: 10px; color: #111; font-size: 14px; font-family: var(--font); outline: none; transition: border-color .2s; }
+    .tl-field input:focus { border-color: #F90000; }
+    .tl-btn { width: 100%; margin-top: 4px; padding: 13px 20px; border: none; border-radius: 10px; background: #F90000; color: #fff; font-family: var(--font); font-size: 14px; font-weight: 700; cursor: pointer; transition: background .2s; }
+    .tl-btn:hover { background: #c40000; }
+    .tl-err { background: rgba(249,0,0,.1); border: 1px solid rgba(249,0,0,.25); color: #F90000; padding: 9px 13px; border-radius: 10px; font-size: 11px; margin-top: 10px; display: block; }
+    .tl-err:empty { display: none; }
+  </style>
 </head>
 <body>
   <!-- Fondo con blobs de color (liquid glass) -->
@@ -19,23 +39,24 @@
   </div>
 
   <!-- ===================== LOGIN ===================== -->
-  <section id="login" class="login">
-    <div class="glass login__card">
-      <img src="/assets/versus-dark.png" alt="Versus Studio" class="login__logo" />
-      <p class="login__tag">Agente de contenido</p>
-      <form id="loginForm" class="login__form" autocomplete="on">
-        <label class="field">
-          <span>Usuario</span>
-          <input type="text" name="username" id="username" required autocomplete="username" placeholder="versus" />
-        </label>
-        <label class="field">
-          <span>Contraseña</span>
-          <input type="password" name="password" id="password" required autocomplete="current-password" placeholder="••••••••" />
-        </label>
-        <button type="submit" class="btn btn--primary btn--block" id="loginBtn">Entrar</button>
-        <p class="login__error" id="loginError"></p>
-      </form>
-      <p class="login__hint">Acceso restringido · Versus Studio</p>
+  <section id="login" class="tl-screen">
+    <div class="tl-wrap">
+      <div class="tl-logo">
+        <img src="/logo.png" alt="VERSUS STUDIO" />
+        <div class="tl-sub">Portal del equipo</div>
+      </div>
+      <div class="tl-card">
+        <h2 class="tl-h2">Bienvenido</h2>
+        <div class="tl-hint">Ingresa con tu cuenta del equipo</div>
+        <form id="loginForm" autocomplete="on">
+          <div class="tl-field"><label>Usuario</label>
+            <input type="text" name="username" id="username" required autocomplete="username" placeholder="Tu usuario" /></div>
+          <div class="tl-field"><label>Contraseña</label>
+            <input type="password" name="password" id="password" required autocomplete="current-password" placeholder="•••" /></div>
+          <button type="submit" class="tl-btn" id="loginBtn">Ingresar</button>
+          <div class="tl-err" id="loginError"></div>
+        </form>
+      </div>
     </div>
   </section>
 
