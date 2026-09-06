@@ -351,6 +351,27 @@
         c.completo = !!(c.industria && c.servicios && c.tono);
         return { ok: true, data: c };
       }
+      // Configuración del ciclo por marca (pactado) + realizado automático (desde el flujo).
+      if (p === '/api/marca/ciclo') {
+        const marca = q.get('marca') || body.marca || '';
+        if (method === 'POST') {
+          const c = {
+            periodo: String(body.periodo || '').trim(), inicio: body.inicio || '', fin: body.fin || '',
+            pactado: { reels: +body.reels || 0, carruseles: +body.carruseles || 0, posts: +body.posts || 0, banners: +body.banners || 0, historias: +body.historias || 0 }
+          };
+          await fbPut('gestor/marcas/' + fbKey(marca) + '/ciclo', c);
+          return { ok: true, data: { ok: true } };
+        }
+        const cfg = (await fbGet('gestor/marcas/' + fbKey(marca) + '/ciclo').catch(() => null)) || { periodo: '', inicio: '', fin: '', pactado: { reels: 0, carruseles: 0, posts: 0, banners: 0, historias: 0 } };
+        const all = await piezasAll();
+        const pub = all.filter(x => x.marca === marca && x.etapa === 'publicada');
+        cfg.realizado = {
+          reels: pub.filter(x => x.tipo === 'Reel').length, carruseles: pub.filter(x => x.tipo === 'Carrusel').length,
+          posts: pub.filter(x => x.tipo === 'Post').length, banners: pub.filter(x => x.tipo === 'Banner').length,
+          historias: pub.filter(x => x.tipo === 'Historia').length
+        };
+        return { ok: true, data: cfg };
+      }
       if (p === '/api/marca/aprendizaje') {
         const marca = q.get('marca') || body.marca || '';
         if (method === 'POST') { const item = { id: uid(), kind: body.kind || 'nota', texto: String(body.texto || '').trim(), fuente: body.fuente || '', at: new Date().toISOString() }; await fbPut('gestor/marcas/' + fbKey(marca) + '/aprendizaje/' + item.id, item); return { ok: true, data: { ok: true, item } }; }

@@ -674,8 +674,9 @@ function openMarca(marca, sector) {
     </div>
     <div class="hub-tabs">
       <button class="hub-tab active" data-tab="calendario">🗓️ Calendario</button>
+      <button class="hub-tab" data-tab="ciclo">🎯 Ciclo</button>
       <button class="hub-tab" data-tab="metricas">📊 Métricas</button>
-      <button class="hub-tab" data-tab="estrategia">🎯 Estrategia</button>
+      <button class="hub-tab" data-tab="estrategia">💡 Estrategia</button>
       <button class="hub-tab" data-tab="archivos">📁 Archivos</button>
     </div>
     <div class="hub-pane" id="marcaPane"></div>`;
@@ -688,9 +689,52 @@ function openMarca(marca, sector) {
 function marcaTab(tab) {
   const marca = state.marcaActiva.marca;
   if (tab === 'calendario') return marcaCalendario(marca);
+  if (tab === 'ciclo') return marcaCiclo(marca);
   if (tab === 'metricas') return marcaMetricas(marca);
   if (tab === 'estrategia') return marcaEstrategia(marca);
   if (tab === 'archivos') return marcaArchivos(marca);
+}
+
+/* --- Ciclo: configuración (pactado) + Pactado vs. Realizado (automático) --- */
+const CICLO_TIPOS = [['reels', 'Reels'], ['carruseles', 'Carruseles'], ['posts', 'Posts'], ['banners', 'Banners'], ['historias', 'Historias']];
+async function marcaCiclo(marca) {
+  const pane = $('#marcaPane');
+  pane.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando ciclo…</div>';
+  const { data } = await api('/api/marca/ciclo?marca=' + encodeURIComponent(marca));
+  const pac = data.pactado || {}, real = data.realizado || {};
+  const totalPac = CICLO_TIPOS.reduce((s, [k]) => s + (+pac[k] || 0), 0);
+  const totalReal = CICLO_TIPOS.reduce((s, [k]) => s + (+real[k] || 0), 0);
+  pane.innerHTML = `
+    <div class="est-ctx">
+      <h4>📅 Configuración del ciclo <span class="hub-hint" style="display:inline;margin:0">— lo pactado con el cliente</span></h4>
+      <div class="est-ctx-grid">
+        <label class="select"><span>Periodo</span><input id="clPeriodo" value="${esc(data.periodo || '')}" placeholder="Septiembre 2026"></label>
+        <label class="select"><span>Inicio</span><input id="clInicio" type="date" value="${esc(data.inicio || '')}"></label>
+        <label class="select"><span>Fin</span><input id="clFin" type="date" value="${esc(data.fin || '')}"></label>
+      </div>
+      <div class="ciclo-pactado">${CICLO_TIPOS.map(([k, l]) => `
+        <label class="select"><span>${l}</span><input id="cl_${k}" type="number" min="0" value="${esc(pac[k] || 0)}"></label>`).join('')}</div>
+      <button class="btn btn--ghost btn--sm" id="clSave" style="margin-top:.7rem">Guardar ciclo</button>
+    </div>
+
+    <div class="ciclo-vs">
+      <div class="ciclo-vs__head"><h4>Pactado vs. Realizado</h4><span class="g-card__meta">${totalReal}/${totalPac} del ciclo</span></div>
+      ${CICLO_TIPOS.filter(([k]) => (+pac[k] || 0) > 0 || (+real[k] || 0) > 0).map(([k, l]) => {
+        const p = +pac[k] || 0, r = +real[k] || 0, pct = p ? Math.min(100, Math.round(r / p * 100)) : (r ? 100 : 0);
+        const done = p && r >= p;
+        return `<div class="ciclo-row">
+          <div class="ciclo-row__top"><b>${l}</b><span>${r} / ${p || '—'} ${done ? '✅' : ''}</span></div>
+          <div class="ciclo-bar"><div class="ciclo-bar__fill ${done ? 'ciclo-bar__fill--done' : ''}" style="width:${pct}%"></div></div>
+        </div>`;
+      }).join('') || '<div class="hub-empty">Define lo pactado arriba para ver el avance.</div>'}
+      <p class="hub-hint" style="margin-top:.6rem">El "realizado" se cuenta solo: cada pieza que llega a <b>Publicada</b> suma aquí. No se digita.</p>
+    </div>`;
+  $('#clSave').addEventListener('click', async () => {
+    const body = { marca, periodo: $('#clPeriodo').value, inicio: $('#clInicio').value, fin: $('#clFin').value };
+    CICLO_TIPOS.forEach(([k]) => body[k] = $('#cl_' + k).value);
+    await api('/api/marca/ciclo', { method: 'POST', body });
+    marcaCiclo(marca);
+  });
 }
 
 /* --- Calendario de la marca (grid mensual) + Agregar creativo --- */

@@ -424,6 +424,16 @@ a.tag--platform { text-decoration: none; }
 .est-ctx { background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 1rem 1.1rem; margin-bottom: 1.1rem; }
 .est-ctx h4 { font-size: .95rem; font-weight: 700; margin-bottom: .7rem; }
 .est-ctx-alert { background: #fff7ed; border: 1px solid #fed7aa; color: #9a5b00; font-size: .82rem; border-radius: 10px; padding: .6rem .8rem; margin-bottom: .8rem; }
+.ciclo-pactado { display: grid; grid-template-columns: repeat(5, 1fr); gap: .5rem; margin-top: .7rem; }
+@media (max-width: 640px) { .ciclo-pactado { grid-template-columns: repeat(2, 1fr); } }
+.ciclo-vs { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 1.1rem 1.2rem; margin-top: 1.1rem; }
+.ciclo-vs__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: .9rem; }
+.ciclo-vs__head h4 { font-size: 1rem; font-weight: 700; }
+.ciclo-row { margin-bottom: .8rem; }
+.ciclo-row__top { display: flex; justify-content: space-between; font-size: .88rem; margin-bottom: .3rem; }
+.ciclo-bar { height: 9px; background: var(--bg); border-radius: 999px; overflow: hidden; }
+.ciclo-bar__fill { height: 100%; background: var(--ink); border-radius: 999px; transition: width .3s; }
+.ciclo-bar__fill--done { background: #1e8e3e; }
 .est-ctx-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
 .est-gen-bar { display: flex; gap: .5rem; margin-bottom: .7rem; flex-wrap: wrap; }
 .est-gen-bar input { flex: 1; min-width: 180px; font-family: var(--font); font-size: .92rem; padding: .6rem .8rem; border: 1px solid var(--line); border-radius: 10px; }
