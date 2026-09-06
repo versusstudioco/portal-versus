@@ -4,116 +4,52 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>VERSUS Studio · Portal</title>
+<link rel="icon" href="/logo.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&display=swap" rel="stylesheet">
 <style>
-/* =====================================================================
-   VERSUS · Portón de entrada — misma guía de diseño que el Portal de Marcas
-   (flat, minimalista, Bricolage Grotesque). Destinos en PORTAL_CONFIG (abajo).
-   ===================================================================== */
-:root{
-  --fn:"Bricolage Grotesque",sans-serif;
-  --bg:#f5f5f5; --card:#ffffff; --tx:#111111; --mut:#666666; --mut2:#aaaaaa;
-  --bord:#ececec; --red:#F90000; --r:16px; --rs:10px;
-}
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){
-    --bg:#141414; --card:#1e1e1e; --tx:#ffffff; --mut:#aaaaaa; --mut2:#777777; --bord:#2c2c2c;
-  }
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{font-family:var(--fn);background:var(--bg);color:var(--tx);-webkit-font-smoothing:antialiased;
-  display:flex;align-items:center;justify-content:center;min-height:100vh;padding:2rem}
-
-.shell{width:100%;max-width:720px;display:flex;flex-direction:column;align-items:center;gap:2.2rem}
-
-/* Marca */
-.brand{text-align:center;animation:rise .6s cubic-bezier(.2,.8,.2,1) both}
-.brand__mark{font-weight:800;letter-spacing:-.03em;line-height:.9;font-size:clamp(2rem,5.5vw,2.8rem)}
-.brand__mark sup{font-size:.34em;font-weight:600;top:-1.3em}
-.brand__tag{margin-top:.65rem;color:var(--mut2);font-weight:600;letter-spacing:.28em;font-size:.72rem;text-transform:uppercase}
-
-/* Puertas */
-.doors{display:grid;grid-template-columns:1fr 1fr;gap:1.1rem;width:100%}
-.door{
-  background:var(--card);border:1px solid var(--bord);border-radius:var(--r);
-  padding:1.8rem 1.6rem;display:flex;flex-direction:column;gap:.9rem;text-decoration:none;color:inherit;
-  cursor:pointer;transition:transform .2s cubic-bezier(.2,.8,.2,1),box-shadow .2s,border-color .2s;
-  animation:rise .6s cubic-bezier(.2,.8,.2,1) both;
-}
-.door:nth-child(1){animation-delay:.06s}.door:nth-child(2){animation-delay:.12s}
-.door:hover{transform:translateY(-4px);box-shadow:0 14px 34px rgba(0,0,0,.08);border-color:var(--red)}
-.door__icon{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:#f5f5f5;color:var(--red)}
-.door--team .door__icon{background:#111111;color:#fff}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .door__icon{background:#2a2a2a}}
-.door__icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-.door__eyebrow{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--mut2)}
-.door__title{font-size:1.35rem;font-weight:700;letter-spacing:-.01em}
-.door__desc{font-size:.9rem;line-height:1.5;color:var(--mut);flex:1}
-.door__btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;align-self:flex-start;
-  font-family:var(--fn);font-weight:600;font-size:.9rem;color:#fff;background:var(--red);
-  border:none;border-radius:99px;padding:.6rem 1.2rem;margin-top:.3rem;transition:background .2s,gap .2s}
-.door:hover .door__btn{gap:.75rem}
-.door--team .door__btn{background:#111111}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .door--team .door__btn{background:#fff;color:#111}}
-
-.foot{color:var(--mut2);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;animation:rise .6s .18s cubic-bezier(.2,.8,.2,1) both}
-
-@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-@media (max-width:560px){.doors{grid-template-columns:1fr}}
+  :root{ --fn:"Bricolage Grotesque",sans-serif; --red:#F90000; --tx:#111; --t2:#666; --t3:#aaa; --card:#fff; --bd:rgba(0,0,0,.07); --sh:0 4px 20px rgba(0,0,0,.08); --r:16px; --rs:10px; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{ font-family:var(--fn); color:var(--tx); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
+    background: radial-gradient(ellipse 60% 50% at 80% 8%, rgba(249,0,0,.06), transparent), radial-gradient(ellipse 50% 60% at 8% 92%, rgba(108,0,255,.05), transparent), #f5f5f5; }
+  .wrap{ width:100%; max-width:440px; }
+  .logo{ text-align:center; margin-bottom:22px; }
+  .logo img{ width:120px; margin:0 auto; display:block; }
+  .logo .sub{ font-size:9px; letter-spacing:6px; color:var(--t3); text-transform:uppercase; margin-top:9px; }
+  .doors{ display:flex; flex-direction:column; gap:14px; }
+  .door{ background:var(--card); border:1px solid var(--bd); border-radius:var(--r); box-shadow:var(--sh); padding:24px 24px 22px; transition:transform .18s, box-shadow .18s; }
+  .door:hover{ transform:translateY(-3px); box-shadow:0 12px 30px rgba(0,0,0,.10); }
+  .door__eyebrow{ font-size:9px; font-weight:700; letter-spacing:1.8px; text-transform:uppercase; color:var(--t3); margin-bottom:6px; }
+  .door__title{ font-size:20px; font-weight:800; letter-spacing:-.01em; margin-bottom:6px; }
+  .door__desc{ font-size:13px; line-height:1.5; color:var(--t2); margin-bottom:16px; }
+  .door__btn{ display:block; width:100%; text-align:center; text-decoration:none; font-weight:700; font-size:14px; color:#fff; background:var(--red); border-radius:var(--rs); padding:13px; transition:background .2s; }
+  .door__btn:hover{ background:#c40000; }
+  .door__btn--dark{ background:#111; } .door__btn--dark:hover{ background:#000; }
+  .foot{ text-align:center; color:var(--t3); font-size:10px; letter-spacing:3px; text-transform:uppercase; margin-top:22px; }
 </style>
 </head>
 <body>
-<main class="shell">
-  <div class="brand">
-    <div class="brand__mark">VERSUS<br>STUDIO<sup>®</sup></div>
-    <div class="brand__tag">Portal</div>
-  </div>
-
-  <div class="doors">
-    <!-- Puerta 1: CLIENTE -->
-    <a class="door door--cliente" id="doorCliente" role="button" tabindex="0">
-      <div class="door__icon">
-        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+  <div class="wrap">
+    <div class="logo">
+      <img src="/logo.png" alt="VERSUS STUDIO" />
+      <div class="sub">Portal</div>
+    </div>
+    <div class="doors">
+      <div class="door">
+        <div class="door__eyebrow">Para clientes</div>
+        <h2 class="door__title">Portal Cliente</h2>
+        <p class="door__desc">Revisa el avance de tu marca: contenido, calendario y resultados.</p>
+        <a class="door__btn" href="/clientes/">Ingresar</a>
       </div>
-      <div class="door__eyebrow">Para clientes</div>
-      <div class="door__title">Portal Cliente</div>
-      <div class="door__desc">Revisa semana a semana los avances de tu marca: contenido, calendario y resultados.</div>
-      <span class="door__btn">Iniciar sesión</span>
-    </a>
-
-    <!-- Puerta 2: TEAM -->
-    <a class="door door--team" id="doorTeam" role="button" tabindex="0">
-      <div class="door__icon">
-        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      <div class="door">
+        <div class="door__eyebrow">Para el equipo</div>
+        <h2 class="door__title">Portal Team</h2>
+        <p class="door__desc">Gestión de marcas, estrategia, edición, community y pauta.</p>
+        <a class="door__btn door__btn--dark" href="/team/">Ingresar</a>
       </div>
-      <div class="door__eyebrow">Para el equipo</div>
-      <div class="door__title">Portal Team</div>
-      <div class="door__desc">Gestión de marcas, estrategia, edición y community. La plataforma interna de Versus.</div>
-      <span class="door__btn">Iniciar sesión</span>
-    </a>
+    </div>
+    <div class="foot">Versus the common</div>
   </div>
-
-  <div class="foot">Versus the common</div>
-</main>
-
-<script>
-/* ===== Destinos (mismo dominio, un solo servidor) ===== */
-var PORTAL_CONFIG = {
-  cliente: "/clientes/",
-  team:    "/team/"
-};
-function go(url){ if(url) window.location.href = url; }
-document.getElementById('doorCliente').addEventListener('click', function(){ go(PORTAL_CONFIG.cliente); });
-document.getElementById('doorTeam').addEventListener('click', function(){ go(PORTAL_CONFIG.team); });
-['doorCliente','doorTeam'].forEach(function(id){
-  document.getElementById(id).addEventListener('keydown', function(e){
-    if(e.key==='Enter'||e.key===' '){ e.preventDefault(); this.click(); }
-  });
-});
-</script>
 </body>
 </html>
