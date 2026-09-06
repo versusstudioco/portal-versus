@@ -355,6 +355,8 @@
       if (p === '/api/marca/ciclo') {
         const marca = q.get('marca') || body.marca || '';
         if (method === 'POST') {
+          const s = await sesionActual();
+          if (!s || s.role !== 'admin') return { ok: false, status: 403, data: { error: 'Solo el admin edita el ciclo' } };
           const c = {
             periodo: String(body.periodo || '').trim(), inicio: body.inicio || '', fin: body.fin || '',
             pactado: { reels: +body.reels || 0, carruseles: +body.carruseles || 0, posts: +body.posts || 0, banners: +body.banners || 0, historias: +body.historias || 0 }

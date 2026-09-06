@@ -702,9 +702,10 @@ async function marcaCiclo(marca) {
   pane.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando ciclo…</div>';
   const { data } = await api('/api/marca/ciclo?marca=' + encodeURIComponent(marca));
   const pac = data.pactado || {}, real = data.realizado || {};
+  const isAdmin = (state.me || {}).role === 'admin';
   const totalPac = CICLO_TIPOS.reduce((s, [k]) => s + (+pac[k] || 0), 0);
   const totalReal = CICLO_TIPOS.reduce((s, [k]) => s + (+real[k] || 0), 0);
-  pane.innerHTML = `
+  const configAdmin = `
     <div class="est-ctx">
       <h4>📅 Configuración del ciclo <span class="hub-hint" style="display:inline;margin:0">— lo pactado con el cliente</span></h4>
       <div class="est-ctx-grid">
@@ -715,8 +716,19 @@ async function marcaCiclo(marca) {
       <div class="ciclo-pactado">${CICLO_TIPOS.map(([k, l]) => `
         <label class="select"><span>${l}</span><input id="cl_${k}" type="number" min="0" value="${esc(pac[k] || 0)}"></label>`).join('')}</div>
       <button class="btn btn--ghost btn--sm" id="clSave" style="margin-top:.7rem">Guardar ciclo</button>
-    </div>
-
+    </div>`;
+  const configLectura = `
+    <div class="est-ctx">
+      <h4>📅 Ciclo <span class="hub-hint" style="display:inline;margin:0">— configurado por el admin</span></h4>
+      <div class="ciclo-ro">
+        <div><span>Periodo</span><b>${esc(data.periodo || '—')}</b></div>
+        <div><span>Inicio</span><b>${esc(data.inicio || '—')}</b></div>
+        <div><span>Fin</span><b>${esc(data.fin || '—')}</b></div>
+        ${CICLO_TIPOS.map(([k, l]) => `<div><span>${l} pactados</span><b>${esc(pac[k] || 0)}</b></div>`).join('')}
+      </div>
+      <p class="hub-hint" style="margin-top:.5rem">Solo el administrador puede editar ciclos, fechas y cantidades.</p>
+    </div>`;
+  pane.innerHTML = (isAdmin ? configAdmin : configLectura) + `
     <div class="ciclo-vs">
       <div class="ciclo-vs__head"><h4>Pactado vs. Realizado</h4><span class="g-card__meta">${totalReal}/${totalPac} del ciclo</span></div>
       ${CICLO_TIPOS.filter(([k]) => (+pac[k] || 0) > 0 || (+real[k] || 0) > 0).map(([k, l]) => {
@@ -729,10 +741,12 @@ async function marcaCiclo(marca) {
       }).join('') || '<div class="hub-empty">Define lo pactado arriba para ver el avance.</div>'}
       <p class="hub-hint" style="margin-top:.6rem">El "realizado" se cuenta solo: cada pieza que llega a <b>Publicada</b> suma aquí. No se digita.</p>
     </div>`;
-  $('#clSave').addEventListener('click', async () => {
+  const clSave = $('#clSave');
+  if (clSave) clSave.addEventListener('click', async () => {
     const body = { marca, periodo: $('#clPeriodo').value, inicio: $('#clInicio').value, fin: $('#clFin').value };
     CICLO_TIPOS.forEach(([k]) => body[k] = $('#cl_' + k).value);
-    await api('/api/marca/ciclo', { method: 'POST', body });
+    const { ok, data } = await api('/api/marca/ciclo', { method: 'POST', body });
+    if (!ok || data.error) { alert(data.error || 'No se pudo guardar'); return; }
     marcaCiclo(marca);
   });
 }
