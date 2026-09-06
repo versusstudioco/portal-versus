@@ -423,6 +423,7 @@ a.tag--platform { text-decoration: none; }
 /* Estrategia por marca */
 .est-ctx { background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 1rem 1.1rem; margin-bottom: 1.1rem; }
 .est-ctx h4 { font-size: .95rem; font-weight: 700; margin-bottom: .7rem; }
+.est-ctx-alert { background: #fff7ed; border: 1px solid #fed7aa; color: #9a5b00; font-size: .82rem; border-radius: 10px; padding: .6rem .8rem; margin-bottom: .8rem; }
 .est-ctx-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
 .est-gen-bar { display: flex; gap: .5rem; margin-bottom: .7rem; flex-wrap: wrap; }
 .est-gen-bar input { flex: 1; min-width: 180px; font-family: var(--font); font-size: .92rem; padding: .6rem .8rem; border: 1px solid var(--line); border-radius: 10px; }

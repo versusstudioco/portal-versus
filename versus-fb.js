@@ -42,11 +42,16 @@
     try { apObj = (await fbGet('gestor/marcas/' + fbKey(marca) + '/aprendizaje')) || {}; } catch (_) {}
     const ap = Object.values(apObj);
     let b = `\nMARCA: ${marca}`;
+    if (ctx.industria) b += `\n- Industria/sector: ${ctx.industria}`;
+    if (ctx.pais) b += `\n- País/mercado: ${ctx.pais}`;
+    if (ctx.servicios) b += `\n- Servicios/productos: ${ctx.servicios}`;
+    if (ctx.tipoClientes) b += `\n- Tipo de clientes: ${ctx.tipoClientes}`;
+    if (ctx.publico) b += `\n- Público objetivo: ${ctx.publico}`;
     if (ctx.tono) b += `\n- Tono de voz: ${ctx.tono}`;
-    if (ctx.publico) b += `\n- Público: ${ctx.publico}`;
+    if (ctx.comunicacion) b += `\n- Cómo se comunica la marca: ${ctx.comunicacion}`;
     if (ctx.notas) b += `\n- Notas / do's & don'ts: ${ctx.notas}`;
     if (ap.length) b += `\n- LÍNEA DE APRENDIZAJE de la marca (memoria acumulada, respétala): ${ap.map(x => x.texto).slice(-12).join(' | ')}`;
-    b += `\nEscribe SOLO en la voz de esta marca, para su público.`;
+    b += `\nCada marca es un mundo: adapta TODO a este contexto. Escribe solo en la voz de esta marca.`;
     return b;
   }
 
@@ -334,8 +339,15 @@
       if (p === '/api/marca/logos') return { ok: true, data: { logos: await logos() } };
       if (p === '/api/marca/contexto') {
         const marca = q.get('marca') || body.marca || '';
-        if (method === 'POST') { const c = { tono: String(body.tono || '').trim(), publico: String(body.publico || '').trim(), notas: String(body.notas || '').trim() }; await fbPut('gestor/marcas/' + fbKey(marca) + '/contexto', c); return { ok: true, data: { ok: true } }; }
-        const c = (await fbGet('gestor/marcas/' + fbKey(marca) + '/contexto').catch(() => null)) || { tono: '', publico: '', notas: '' };
+        const CAMPOS = ['industria', 'pais', 'tipoClientes', 'comunicacion', 'servicios', 'tono', 'publico', 'notas'];
+        if (method === 'POST') {
+          const c = {}; CAMPOS.forEach(k => c[k] = String(body[k] || '').trim());
+          await fbPut('gestor/marcas/' + fbKey(marca) + '/contexto', c);
+          return { ok: true, data: { ok: true } };
+        }
+        const saved = (await fbGet('gestor/marcas/' + fbKey(marca) + '/contexto').catch(() => null)) || {};
+        const c = {}; CAMPOS.forEach(k => c[k] = saved[k] || '');
+        c.completo = !!(c.industria && c.servicios && c.tono);
         return { ok: true, data: c };
       }
       if (p === '/api/marca/aprendizaje') {

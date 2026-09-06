@@ -855,11 +855,17 @@ async function marcaEstrategia(marca) {
   state.aprendizaje = ap.ok ? ap.data.entries : [];
   pane.innerHTML = `
     <div class="est-ctx">
-      <h4>Contexto de la marca <span class="hub-hint" style="display:inline;margin:0">— guía a la IA para todo lo de esta marca</span></h4>
+      <h4>📋 Contexto de la marca <span class="hub-hint" style="display:inline;margin:0">— cada marca es un mundo; esto hace que la estrategia sea única</span></h4>
+      ${!ctx.completo ? '<div class="est-ctx-alert">⚠️ Completa al menos <b>Industria</b>, <b>Servicios/productos</b> y <b>Tono</b> para activar la estrategia a la medida de esta marca.</div>' : ''}
       <div class="est-ctx-grid">
+        <label class="select"><span>Industria / sector</span><input id="esIndustria" value="${esc(ctx.industria || '')}" placeholder="inmobiliario, café, legal…"></label>
+        <label class="select"><span>País / mercado</span><input id="esPais" value="${esc(ctx.pais || '')}" placeholder="Colombia"></label>
+        <label class="select"><span>Tipo de clientes</span><input id="esTipoClientes" value="${esc(ctx.tipoClientes || '')}" placeholder="a quién le vende"></label>
+        <label class="select"><span>Público objetivo</span><input id="esPublico" value="${esc(ctx.publico || '')}" placeholder="edad, intereses…"></label>
         <label class="select"><span>Tono de voz</span><input id="esTono" value="${esc(ctx.tono || '')}" placeholder="cercano, premium…"></label>
-        <label class="select"><span>Público</span><input id="esPublico" value="${esc(ctx.publico || '')}" placeholder="a quién le habla"></label>
+        <label class="select"><span>Cómo se comunica</span><input id="esComunicacion" value="${esc(ctx.comunicacion || '')}" placeholder="directa, educativa, divertida…"></label>
       </div>
+      <label class="select" style="margin-top:.6rem"><span>Servicios / productos</span><textarea id="esServicios" rows="2" placeholder="qué vende u ofrece la marca">${esc(ctx.servicios || '')}</textarea></label>
       <label class="select" style="margin-top:.6rem"><span>Notas / do's & don'ts</span><textarea id="esNotas" rows="2" placeholder="qué mencionar, qué evitar…">${esc(ctx.notas || '')}</textarea></label>
       <button class="btn btn--ghost btn--sm" id="esCtxSave" style="margin-top:.6rem">Guardar contexto</button>
     </div>
@@ -892,8 +898,14 @@ async function marcaEstrategia(marca) {
       <div id="esOut"></div>
     </div>`;
   $('#esCtxSave').addEventListener('click', async () => {
-    await api('/api/marca/contexto', { method: 'POST', body: { marca, tono: $('#esTono').value, publico: $('#esPublico').value, notas: $('#esNotas').value } });
-    $('#esCtxSave').textContent = 'Guardado ✓'; setTimeout(() => { const b = $('#esCtxSave'); if (b) b.textContent = 'Guardar contexto'; }, 1500);
+    await api('/api/marca/contexto', { method: 'POST', body: {
+      marca, industria: $('#esIndustria').value, pais: $('#esPais').value, tipoClientes: $('#esTipoClientes').value,
+      publico: $('#esPublico').value, tono: $('#esTono').value, comunicacion: $('#esComunicacion').value,
+      servicios: $('#esServicios').value, notas: $('#esNotas').value
+    } });
+    $('#esCtxSave').textContent = 'Guardado ✓';
+    const alert = $('.est-ctx-alert'); if (alert && $('#esIndustria').value && $('#esServicios').value && $('#esTono').value) alert.remove();
+    setTimeout(() => { const b = $('#esCtxSave'); if (b) b.textContent = 'Guardar contexto'; }, 1500);
   });
   $('#apAdd').addEventListener('click', async () => {
     const texto = $('#apTexto').value.trim(); if (!texto) return;
@@ -929,9 +941,14 @@ function bindAprendeRemove(marca) {
 async function estGenerar(marca, kind, btn) {
   const tema = $('#esTema').value.trim();
   const out = $('#esOut');
+  // Cada marca es un mundo: exige el contexto mínimo antes de generar.
+  if (!$('#esIndustria').value.trim() || !$('#esServicios').value.trim() || !$('#esTono').value.trim()) {
+    out.innerHTML = '<div class="empty">📋 Primero completa el <b>contexto de la marca</b> (al menos Industria, Servicios/productos y Tono) y guárdalo. Así la estrategia sale a la medida de esta marca.</div>';
+    return;
+  }
   if (!tema) { out.innerHTML = '<div class="empty">Escribe el tema del contenido primero.</div>'; return; }
   const platform = $('#esPlat').value;
-  const ctx = { tono: $('#esTono').value.trim(), publico: $('#esPublico').value.trim(), notas: $('#esNotas').value.trim() };
+  const ctx = { industria: $('#esIndustria').value.trim(), pais: $('#esPais').value.trim(), tipoClientes: $('#esTipoClientes').value.trim(), comunicacion: $('#esComunicacion').value.trim(), servicios: $('#esServicios').value.trim(), tono: $('#esTono').value.trim(), publico: $('#esPublico').value.trim(), notas: $('#esNotas').value.trim() };
   const label = btn.textContent; loadingBtn(btn, '…');
   out.innerHTML = '<div class="loading"><div class="spinner"></div>Generando…</div>';
   try {
