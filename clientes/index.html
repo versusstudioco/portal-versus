@@ -797,6 +797,7 @@ img{max-width:100%;display:block;}
   <div class="nav-sec">Mi Portal</div>
   <div class="ni on"  id="dt-resumen"   onclick="showDT(this,'resumen')">&#9672; Resumen</div>
   <div class="ni"     id="dt-contenido" onclick="showDT(this,'contenido')">&#9635; Contenido</div>
+  <div class="ni"     id="dt-calendario" onclick="showDT(this,'calendario')">&#128197; Calendario</div>
   <div class="ni"     id="dt-comparativo" onclick="showDT(this,'comparativo')">&#9211; Comparativo</div>
   <div class="ni"     id="dt-pauta"       onclick="showDT(this,'pauta')">&#9670; Pauta</div>
   <div class="sb-foot">
@@ -816,6 +817,7 @@ img{max-width:100%;display:block;}
   <div class="cyc-sel" id="cycSel"></div>
   <div id="p-resumen"    class="panel active"><div id="resPanel"></div></div>
   <div id="p-contenido"  class="panel"><div id="contPanel"></div></div>
+  <div id="p-calendario" class="panel"><div id="calGestorPanel"></div></div>
   <div id="p-comparativo" class="panel"><div id="compPanel"></div></div>
   <div id="p-pauta" class="panel"><div id="pautaPanel"></div></div>
 </main>
@@ -2392,28 +2394,59 @@ function pickCyc(btn) {
   else if(tab === "comparativo") renderComparativo();
 }
 function showDT(el, tab) {
-  ["resumen","contenido","comparativo","pauta"].forEach(function(t) {
+  ["resumen","contenido","calendario","comparativo","pauta"].forEach(function(t) {
     var p = gi("p-"+t); if(p) p.classList.remove("active");
     var n = gi("dt-"+t); if(n) n.classList.remove("on");
   });
   var panel = gi("p-"+tab); if(panel) panel.classList.add("active");
   if(el) el.classList.add("on");
-  gi("dashTitle").textContent = tab === "resumen" ? "Resumen" : tab === "contenido" ? "Contenido" : tab === "pauta" ? "Pauta" : "Comparativo";
-  // Hide cycSel on comparativo (it has no cycle selector), show on others
+  gi("dashTitle").textContent = tab === "resumen" ? "Resumen" : tab === "contenido" ? "Contenido" : tab === "calendario" ? "Calendario de contenido" : tab === "pauta" ? "Pauta" : "Comparativo";
+  // Hide cycSel where no aplica
   var cs = gi("cycSel");
-  if(cs) cs.style.display = (tab === "comparativo" || tab === "pauta") ? "none" : "";
+  if(cs) cs.style.display = (tab === "comparativo" || tab === "pauta" || tab === "calendario") ? "none" : "";
   // Update subtitle
   if(tab === "comparativo") {
     gi("dashSub").textContent = "Todos los ciclos";
+  } else if(tab === "calendario") {
+    gi("dashSub").textContent = "Tu contenido con link y métricas";
   } else {
     var cyc = actCyc[CU] ? DB.cycles.find(function(c){return c.id===actCyc[CU];}) : null;
     gi("dashSub").textContent = cyc ? cyc.name : "-";
   }
   if(tab === "resumen") renderResumen(actCyc[CU]);
   else if(tab === "contenido") renderContenido(actCyc[CU]);
+  else if(tab === "calendario") renderGestorContenido();
   else if(tab === "comparativo") renderComparativo();
   else if(tab === "pauta") renderPautaClient(actCyc[CU]);
   closeSidebar();
+}
+// Sincronización con el gestor (Team): contenido Editado/Publicado con link + métricas.
+function vgNorm(s){ return String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]/g,""); }
+function vgEsc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];}); }
+var VG_EST = { idea:{l:"En propuesta",c:"#9aa0a6"}, aprobada:{l:"Aprobado",c:"#1e8e3e"}, grabada:{l:"En producción",c:"#1a73e8"}, editada:{l:"En edición",c:"#d19100"}, publicada:{l:"Publicado",c:"#7b3ff2"} };
+function renderGestorContenido(){
+  var el = gi("calGestorPanel"); if(!el) return;
+  el.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:var(--t2)">Cargando tu contenido…</div>';
+  if(!FBDB){ el.innerHTML=''; return; }
+  FBDB.ref("vsportal/gestor/piezas").once("value").then(function(snap){
+    var all = snap.val() || {};
+    var brandName = (CREDS[CU] && CREDS[CU].name) || CU || "";
+    var k1 = vgNorm(brandName), k2 = vgNorm(CU);
+    var mine = Object.keys(all).map(function(k){return all[k];}).filter(function(p){ if(!p||!p.marca) return false; var pm=vgNorm(p.marca); return pm===k1||pm===k2||(k1&&pm.indexOf(k1)>=0)||(k1&&k1.indexOf(pm)>=0); });
+    var visibles = mine.filter(function(p){ return p.etapa==="editada"||p.etapa==="publicada"; }).sort(function(a,b){return String(b.fecha||"").localeCompare(String(a.fecha||""));});
+    if(!visibles.length){ el.innerHTML='<div class="card" style="padding:30px;text-align:center;color:var(--t2)">Aún no hay contenido listo para mostrar. Aquí verás tus piezas con su <b>link</b> y <b>métricas</b> cuando el equipo las publique.</div>'; return; }
+    var cards = visibles.map(function(p){
+      var e = VG_EST[p.etapa]||VG_EST.editada;
+      var met=[]; if(p.mViews)met.push("👁 "+vgEsc(p.mViews)); if(p.mLikes)met.push("❤️ "+vgEsc(p.mLikes)); if(p.mSaved)met.push("🔖 "+vgEsc(p.mSaved)); if(p.mShared)met.push("↗ "+vgEsc(p.mShared));
+      return '<div style="background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:14px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:11px;color:var(--t3)">'+vgEsc(p.tipo||"")+(p.fecha?" · "+vgEsc(p.fecha):"")+'</span><span style="font-size:10px;font-weight:700;color:#fff;background:'+e.c+';border-radius:999px;padding:2px 8px">'+e.l+'</span></div>'
+        +'<div style="font-weight:700;font-size:14px;margin-bottom:8px">'+vgEsc(p.idea||"")+'</div>'
+        +(met.length?'<div style="font-size:13px;color:var(--t2);margin-bottom:8px">'+met.join(" &nbsp; ")+'</div>':'')
+        +(p.link?'<a href="'+vgEsc(p.link)+'" target="_blank" rel="noopener" style="font-size:12px;font-weight:700;color:var(--red);text-decoration:none">Ver publicación →</a>':'<span style="font-size:12px;color:var(--t3)">Sin link aún</span>')
+        +'</div>';
+    }).join("");
+    el.innerHTML = '<div class="card"><div class="card-title">Tu contenido</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:10px">'+cards+'</div></div>';
+  }).catch(function(){ el.innerHTML='<div class="card" style="padding:20px;color:var(--t2)">No se pudo cargar el contenido.</div>'; });
 }
 
 function cycProgress(cyc) {
