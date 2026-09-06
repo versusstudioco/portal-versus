@@ -136,6 +136,7 @@
       id: p.id, marca: p.marca, tipo: p.tipo || 'Reel', idea: p.idea || '', guion: p.guion || '',
       caracteristicas: p.caracteristicas || '', etapa: p.etapa || 'idea', responsable: p.responsable || '',
       fecha: p.fecha || null,
+      link: p.link || '', mViews: p.mViews || '', mLikes: p.mLikes || '', mSaved: p.mSaved || '', mShared: p.mShared || '',
       comentarios: p.comentarios ? (Array.isArray(p.comentarios) ? p.comentarios : Object.values(p.comentarios)) : []
     };
   }
@@ -313,7 +314,7 @@
         return { ok: true, data: { ok: true, pieza } };
       }
       if (p === '/api/piezas/update' && method === 'POST') {
-        const patch = {}; ['idea', 'guion', 'caracteristicas', 'responsable', 'tipo', 'fecha'].forEach(k => { if (body[k] != null) patch[k] = body[k]; });
+        const patch = {}; ['idea', 'guion', 'caracteristicas', 'responsable', 'tipo', 'fecha', 'link', 'mViews', 'mLikes', 'mSaved', 'mShared'].forEach(k => { if (body[k] != null) patch[k] = body[k]; });
         await fbPatch('gestor/piezas/' + body.id, patch);
         return { ok: true, data: { ok: true } };
       }

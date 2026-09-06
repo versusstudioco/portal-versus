@@ -543,6 +543,12 @@ a.tag--platform { text-decoration: none; }
 .pz-comment--sys { color: var(--ink-40); font-style: italic; }
 .pz-addc { display: flex; gap: .4rem; }
 .pz-addc input { flex: 1; font-family: var(--font); padding: .5rem .7rem; border: 1px solid var(--line); border-radius: 8px; }
+.pz-pub { background: #f7f5ff; border: 1px solid #e6e0ff; border-radius: 10px; padding: .7rem .8rem; }
+.pz-pub > span em { font-weight: 400; color: var(--ink-40); font-style: normal; font-size: .74rem; }
+.pz-pub input { width: 100%; font-family: var(--font); font-size: .9rem; padding: .5rem .7rem; border: 1px solid var(--line); border-radius: 8px; }
+.pz-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; margin-top: .4rem; }
+.pz-metrics .select span { font-size: .68rem; }
+@media (max-width: 560px) { .pz-metrics { grid-template-columns: 1fr 1fr; } }
 
 @media (max-width: 860px) { .fl-board { grid-template-columns: 1fr 1fr; } }
 

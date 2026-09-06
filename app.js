@@ -322,6 +322,10 @@ async function renderFlujo() {
   $('#flNueva').addEventListener('click', () => openPieza(null));
 }
 
+function refreshPiezaView() {
+  if (state.marcaActiva) { marcaCalendario(state.marcaActiva.marca); }
+  else if (typeof renderFlujo === 'function') { try { renderFlujo(); } catch (_) {} }
+}
 function openPieza(id) {
   const et = [['idea', 'Idea'], ['aprobada', 'Aprobada'], ['grabada', 'Grabada'], ['editada', 'Editada'], ['publicada', 'Publicada']];
   const p = id ? state.piezas[id] : { id: '', marca: '', idea: '', tipo: 'Reel', guion: '', caracteristicas: '', etapa: 'idea', responsable: '', comentarios: [] };
@@ -339,6 +343,15 @@ function openPieza(id) {
       </div>
       <label class="pz-field"><span>Guion</span><textarea id="pzGuion" rows="4" placeholder="El guion del contenido…">${esc(p.guion || '')}</textarea></label>
       <label class="pz-field"><span>Características</span><textarea id="pzCar" rows="2" placeholder="Formato, duración, música, referencias…">${esc(p.caracteristicas || '')}</textarea></label>
+      <div class="pz-field pz-pub"><span>📢 Publicación y métricas <em>(aparece en el portal del cliente al llegar a Editada/Publicada)</em></span>
+        <input id="pzLink" placeholder="Link de la publicación (Instagram, TikTok…)" value="${esc(p.link || '')}">
+        <div class="pz-metrics">
+          <label class="select"><span>Vistas</span><input id="pzViews" type="number" min="0" value="${esc(p.mViews || '')}"></label>
+          <label class="select"><span>Likes</span><input id="pzLikes" type="number" min="0" value="${esc(p.mLikes || '')}"></label>
+          <label class="select"><span>Guardados</span><input id="pzSaved" type="number" min="0" value="${esc(p.mSaved || '')}"></label>
+          <label class="select"><span>Compartidos</span><input id="pzShared" type="number" min="0" value="${esc(p.mShared || '')}"></label>
+        </div>
+      </div>
       ${id ? `<div class="pz-field"><span>Comentarios</span>
         <div class="pz-comments">${(p.comentarios || []).map(c => `<div class="pz-comment ${c.sistema ? 'pz-comment--sys' : ''}"><b>${esc(c.autor)}</b> ${esc(c.texto)}</div>`).join('') || '<div class="gw-none">Sin comentarios</div>'}</div>
         <div class="pz-addc"><input id="pzC" placeholder="Escribe un comentario…"><button class="btn btn--ghost btn--sm" id="pzCadd">Comentar</button></div></div>` : ''}
@@ -353,16 +366,17 @@ function openPieza(id) {
   $('#pzCancel').addEventListener('click', close);
   $('#pzModal').addEventListener('click', e => { if (e.target.id === 'pzModal') close(); });
   $('#pzSave').addEventListener('click', async () => {
-    const body = { id, marca: $('#pzMarca').value, idea: $('#pzIdea').value, tipo: $('#pzTipo').value, responsable: $('#pzResp').value, guion: $('#pzGuion').value, caracteristicas: $('#pzCar').value };
+    const body = { id, marca: $('#pzMarca').value, idea: $('#pzIdea').value, tipo: $('#pzTipo').value, responsable: $('#pzResp').value, guion: $('#pzGuion').value, caracteristicas: $('#pzCar').value,
+      link: $('#pzLink').value, mViews: $('#pzViews').value, mLikes: $('#pzLikes').value, mSaved: $('#pzSaved').value, mShared: $('#pzShared').value };
     if (!id) { const r = await api('/api/piezas/crear', { method: 'POST', body }); if (r.data.ok && $('#pzEtapa').value !== 'idea') await api('/api/piezas/etapa', { method: 'POST', body: { id: r.data.pieza.id, etapa: $('#pzEtapa').value } }); }
     else { await api('/api/piezas/update', { method: 'POST', body }); if ($('#pzEtapa').value !== p.etapa) await api('/api/piezas/etapa', { method: 'POST', body: { id, etapa: $('#pzEtapa').value } }); }
-    close(); renderFlujo();
+    close(); refreshPiezaView();
   });
   if (id) {
     $('#pzDel').addEventListener('click', async () => {
       if (!confirm('¿Eliminar esta pieza?')) return;
       await api('/api/piezas/remove', { method: 'POST', body: { id } });
-      close(); renderFlujo();
+      close(); refreshPiezaView();
     });
     $('#pzCadd').addEventListener('click', async () => {
       const t = $('#pzC').value.trim(); if (!t) return;
