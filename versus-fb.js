@@ -16,6 +16,40 @@
   const AREAS = ['Estrategia', 'Producción', 'Creativa', 'Community', 'Pauta', 'Administrativa'];
   const _secondary = (function () { try { return (firebase.apps || []).find(a => a.name === 'vfbSecondary') || firebase.initializeApp(FBCFG, 'vfbSecondary'); } catch (_) { return null; } })();
 
+  /* ---- IA (Gemini) vía Cloudflare Worker (clave oculta) ---- */
+  const GEMINI_URL = 'https://versus-ai.versusestudio-co.workers.dev';
+  const GEMINI_MODEL = 'gemini-3.6-flash';
+  window.VFB_GEMINI = GEMINI_URL;
+  async function callGemini(system, prompt) {
+    const r = await fetch(GEMINI_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ system, prompt, model: GEMINI_MODEL }) });
+    const j = await r.json();
+    if (!r.ok || j.error) throw new Error(j.error || ('gemini ' + r.status));
+    return j.text || '';
+  }
+  function extractJSON(text) {
+    if (!text) return null;
+    let t = String(text).trim().replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '');
+    try { return JSON.parse(t); } catch (_) {}
+    const m = t.match(/[{[][\s\S]*[}\]]/);
+    if (m) { try { return JSON.parse(m[0]); } catch (_) {} }
+    return null;
+  }
+  // Bloque con el contexto + línea de aprendizaje de ESA marca (independiente por cliente).
+  async function marcaBloque(marca) {
+    if (!marca) return '';
+    let ctx = {}, apObj = {};
+    try { ctx = (await fbGet('gestor/marcas/' + fbKey(marca) + '/contexto')) || {}; } catch (_) {}
+    try { apObj = (await fbGet('gestor/marcas/' + fbKey(marca) + '/aprendizaje')) || {}; } catch (_) {}
+    const ap = Object.values(apObj);
+    let b = `\nMARCA: ${marca}`;
+    if (ctx.tono) b += `\n- Tono de voz: ${ctx.tono}`;
+    if (ctx.publico) b += `\n- Público: ${ctx.publico}`;
+    if (ctx.notas) b += `\n- Notas / do's & don'ts: ${ctx.notas}`;
+    if (ap.length) b += `\n- LÍNEA DE APRENDIZAJE de la marca (memoria acumulada, respétala): ${ap.map(x => x.texto).slice(-12).join(' | ')}`;
+    b += `\nEscribe SOLO en la voz de esta marca, para su público.`;
+    return b;
+  }
+
   /* ---- Firebase REST (con token de sesión segura) ---- */
   async function fbGet(path) {
     const t = await token();
@@ -317,7 +351,15 @@
       if (p === '/api/metricas') return { ok: true, data: await metricas(q.get('refresh') === '1') };
       if (p === '/api/pauta') return { ok: true, data: await pauta(q.get('refresh') === '1') };
       if (p === '/api/pauta/moneda' && method === 'POST') { const cfg = { moneda: body.moneda === 'USD' ? 'USD' : 'COP', trm: parseInt(body.trm, 10) || 4000 }; await fbPut('gestor/config/pauta', cfg); return { ok: true, data: cfg }; }
-      if (p === '/api/metricas/analisis' && method === 'POST') return { ok: true, data: aiDemoAnalisis(body) };
+      if (p === '/api/metricas/analisis' && method === 'POST') {
+        try {
+          const system = 'Eres analista de contenido de Versus Studio. Analizas rendimiento y das recomendaciones accionables en español. Respondes SOLO con JSON válido.';
+          const prompt = `Analiza el rendimiento de la marca "${body.marca}". Mediana de views: ${body.medianaViews}. Mejores: ${JSON.stringify((body.mejores || []).map(x => ({ desc: x.desc, views: x.views })))}. Peores: ${JSON.stringify((body.peores || []).map(x => ({ desc: x.desc, views: x.views })))}.\nDevuelve SOLO JSON: {"diagnostico":"2-3 frases","que_repetir":[".."],"que_evitar":[".."],"acciones":["3 acciones concretas"]}`;
+          const json = extractJSON(await callGemini(system, prompt));
+          if (json) return { ok: true, data: { source: 'ia', ...json } };
+        } catch (_) {}
+        return { ok: true, data: aiDemoAnalisis(body) };
+      }
 
       // ---- Archivos (Drive link + subida a fase posterior con Storage) ----
       if (p === '/api/archivos/marca') {
@@ -330,7 +372,50 @@
       if (p === '/api/archivos/remove' && method === 'POST') { await fbDelete('gestor/marcas/' + fbKey(body.marca || '') + '/archivos/files/' + body.id).catch(() => {}); return { ok: true, data: { ok: true } }; }
 
       // ---- Gestión / IA (fases posteriores) ----
-      if (p === '/api/ideas' || p === '/api/captions' || p === '/api/hashtags' || p === '/api/historias') return { ok: true, data: aiDemo(p, body) };
+      if (p === '/api/captions' && method === 'POST') {
+        const tema = body.topic || body.tema || '';
+        try {
+          const bloque = await marcaBloque(body.marca);
+          const system = 'Eres el director de contenido de Versus Studio, experto en captions que venden. Escribes en español, sin relleno ni frases genéricas. Respondes SOLO con JSON válido.';
+          const prompt = `Escribe 3 captions PROFESIONALES y distintos entre sí para ${body.platform || 'instagram'} sobre "${tema}".${bloque}\nCada uno con un ángulo diferente. Devuelve SOLO JSON: {"captions":[{"angulo":"nombre corto","primera_linea":"gancho","texto":"caption completo listo para pegar","hashtags":["#.."],"que_aporta":"","por_que_funciona":""}]}`;
+          const json = extractJSON(await callGemini(system, prompt));
+          if (json && json.captions) return { ok: true, data: { source: 'ia', captions: json.captions.slice(0, 3) } };
+        } catch (_) {}
+        return { ok: true, data: aiDemo('/api/captions', body) };
+      }
+      if (p === '/api/historias' && method === 'POST') {
+        const tema = body.tema || body.topic || '';
+        try {
+          const bloque = await marcaBloque(body.marca);
+          const system = 'Eres estratega de HISTORIAS (stories) de Instagram en Versus Studio. Diseñas secuencias que enganchan, con objetivo por frame y elementos interactivos. Español. SOLO JSON válido.';
+          const prompt = `Diseña una secuencia de 4-6 historias sobre "${tema}".${bloque}\nEl primer frame frena el dedo; cierra con acción. Devuelve SOLO JSON: {"historias":[{"frame":1,"texto":"lo que va escrito","elemento":"encuesta/pregunta/quiz/link o ''","objetivo":"qué logra"}]}`;
+          const json = extractJSON(await callGemini(system, prompt));
+          if (json && json.historias) return { ok: true, data: { source: 'ia', historias: json.historias.slice(0, 6) } };
+        } catch (_) {}
+        return { ok: true, data: aiDemo('/api/historias', body) };
+      }
+      if (p === '/api/ideas' && method === 'POST') {
+        const tema = body.topic || body.tema || '';
+        try {
+          const bloque = await marcaBloque(body.marca);
+          const system = 'Eres estratega de contenido de Versus Studio. Generas ideas de contenido con gancho y estructura. Español. SOLO JSON válido.';
+          const prompt = `Genera 5 ideas de contenido sobre "${tema}" para ${body.platform || 'instagram'}.${bloque}\nDevuelve SOLO JSON: {"ideas":[{"titulo":"","hook":"","estructura":"","formato":"Reel/Carrusel/Post","por_que_funciona":"","cta":""}]}`;
+          const json = extractJSON(await callGemini(system, prompt));
+          if (json && json.ideas) return { ok: true, data: { source: 'ia', ideas: json.ideas.slice(0, 6) } };
+        } catch (_) {}
+        return { ok: true, data: aiDemo('/api/ideas', body) };
+      }
+      if (p === '/api/hashtags' && method === 'POST') {
+        const tema = body.topic || body.tema || '';
+        try {
+          const bloque = await marcaBloque(body.marca);
+          const system = 'Eres estratega de hashtags de Versus Studio. Español. SOLO JSON válido.';
+          const prompt = `Analiza hashtags y palabras clave para "${tema}" (${body.platform || 'instagram'}).${bloque}\nDevuelve SOLO JSON: {"estrategia":"1-2 frases","grupos":{"amplios":[{"tag":"#..","nota":"","alcance":"alto/medio/bajo"}],"nicho":[{"tag":"#..","nota":"","alcance":""}],"longtail":[{"tag":"#..","nota":"","alcance":""}]},"recomendado":["#..","#.."]}`;
+          const json = extractJSON(await callGemini(system, prompt));
+          if (json && json.grupos) return { ok: true, data: { source: 'ia', ...json } };
+        } catch (_) {}
+        return { ok: true, data: aiDemo('/api/hashtags', body) };
+      }
       if (p.startsWith('/api/gestion')) return { ok: true, data: { marcas: [], area: null, porGrabar: [], grabado: [], items: [] } };
       if (p === '/api/radar') return { ok: true, data: { items: [] } };
 
