@@ -542,19 +542,22 @@ async function loadEquipo() {
         <label class="select"><span>Nombre</span><input id="npName" placeholder="Verónica"></label>
         <label class="select"><span>Usuario</span><input id="npUser" placeholder="veronica"></label>
         <label class="select"><span>Contraseña</span><input id="npPass" placeholder="(deja vacío para no cambiar)"></label>
-        <label class="select"><span>Área</span><select id="npArea">${areas.map(a => `<option>${esc(a)}</option>`).join('')}</select></label>
         <label class="select"><span>Rol</span><select id="npRole"><option value="miembro">Miembro</option><option value="admin">Admin</option></select></label>
+      </div>
+      <div class="np-areas"><span class="np-areas__lbl">Áreas (elige una o varias)</span>
+        <div class="np-areas__grid">${areas.map(a => `<label class="np-chk"><input type="checkbox" class="npAreaChk" value="${esc(a)}"> ${esc(a)}</label>`).join('')}</div>
       </div>
       <button class="btn btn--primary" id="npSave">Guardar persona</button>
     </div>
     <div class="reddit-list">${people.map(p => `
       <div class="reddit-item">
         <span class="reddit-t"><b>${esc(p.name)}</b> · @${esc(p.username)}</span>
-        <span class="tag">${esc(p.area)}</span><span class="tag ${p.role === 'admin' ? 'tag--red' : ''}">${esc(p.role)}</span>
+        ${((p.areas && p.areas.length) ? p.areas : [p.area]).filter(Boolean).map(a => `<span class="tag">${esc(a)}</span>`).join('')}<span class="tag ${p.role === 'admin' ? 'tag--red' : ''}">${esc(p.role)}</span>
         ${p.username !== 'versus_admin' ? `<button class="btn btn--ghost btn--sm p-del" data-id="${p.id}">✕</button>` : ''}
       </div>`).join('')}</div>`;
   $('#npSave').addEventListener('click', async () => {
-    const body = { name: $('#npName').value, username: $('#npUser').value, password: $('#npPass').value, area: $('#npArea').value, role: $('#npRole').value };
+    const chk = $$('.npAreaChk').filter(c => c.checked).map(c => c.value);
+    const body = { name: $('#npName').value, username: $('#npUser').value, password: $('#npPass').value, areas: chk, area: chk[0] || '', role: $('#npRole').value };
     const { data } = await api('/api/team/admin/person', { method: 'POST', body });
     if (data.ok) loadEquipo(); else alert(data.error || 'Error');
   });

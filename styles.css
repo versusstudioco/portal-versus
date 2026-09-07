@@ -69,6 +69,11 @@ body { background:
 .card, .result-card, .mid-box { transition: transform .18s cubic-bezier(.2,.8,.2,1), box-shadow .18s ease; }
 .result-card:hover, .mid-box:hover { transform: translateY(-2px); box-shadow: 0 16px 40px rgba(17,17,17,0.09), inset 0 1px 0 rgba(255,255,255,0.5); }
 input, select, textarea { max-width: 100%; }
+.np-areas { margin: .2rem 0 .8rem; }
+.np-areas__lbl { display: block; font-size: .74rem; font-weight: 600; color: var(--ink-60); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .5rem; }
+.np-areas__grid { display: flex; flex-wrap: wrap; gap: .5rem; }
+.np-chk { display: inline-flex; align-items: center; gap: .4rem; font-size: .85rem; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: .4rem .8rem; cursor: pointer; }
+.np-chk input { width: auto; margin: 0; accent-color: var(--red); }
 
 .hidden { display: none !important; }
 

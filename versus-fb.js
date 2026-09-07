@@ -271,7 +271,7 @@
         const profilesObj = (await fbGet('db/profiles').catch(() => null)) || {};
         const people = Object.entries(profilesObj)
           .filter(([k, v]) => v && (v.type === 'team' || v.type === 'admin' || v.role === 'admin'))
-          .map(([k, v]) => ({ id: k, username: k, name: v.name || k, area: v.area || (v.areas && v.areas[0]) || '', role: (v.type === 'admin' || v.role === 'admin') ? 'admin' : 'miembro' }));
+          .map(([k, v]) => ({ id: k, username: k, name: v.name || k, area: v.area || (v.areas && v.areas[0]) || '', areas: v.areas || (v.area ? [v.area] : []), role: (v.type === 'admin' || v.role === 'admin') ? 'admin' : 'miembro' }));
         const tasks = Object.values((await fbGet('gestor/tasks').catch(() => null)) || {});
         if (p === '/api/team/admin/people') return { ok: true, data: { people, areas: AREAS } };
         if (p === '/api/team/admin/report') {
@@ -285,13 +285,14 @@
           const username = String(body.username || '').trim().toLowerCase();
           if (!username || !body.name) return { ok: false, data: { error: 'Falta nombre o usuario' } };
           const isAdmin = body.role === 'admin';
-          const area = body.area || '';
+          const areas = Array.isArray(body.areas) ? body.areas.filter(Boolean) : (body.area ? [body.area] : []);
+          const area = areas[0] || '';
           if (body.password) {
             if (String(body.password).length < 6) return { ok: false, data: { error: 'La contraseña debe tener 6 o más caracteres' } };
             try { if (_secondary) { await _secondary.auth().createUserWithEmailAndPassword(username + EMAIL_DOM, body.password); await _secondary.auth().signOut(); } }
             catch (e) { if (e.code !== 'auth/email-already-in-use') return { ok: false, data: { error: e.code || e.message } }; }
           }
-          await fbPut('db/profiles/' + username, { name: body.name, type: isAdmin ? 'admin' : 'team', role: isAdmin ? 'admin' : 'miembro', area, areas: area ? [area] : [] });
+          await fbPut('db/profiles/' + username, { name: body.name, type: isAdmin ? 'admin' : 'team', role: isAdmin ? 'admin' : 'miembro', area, areas });
           return { ok: true, data: { ok: true } };
         }
         if (p === '/api/team/admin/person-remove' && method === 'POST') { await fbDelete('db/profiles/' + body.id); return { ok: true, data: { ok: true } }; }
