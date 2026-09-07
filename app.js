@@ -739,7 +739,7 @@ async function loadConfig() {
       <ul style="margin:.2rem 0 0 1.1rem;color:var(--ink-60);font-size:.9rem;line-height:1.7">
         <li><b>Crear usuario del equipo:</b> en <b>Equipo (admin) → Personas</b>.</li>
         <li><b>Crear/eliminar marca:</b> en <b>Marcas → + Agregar marca</b>.</li>
-        <li><b>Cambiar contraseña de un cliente:</b> por seguridad, el restablecimiento de contraseñas de otras cuentas se hace desde la consola de Firebase (Authentication → usuario → restablecer). Puedo habilitarlo aquí si montamos el módulo de administración con backend seguro.</li>
+        <li><b>¿Un cliente olvidó su contraseña?</b> Que nos escriba y el admin se la restablece desde la consola de Firebase (Authentication → el usuario → restablecer). Es un caso puntual, no vive en el portal por seguridad.</li>
       </ul>
     </div>`;
   $('#ccSave').addEventListener('click', async () => {
