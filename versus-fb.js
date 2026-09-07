@@ -335,8 +335,30 @@
 
       // ---- Marcas ----
       if (p === '/api/marca/lista' || p === '/api/archivos') {
-        const marcas = await fetch('/seed-marcas.json').then(r => r.json()).catch(() => []);
+        const seed = await fetch('/seed-marcas.json').then(r => r.json()).catch(() => []);
+        const extra = (await fbGet('gestor/config/marcasExtra').catch(() => null)) || {};
+        const ocultas = (await fbGet('gestor/config/marcasOcultas').catch(() => null)) || {};
+        const all = seed.slice();
+        Object.values(extra).forEach(m => { if (m && m.marca) all.push(m); });
+        const seen = {}; const marcas = [];
+        for (const m of all) { const k = fbKey(m.marca); if (seen[k] || ocultas[k]) continue; seen[k] = 1; marcas.push(m); }
         return { ok: true, data: { marcas } };
+      }
+      if (p === '/api/marca/remove' && method === 'POST') {
+        const s = await sesionActual();
+        if (!s || s.role !== 'admin') return { ok: false, status: 403, data: { error: 'Solo el admin elimina marcas' } };
+        await fbPut('gestor/config/marcasOcultas/' + fbKey(body.marca), true);
+        return { ok: true, data: { ok: true } };
+      }
+      if (p === '/api/marca/add' && method === 'POST') {
+        const s = await sesionActual();
+        if (!s || s.role !== 'admin') return { ok: false, status: 403, data: { error: 'Solo el admin agrega marcas' } };
+        const nombre = String(body.marca || '').trim();
+        if (!nombre) return { ok: false, status: 400, data: { error: 'Falta el nombre de la marca' } };
+        const key = fbKey(nombre);
+        await fbPut('gestor/config/marcasExtra/' + key, { marca: nombre, sector: String(body.sector || '').trim() });
+        await fbDelete('gestor/config/marcasOcultas/' + key).catch(() => {});
+        return { ok: true, data: { ok: true } };
       }
       if (p === '/api/marca/logos') return { ok: true, data: { logos: await logos() } };
       if (p === '/api/onboarding') {

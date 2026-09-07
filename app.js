@@ -116,7 +116,7 @@ function fillSelect(sel, items, valKey, labelKey, allLabel) {
 const VIEW_META = {
   inicio: ['Mi día', 'Tu guía de hoy'],
   calendario: ['Calendario', 'Qué sale cada día por marca — el cronograma del ciclo'],
-  gestion: ['Gestión de marcas', 'Producción por marca, ciclo mensual y flujo por área — leído de tu Notion'],
+  gestion: ['Gestión de marcas', 'Producción por marca, ciclo mensual y flujo por área'],
   metricas: ['📊 Métricas', 'Rendimiento real por marca — leído del Portal de clientes (Firebase)'],
   archivos: ['Marcas', 'Cada marca es su universo: calendario, métricas, estrategia y archivos'],
   mistareas: ['✅ Mis tareas', 'Tu día: tareas asignadas, por cliente y por estado'],
@@ -126,7 +126,7 @@ const VIEW_META = {
   ideas: ['🎯 Estrategia · Ideas y guiones', 'Ideas y estructura de creativos según lo que está en tendencia'],
   tendencias: ['🎯 Estrategia · Biblioteca', 'Estructuras ganadoras de referencia'],
   produccion: ['🎬 Producción', 'Qué grabar por marca — el material que alimenta a Creativa'],
-  edicion: ['✂️ Creativa', 'Editar y diseñar: cola por prioridad conectada a Notion'],
+  edicion: ['✂️ Creativa', 'Editar y diseñar: cola por prioridad'],
   community: ['📣 Community', 'Calendario: qué publicar y cuándo, retrasos e historias'],
   captions: ['📣 Community · Captions', 'Copys estratégicos por plataforma'],
   hashtags: ['📣 Community · Hashtags', 'Mezcla estratégica de hashtags'],
@@ -193,15 +193,7 @@ function renderGestionStats(d) {
     <div class="g-stat g-stat--red"><b>${r.retrasadas || 0}</b><span>retrasadas</span></div>
     <div class="g-stat"><b>${r.enProceso || 0}</b><span>en proceso</span></div>
     <div class="g-stat"><b>${r.alDia || 0}</b><span>al día</span></div>
-    <div class="g-stat-note">Ciclo <b>${esc((d.ciclo || {}).label || '')}</b> · día ${(d.ciclo || {}).dia || ''}/${(d.ciclo || {}).dias || ''} · leído de <b>${esc((d.meta || {}).database || 'Notion')}</b> (${(d.meta || {}).source === 'notion-live' ? 'en vivo' : 'snapshot'})
-      <br><button class="btn btn--ghost btn--sm" id="gSync" style="margin-top:.5rem">↻ Sincronizar Notion</button></div>`;
-  $('#gSync').addEventListener('click', async () => {
-    const btn = $('#gSync'); btn.disabled = true; btn.textContent = 'Sincronizando…';
-    const { ok, data } = await api('/api/gestion/sync', { method: 'POST' });
-    if (ok && data.ok) { state.gestionLoaded = false; loadGestion(); }
-    else { btn.disabled = false; btn.textContent = '↻ Sincronizar Notion';
-      alert(data.error || 'Para sincronizar en vivo, configura NOTION_TOKEN en el servidor. Mientras tanto ves el snapshot real.'); }
-  });
+    <div class="g-stat-note">Ciclo <b>${esc((d.ciclo || {}).label || 'Sin ciclo')}</b>${(d.ciclo || {}).dia ? ` · día ${(d.ciclo).dia}/${(d.ciclo).dias || ''}` : ''}</div>`;
 }
 
 const TIPO_ICON = { Reel: '🎬', Post: '🖼️', Carrusel: '🎠', Historia: '⚡', Creativos: '🎬', Historias: '⚡' };
@@ -249,7 +241,7 @@ function renderMarcas(d) {
 
   const contexto = `<div class="gw-ctx">
       <div><span class="gw-ctx__k">Tu área</span><b>${esc(me.area || '—')}</b></div>
-      <div><span class="gw-ctx__k">Ciclo</span><b>${esc((d.ciclo || {}).label || '')}</b> · día ${(d.ciclo || {}).dia}/${(d.ciclo || {}).dias}</div>
+      <div><span class="gw-ctx__k">Ciclo</span><b>${esc((d.ciclo || {}).label || 'Sin ciclo')}</b>${(d.ciclo || {}).dia ? ` · día ${(d.ciclo).dia}/${(d.ciclo).dias || ''}` : ''}</div>
       <div><span class="gw-ctx__k">Semana</span><b>${semana[0].dia} – ${semana[6].dia}</b></div>
     </div>`;
 
@@ -423,7 +415,7 @@ async function loadEdicion() {
   const out = $('#edicionOut');
   out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando cola de edición…</div>';
   const { data } = await api('/api/gestion/edicion');
-  if (!data.total) { out.innerHTML = '<div class="empty">No hay piezas en producción ahora mismo. Cuando algo pase a "Grabada" en Notion, aparece aquí para editar.</div>'; return; }
+  if (!data.total) { out.innerHTML = '<div class="empty">No hay piezas en producción ahora mismo. Cuando una pieza pase a "Grabada", aparece aquí para editar.</div>'; return; }
   out.innerHTML = '<div class="g-flow">' + data.orden.map(col => {
     const items = data.columnas[col] || [];
     return `<div class="g-col">
@@ -458,7 +450,7 @@ async function loadCommunity() {
         <span class="reddit-t"><b>${esc(a.marca)}</b> · ${esc(a.tipo)}</span>
         <span class="tag ${a.estado === 'Publicada' ? '' : 'tag--red'}">${esc(a.estado)}</span>
       </div>`).join('') + '</div>';
-  } else html += '<div class="empty">Sin fechas de publicación cargadas. Se llenan al sincronizar Notion en vivo.</div>';
+  } else html += '<div class="empty">Sin fechas de publicación cargadas todavía.</div>';
 
   html += `<h3 class="live-h3">⚡ Historias por marca (meta ${'≥'}15/ciclo)</h3><div class="g-grid">`;
   html += (data.historias || []).map(h => `
@@ -578,7 +570,7 @@ function renderRespuestas() {
   body.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
     if (!confirm('¿Eliminar esta respuesta? No se puede deshacer.')) return;
     b.disabled = true;
-    const r = await api('/api/onboarding/remove', { method: 'POST', body: JSON.stringify({ id: b.dataset.del }) });
+    const r = await api('/api/onboarding/remove', { method: 'POST', body: { id: b.dataset.del } });
     if (r.ok) { state.altas = state.altas.filter(x => x.id !== b.dataset.del); renderRespuestas(); }
     else { alert(r.data.error || 'No se pudo eliminar'); b.disabled = false; }
   });
@@ -612,7 +604,7 @@ function renderFormsList() {
   body.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => { const f = forms.find(x => x.id === b.dataset.edit); state.formEdit = JSON.parse(JSON.stringify(f)); delete state.formEdit._virtual; renderFormsView(); });
   body.querySelectorAll('[data-delform]').forEach(b => b.onclick = async () => {
     if (!confirm('¿Eliminar este formulario? Las respuestas ya recibidas se conservan.')) return;
-    const r = await api('/api/formConfig/remove', { method: 'POST', body: JSON.stringify({ id: b.dataset.delform }) });
+    const r = await api('/api/formConfig/remove', { method: 'POST', body: { id: b.dataset.delform } });
     if (r.ok) loadAltas(); else alert(r.data.error || 'No se pudo');
   });
 }
@@ -672,7 +664,7 @@ function renderFormEditor() {
     if (!fe.questions.some(q => q.label.trim())) { alert('Agrega al menos una pregunta con texto.'); return; }
     if (!fe.questions.some(q => q.name)) fe.questions[0].name = true;
     const btn = $('#feSave'); btn.disabled = true; btn.textContent = 'Guardando…';
-    const r = await api('/api/formConfig/save', { method: 'POST', body: JSON.stringify({ form: fe }) });
+    const r = await api('/api/formConfig/save', { method: 'POST', body: { form: fe } });
     if (r.ok) { state.formEdit = null; loadAltas(); } else { alert(r.data.error || 'No se pudo guardar'); btn.disabled = false; btn.textContent = 'Guardar'; }
   };
 }
@@ -817,17 +809,38 @@ async function loadArchivos() {
 }
 function renderMarcasGrid() {
   const out = $('#archivosOut');
+  const admin = (state.me || {}).role === 'admin';
   $('#viewTitle').textContent = 'Marcas';
   $('#viewSub').textContent = 'Cada marca es su universo: calendario, métricas, estrategia y archivos';
-  out.innerHTML = `<p class="topbar__sub" style="margin:0 .2rem 1.1rem">Elige una marca para entrar a su universo.</p>
+  out.innerHTML = `<div class="marca-grid-head"><p class="topbar__sub" style="margin:0 .2rem">Elige una marca para entrar a su universo.</p>${admin ? '<button class="btn btn--primary btn--sm" id="addMarca">+ Agregar marca</button>' : ''}</div>
     <div class="marca-grid">` + state.hubMarcas.map(m => `
-      <button class="marca-card" data-marca="${esc(m.marca)}" data-sector="${esc(m.sector)}">
-        ${marcaLogoHTML(m.marca, 'marca-card__logo')}
-        <div class="marca-card__name">${esc(m.marca)}</div>
-        <div class="marca-card__sector">${esc(m.sector)}</div>
-      </button>`).join('') + '</div>';
+      <div class="marca-cell">
+        <button class="marca-card" data-marca="${esc(m.marca)}" data-sector="${esc(m.sector)}">
+          ${marcaLogoHTML(m.marca, 'marca-card__logo')}
+          <div class="marca-card__name">${esc(m.marca)}</div>
+          <div class="marca-card__sector">${esc(m.sector)}</div>
+        </button>
+        ${admin ? `<button class="marca-del" data-delmarca="${esc(m.marca)}" title="Eliminar marca">✕</button>` : ''}
+      </div>`).join('') + '</div>';
   $$('.marca-card').forEach(c => c.addEventListener('click', () => openMarca(c.dataset.marca, c.dataset.sector)));
+  const am = $('#addMarca'); if (am) am.addEventListener('click', addMarcaPrompt);
+  $$('[data-delmarca]').forEach(b => b.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const marca = b.dataset.delmarca;
+    if (!confirm(`¿Quitar «${marca}» de la lista de marcas?\n\nSe oculta del portal (no se borra su historial en la base de datos) y la puedes volver a agregar cuando quieras.`)) return;
+    b.disabled = true;
+    const r = await api('/api/marca/remove', { method: 'POST', body: { marca } });
+    if (r.ok) { state.hubMarcas = state.hubMarcas.filter(x => x.marca !== marca); renderMarcasGrid(); }
+    else { alert(r.data.error || 'No se pudo'); b.disabled = false; }
+  }));
   bindLogoFit(out);
+}
+async function addMarcaPrompt() {
+  const nombre = prompt('Nombre de la nueva marca:');
+  if (!nombre || !nombre.trim()) return;
+  const sector = prompt('Sector / rubro (opcional):') || '';
+  const r = await api('/api/marca/add', { method: 'POST', body: { marca: nombre.trim(), sector: sector.trim() } });
+  if (r.ok) loadArchivos(); else alert(r.data.error || 'No se pudo agregar');
 }
 function openMarca(marca, sector) {
   state.marcaActiva = { marca, sector };
