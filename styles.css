@@ -915,3 +915,34 @@ textarea.fe-in { min-height:70px; resize:vertical; }
 .quick-card__i { font-size:1.4rem; }
 .quick-card__l { font-size:.95rem; font-weight:700; color:var(--ink); }
 @media(max-width:600px){ .hero-hello__stats { width:100%; } .hh-stat { flex:1; } }
+
+/* ============================================================
+   MODO OSCURO (Team) — mismos tokens que el portal de clientes
+   ============================================================ */
+:root.dark, .dark {
+  --bg: #141414; --bg3: #242424; --bg4: #2e2e2e;
+  --ink: #ffffff; --ink-60: #b4b4b4; --ink-40: #8a8a8a;
+  --card: #1e1e1e;
+  --line: rgba(255,255,255,0.08); --line-soft: rgba(255,255,255,0.05); --bd2: rgba(255,255,255,0.16);
+  --glass-bg: #1e1e1e; --glass-bg-strong: #1e1e1e; --glass-border: rgba(255,255,255,0.09);
+  --glass-shadow: 0 4px 24px rgba(0,0,0,0.5);
+}
+.dark body { background:
+  radial-gradient(1100px 640px at 88% -6%, rgba(249,0,0,0.10), transparent 60%),
+  radial-gradient(900px 620px at -8% 108%, rgba(108,0,255,0.10), transparent 60%),
+  var(--bg); }
+.dark .btn { background: #242424; color: var(--ink); }
+.dark .btn:hover { background: #2e2e2e; border-color: rgba(255,255,255,.2); }
+.dark .nav__item:hover { background: #242424; color: var(--ink); }
+.dark .seg { background: #242424; }
+.dark .hh-stat { background: rgba(255,255,255,.05); }
+.dark .field input, .dark .fe-in, .dark input, .dark select, .dark textarea { background: #242424; color: var(--ink); border-color: var(--bd2); }
+.dark .bcard-av.bcard-av--img { background: #0f0f0f; border-color: rgba(255,255,255,.12); }
+.dark .marca-del { background: rgba(30,30,30,.9); }
+.dark .sidebar__logo { filter: invert(1); }
+/* Toggle de tema en la barra lateral */
+.theme-row { display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding: .1rem .3rem .3rem; font-size: .82rem; color: var(--ink-60); font-weight: 600; }
+.tgl { width: 44px; height: 24px; background: var(--bg4); border: 1.5px solid var(--bd2); border-radius: 99px; cursor: pointer; position: relative; flex-shrink: 0; transition: background .2s; }
+.tgl::after { content: ""; position: absolute; width: 16px; height: 16px; background: var(--ink-60); border-radius: 50%; top: 2px; left: 2px; transition: .25s; }
+.dark .tgl { background: rgba(249,0,0,.25); }
+.dark .tgl::after { left: calc(100% - 18px); background: var(--red); }

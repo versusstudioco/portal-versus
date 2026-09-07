@@ -159,9 +159,9 @@
     const out = [];
     for (const slug of Object.keys(brandCfg || {})) {
       const b = brandCfg[slug] || {};
-      const uri = (typeof b.logoDark === 'string' && b.logoDark.startsWith('data:')) ? b.logoDark
-        : (typeof b.logoLight === 'string' && b.logoLight.startsWith('data:')) ? b.logoLight : null;
-      if (uri) out.push({ slug, dataUri: uri });
+      const light = (typeof b.logoLight === 'string' && b.logoLight.startsWith('data:')) ? b.logoLight : null; // logo oscuro, para fondo claro
+      const dark = (typeof b.logoDark === 'string' && b.logoDark.startsWith('data:')) ? b.logoDark : null;   // logo claro, para fondo oscuro
+      if (light || dark) out.push({ slug, light, dark, dataUri: light || dark });
     }
     return out;
   }
@@ -261,6 +261,11 @@
         const hoyISO = new Date().toISOString().slice(0, 10);
         const mias = all.filter(t => t.assignedTo === s.username).map(t => ({ ...t, overdue: t.status !== 'hecho' && t.dueDate && t.dueDate < hoyISO }));
         return { ok: true, data: { tasks: mias, me: { name: s.name, area: s.area, role: s.role } } };
+      }
+      if (p === '/api/team/people') {
+        const obj = (await fbGet('db/profiles').catch(() => null)) || {};
+        const people = Object.entries(obj).map(([username, v]) => ({ username, name: (v && v.name) || username, area: (v && v.area) || '' })).sort((a, b) => a.name.localeCompare(b.name));
+        return { ok: true, data: { people } };
       }
       if (p === '/api/team/task-status' && method === 'POST') {
         await fbPatch('gestor/tasks/' + body.id, { status: body.status });

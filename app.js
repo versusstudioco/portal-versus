@@ -20,6 +20,22 @@ async function api(path, opts = {}) {
   return { ok: res.ok, status: res.status, data };
 }
 
+/* ---------------- Tema (claro / oscuro) ---------------- */
+function applyTheme(dark) {
+  document.documentElement.classList.toggle('dark', dark);
+  document.body.classList.toggle('dark', dark);
+  try { localStorage.setItem('vs_team_theme', dark ? 'dark' : 'light'); } catch (e) {}
+}
+(function () { try { if (localStorage.getItem('vs_team_theme') === 'dark') { document.documentElement.classList.add('dark'); document.body.classList.add('dark'); } } catch (e) {} })();
+function rerenderLogos() {
+  const av = document.getElementById('view-archivos');
+  if (av && !av.classList.contains('hidden')) {
+    if (state.marcaActiva) openMarca(state.marcaActiva.marca, state.marcaActiva.sector);
+    else if (state.hubMarcas) renderMarcasGrid();
+  }
+}
+document.getElementById('themeTgl')?.addEventListener('click', () => { applyTheme(!document.body.classList.contains('dark')); rerenderLogos(); });
+
 /* ---------------- Auth ---------------- */
 async function checkSession() {
   const { ok, data } = await api('/api/me');
@@ -66,6 +82,7 @@ async function enterApp(me) {
   $('#viewSub').textContent = VIEW_META.inicio[1];
   loadInicio();
   loadMeta(); // en segundo plano, para los selects de las demás vistas
+  api('/api/team/people').then(r => { if (r.ok && r.data.people) state.teamPeople = r.data.people; }).catch(() => {}); // para el selector de Responsable
 }
 
 /* ---------------- Meta / selects ---------------- */
@@ -325,7 +342,7 @@ function refreshPiezaView() {
 function openPieza(id) {
   const et = [['idea', 'Idea'], ['aprobada', 'Aprobada'], ['grabada', 'Grabada'], ['editada', 'Editada'], ['publicada', 'Publicada']];
   const p = id ? state.piezas[id] : { id: '', marca: '', idea: '', tipo: 'Reel', guion: '', caracteristicas: '', etapa: 'idea', responsable: '', comentarios: [] };
-  const people = (state.equipoPeople || []).map(x => x.name);
+  const people = ((state.teamPeople && state.teamPeople.length ? state.teamPeople : state.equipoPeople) || []).map(x => x.name);
   const html = `<div class="g-modal" id="pzModal"><div class="g-modal__box glass pz-box">
       <div class="pz-head">
         <input id="pzMarca" class="pz-marca" placeholder="Marca" value="${esc(p.marca)}">
@@ -334,8 +351,8 @@ function openPieza(id) {
       <input id="pzIdea" class="pz-idea" placeholder="La idea / título" value="${esc(p.idea)}">
       <div class="form-grid" style="margin:.6rem 0">
         <label class="select"><span>Tipo</span><select id="pzTipo">${['Reel', 'Post', 'Carrusel', 'Historia'].map(t => `<option ${p.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
-        <label class="select select--grow"><span>Responsable</span><input id="pzResp" list="pzPeople" value="${esc(p.responsable || '')}" placeholder="Quién lo tiene">
-          <datalist id="pzPeople">${people.map(n => `<option value="${esc(n)}">`).join('')}</datalist></label>
+        <label class="select select--grow"><span>Responsable</span>
+          <select id="pzResp"><option value="">— Sin asignar —</option>${people.map(n => `<option ${p.responsable === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}${(p.responsable && !people.includes(p.responsable)) ? `<option selected>${esc(p.responsable)}</option>` : ''}</select></label>
       </div>
       <label class="pz-field"><span>Guion</span><textarea id="pzGuion" rows="4" placeholder="El guion del contenido…">${esc(p.guion || '')}</textarea></label>
       <label class="pz-field"><span>Características</span><textarea id="pzCar" rows="2" placeholder="Formato, duración, música, referencias…">${esc(p.caracteristicas || '')}</textarea></label>
@@ -857,9 +874,11 @@ function logoSlugFor(marca) {
   if (!hit) hit = slugs.find(s => { const ns = normKey(s); return k.includes(ns) || ns.includes(k); });
   return hit || null;
 }
+function isDarkTheme() { return document.documentElement.classList.contains('dark') || document.body.classList.contains('dark'); }
 function marcaLogoHTML(marca, cls) {
   const slug = logoSlugFor(marca);
-  const src = slug && state.logoData ? state.logoData[slug] : null;
+  const d = slug && state.logoData ? state.logoData[slug] : null;
+  const src = d ? (isDarkTheme() ? (d.dark || d.light) : (d.light || d.dark)) : null;
   return src
     ? `<div class="${cls} ${cls}--img"><img src="${src}" alt="${esc(marca)}"></div>`
     : `<div class="${cls}">${esc((marca.trim()[0] || '?').toUpperCase())}</div>`;
@@ -889,7 +908,7 @@ async function loadArchivos() {
   state.hubMarcas = data.marcas || [];
   const logosArr = (lg.ok ? lg.data.logos : []) || [];
   state.logoSlugs = logosArr.map(x => x.slug);
-  state.logoData = {}; logosArr.forEach(x => { state.logoData[x.slug] = x.dataUri; });
+  state.logoData = {}; logosArr.forEach(x => { state.logoData[x.slug] = { light: x.light || x.dataUri || null, dark: x.dark || x.dataUri || null }; });
   renderMarcasGrid();
 }
 function renderMarcasGrid() {
