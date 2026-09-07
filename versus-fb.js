@@ -345,6 +345,35 @@
         for (const m of all) { const k = fbKey(m.marca); if (seen[k] || ocultas[k]) continue; seen[k] = 1; marcas.push(m); }
         return { ok: true, data: { marcas } };
       }
+      // Administración de cuentas de CLIENTE (portal de clientes) desde el Team
+      if (p === '/api/admin/clientes') {
+        const s = await sesionActual();
+        if (!s || s.role !== 'admin') return { ok: false, status: 403, data: { error: 'Solo el administrador' } };
+        const creds = (await fbGet('db/creds').catch(() => null)) || {};
+        const clientes = Object.entries(creds).filter(([u, v]) => v && v.type === 'client').map(([u, v]) => ({ usuario: u, name: v.name || u })).sort((a, b) => a.name.localeCompare(b.name));
+        return { ok: true, data: { clientes } };
+      }
+      if (p === '/api/admin/crear-cliente' && method === 'POST') {
+        const s = await sesionActual();
+        if (!s || s.role !== 'admin') return { ok: false, status: 403, data: { error: 'Solo el admin crea clientes' } };
+        const usuario = String(body.usuario || '').trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
+        const nombre = String(body.nombre || '').trim();
+        const pass = String(body.password || '');
+        if (!usuario || !nombre || pass.length < 6) return { ok: false, status: 400, data: { error: 'Usuario, nombre y contraseña (mín. 6) son obligatorios' } };
+        const creds = (await fbGet('db/creds').catch(() => null)) || {};
+        if (creds[usuario]) return { ok: false, status: 400, data: { error: 'Ese usuario ya existe' } };
+        try { if (_secondary) { await _secondary.auth().createUserWithEmailAndPassword(usuario + EMAIL_DOM, pass); await _secondary.auth().signOut(); } }
+        catch (e) { return { ok: false, status: 400, data: { error: 'No se pudo crear la cuenta: ' + ((e && e.message) || e) } }; }
+        await fbPut('db/creds/' + usuario, { name: nombre, type: 'client' });
+        if (body.instagram || body.tiktok) {
+          const bc = (await fbGet('db/brandCfg/' + usuario).catch(() => null)) || {};
+          if (body.instagram) bc.instagram = String(body.instagram).replace(/^@/, '');
+          if (body.tiktok) bc.tiktok = String(body.tiktok).replace(/^@/, '');
+          await fbPut('db/brandCfg/' + usuario, bc);
+        }
+        await fbPut('gestor/config/marcasExtra/' + fbKey(nombre), { marca: nombre, sector: String(body.sector || '') });
+        return { ok: true, data: { ok: true } };
+      }
       if (p === '/api/marca/semanas') {
         const marca = q.get('marca') || body.marca || '';
         const obj = (await fbGet('gestor/marcas/' + fbKey(marca) + '/semanas').catch(() => null)) || {};

@@ -58,7 +58,7 @@ async function enterApp(me) {
   state.me = me;
   $('#userName').textContent = (me.name || 'Versus') + (me.area ? ' · ' + me.area : '');
   $('.avatar').textContent = (me.name || 'V').trim().charAt(0).toUpperCase();
-  if (me.role === 'admin') { $('#navEquipo').classList.remove('hidden'); }
+  if (me.role === 'admin') { $('#navEquipo').classList.remove('hidden'); $('#navConfig')?.classList.remove('hidden'); }
   const badge = $('#aiBadge');
   if (me.aiEnabled) { badge.textContent = '● IA activa' + (me.provider === 'gemini' ? ' · Gemini' : me.provider === 'claude' ? ' · Claude' : ''); badge.className = 'ai-badge on'; }
   else { badge.textContent = '● Modo demo'; badge.className = 'ai-badge demo'; }
@@ -122,6 +122,7 @@ const VIEW_META = {
   mistareas: ['✅ Mis tareas', 'Tu día: tareas asignadas, por cliente y por estado'],
   equipo: ['👥 Equipo', 'Administra personas, asigna tareas y revisa la ejecución'],
   altas: ['📋 Formularios', 'Crea el typeform, comparte el link y revisa las respuestas de marcas nuevas'],
+  config: ['⚙️ Configuración', 'Cuentas de cliente, accesos y ajustes del portal'],
   radar: ['🎯 Estrategia · Radar', 'Análisis de tendencias en vivo por país y categoría'],
   ideas: ['🎯 Estrategia · Ideas y guiones', 'Ideas y estructura de creativos según lo que está en tendencia'],
   tendencias: ['🎯 Estrategia · Biblioteca', 'Estructuras ganadoras de referencia'],
@@ -149,6 +150,7 @@ $$('.nav__item').forEach(btn => {
     if (view === 'mistareas') loadMisTareas();
     if (view === 'equipo') loadEquipo();
     if (view === 'altas') loadAltas();
+    if (view === 'config') loadConfig();
     if (view === 'produccion') loadProduccion();
     if (view === 'edicion') loadEdicion();
     if (view === 'community') loadCommunity();
@@ -704,6 +706,51 @@ function renderFormEditor() {
     const r = await api('/api/formConfig/save', { method: 'POST', body: { form: fe } });
     if (r.ok) { state.formEdit = null; loadAltas(); } else { alert(r.data.error || 'No se pudo guardar'); btn.disabled = false; btn.textContent = 'Guardar'; }
   };
+}
+
+/* ---------------- Configuración (admin): cuentas de cliente ---------------- */
+async function loadConfig() {
+  const out = $('#configOut');
+  if (!isAdmin()) { out.innerHTML = '<div class="empty">Solo el administrador.</div>'; return; }
+  out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando configuración…</div>';
+  const r = await api('/api/admin/clientes');
+  const clientes = (r.ok && r.data.clientes) || [];
+  out.innerHTML = `
+    <div class="glass panel form-panel">
+      <h3 class="live-h3" style="margin-top:0">➕ Crear cuenta de cliente</h3>
+      <p class="hub-hint" style="margin:.1rem 0 .8rem">Crea el acceso al Portal de Clientes. Queda disponible al instante y aparece como marca en el Team.</p>
+      <div class="form-grid">
+        <label class="select"><span>Nombre de la marca</span><input id="ccNombre" placeholder="Logybox"></label>
+        <label class="select"><span>Usuario</span><input id="ccUser" placeholder="logybox"></label>
+        <label class="select"><span>Contraseña (mín. 6)</span><input id="ccPass" placeholder="••••••"></label>
+        <label class="select"><span>Sector (opcional)</span><input id="ccSector" placeholder="Logística"></label>
+        <label class="select"><span>Instagram (opcional)</span><input id="ccIg" placeholder="@logybox"></label>
+        <label class="select"><span>TikTok (opcional)</span><input id="ccTk" placeholder="@logybox"></label>
+      </div>
+      <button class="btn btn--primary" id="ccSave">Crear cliente</button>
+    </div>
+    <h3 class="live-h3">Clientes (${clientes.length})</h3>
+    <div class="eq-list">${clientes.map(c => `
+      <div class="eq-person"><div class="eq-av">${esc((c.name || '?').trim().charAt(0).toUpperCase())}</div>
+        <div class="eq-person__id"><div class="eq-person__name">${esc(c.name)}</div><div class="eq-person__user">@${esc(c.usuario)}</div></div>
+      </div>`).join('') || '<div class="empty">Aún no hay clientes.</div>'}</div>
+    <div class="glass panel form-panel" style="margin-top:1.2rem">
+      <h3 class="live-h3" style="margin-top:0">🔑 Otras acciones</h3>
+      <ul style="margin:.2rem 0 0 1.1rem;color:var(--ink-60);font-size:.9rem;line-height:1.7">
+        <li><b>Crear usuario del equipo:</b> en <b>Equipo (admin) → Personas</b>.</li>
+        <li><b>Crear/eliminar marca:</b> en <b>Marcas → + Agregar marca</b>.</li>
+        <li><b>Cambiar contraseña de un cliente:</b> por seguridad, el restablecimiento de contraseñas de otras cuentas se hace desde la consola de Firebase (Authentication → usuario → restablecer). Puedo habilitarlo aquí si montamos el módulo de administración con backend seguro.</li>
+      </ul>
+    </div>`;
+  $('#ccSave').addEventListener('click', async () => {
+    const body = { nombre: $('#ccNombre').value.trim(), usuario: $('#ccUser').value.trim(), password: $('#ccPass').value, sector: $('#ccSector').value.trim(), instagram: $('#ccIg').value.trim(), tiktok: $('#ccTk').value.trim() };
+    if (!body.nombre || !body.usuario || (body.password || '').length < 6) { alert('Nombre, usuario y contraseña (mín. 6) son obligatorios.'); return; }
+    const btn = $('#ccSave'); btn.disabled = true; btn.textContent = 'Creando…';
+    const res = await api('/api/admin/crear-cliente', { method: 'POST', body });
+    btn.disabled = false; btn.textContent = 'Crear cliente';
+    if (res.ok) { alert('Cliente creado. Ya puede entrar al Portal de Clientes con su usuario y contraseña.'); loadConfig(); }
+    else alert(res.data.error || 'No se pudo crear');
+  });
 }
 
 async function loadEquipo() {
