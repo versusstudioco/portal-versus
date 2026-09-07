@@ -795,9 +795,9 @@ img{max-width:100%;display:block;}
     <div id="brandHandles" style="display:none;font-size:10px;color:var(--t3);padding:2px 0 4px;letter-spacing:.3px;line-height:1.6;"></div>
   </div>
   <div class="nav-sec">Mi Portal</div>
-  <div class="ni on"  id="dt-resumen"   onclick="showDT(this,'resumen')">&#9672; Resumen</div>
+  <div class="ni on"  id="dt-calendario" onclick="showDT(this,'calendario')">&#128197; Calendario</div>
+  <div class="ni"     id="dt-resumen"   onclick="showDT(this,'resumen')">&#9672; Resumen</div>
   <div class="ni"     id="dt-contenido" onclick="showDT(this,'contenido')">&#9635; Contenido</div>
-  <div class="ni"     id="dt-calendario" onclick="showDT(this,'calendario')">&#128197; Calendario</div>
   <div class="ni"     id="dt-comparativo" onclick="showDT(this,'comparativo')">&#9211; Comparativo</div>
   <div class="ni"     id="dt-pauta"       onclick="showDT(this,'pauta')">&#9670; Pauta</div>
   <div class="sb-foot">
@@ -1579,7 +1579,7 @@ function engScore(erStr){
   var er=parseFloat(erStr);
   if(er>=6)   return {label:"\u2B50 Excelente (>6%)",cls:"eng-ex"};
   if(er>=3)   return {label:"\u2191 Bueno (3-6%)",cls:"eng-good"};
-  if(er>=1)   return {label:"\u2192 Promedio (1-3%)",cls:"eng-avg"};
+  if(er>=1)   return {label:"Promedio (1-3%)",cls:"eng-avg"};
   if(er>=0.5) return {label:"\u2193 Bajo (0.5-1%)",cls:"eng-low"};
   return {label:"\u26A0 Muy bajo (<0.5%)",cls:"eng-vlow"};
 }
@@ -2230,12 +2230,14 @@ var AUTH_DOMAIN_SUFFIX = "@portal.versusstudio.co";
 function entrarDash(u) {
   // Ya autenticado con Firebase Auth. Cargar datos y mostrar la pantalla.
   loadFromFirebase(function() {
-    var btn = gi("loginBtn"); if(btn){ btn.disabled=false; btn.textContent="Ingresar \u2192"; }
+    var btn = gi("loginBtn"); if(btn){ btn.disabled=false; btn.textContent="Ingresar"; }
     var cred = CREDS[u] || { name: u, type: "client" };
     CU=u; FB_LOADED=true; startFirebaseSync(); sanitizeDB(); applyVSBranding();
     if(cred.type==="admin"){
-      showS("adminScreen");
-      initAdmin();
+      // El panel de administraci\u00f3n se movi\u00f3 al Portal Team.
+      try { firebase.auth().signOut(); } catch(e) {}
+      window.location.replace("/team/");
+      return;
     } else {
       showS("dashScreen"); setTimeout(checkTutorial,600);
       gi("brandName").textContent=cred.name || u;
@@ -2259,7 +2261,7 @@ function doLogin() {
   firebase.auth().signInWithEmailAndPassword(u + AUTH_DOMAIN_SUFFIX, p)
     .then(function(){ entrarDash(u); })
     .catch(function(e){
-      if(btn){ btn.disabled=false; btn.textContent="Ingresar \u2192"; }
+      if(btn){ btn.disabled=false; btn.textContent="Ingresar"; }
       err.classList.add("show");
       console.warn("login:", e.code || e.message);
     });
@@ -2374,7 +2376,7 @@ function initDash() {
   var cycles = DB.cycles.filter(function(c) { return c.brand === CU; });
   var sel = gi("cycSel");
   if(!sel) return;
-  if(!cycles.length) { sel.innerHTML = ""; showDT(null,"resumen"); renderResumen(null); return; }
+  if(!cycles.length) { sel.innerHTML = ""; showDT(gi("dt-calendario"),"calendario"); return; }
   // pick active cycle or latest
   var active = cycles.find(function(c) { return c.status === "active"; }) || cycles[cycles.length-1];
   // Always verify the stored cycle belongs to this brand
@@ -2386,7 +2388,7 @@ function initDash() {
   sel.innerHTML = cycles.map(function(c) {
     return '<button class="cpill' + (c.id === actCyc[CU] ? " on" : "") + '" data-cid="' + c.id + '" onclick="pickCyc(this)">' + c.name + '</button>';
   }).join("");
-  showDT(gi("dt-resumen"),"resumen");
+  showDT(gi("dt-calendario"),"calendario");
 }
 function pickCyc(btn) {
   actCyc[CU] = btn.dataset.cid;
@@ -2429,7 +2431,7 @@ function showDT(el, tab) {
 // Sincronización con el gestor (Team): contenido Editado/Publicado con link + métricas.
 function vgNorm(s){ return String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]/g,""); }
 function vgEsc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];}); }
-var VG_EST = { idea:{l:"En propuesta",c:"#9aa0a6"}, aprobada:{l:"Aprobado",c:"#1e8e3e"}, grabada:{l:"En producción",c:"#1a73e8"}, editada:{l:"En edición",c:"#d19100"}, publicada:{l:"Publicado",c:"#7b3ff2"} };
+var VG_EST = { idea:{l:"Por aprobar",c:"#f59e0b"}, aprobada:{l:"Aprobado",c:"#1e8e3e"}, grabada:{l:"En producción",c:"#1a73e8"}, editada:{l:"En edición",c:"#d19100"}, publicada:{l:"Publicado",c:"#7b3ff2"} };
 function vgKey(s){ return String(s||"").replace(/[.#$/\[\]]/g,"_"); }
 function vgNum(v){ var n=parseInt(String(v||"").replace(/[^\d-]/g,""),10); return isFinite(n)?n:0; }
 function vgLunes(iso){ var d=new Date(iso+"T00:00:00"); var g=(d.getDay()+6)%7; d.setDate(d.getDate()-g); return d; }
@@ -2962,7 +2964,7 @@ function renderResumen(cycId) {
       if(wObjWeek>0) html+='<div class="wkc-delta '+(contOk?'delta-ok':'delta-no')+'">'+(contOk?'\u2713':'Pendiente')+'</div>';
       html+='</div>';
       // Tap hint
-      if(wPubs.length>0) html+='<div class="wkc-tap">Ver pubs \u2192</div>';
+      if(wPubs.length>0) html+='<div class="wkc-tap">Ver pubs</div>';
       html+='</div>';
     });
     html+='</div></div>';
@@ -3053,7 +3055,7 @@ function renderResumen(cycId) {
       if(er) html+='<span style="color:var(--red);font-weight:700;">'+er+' ER</span>';
       html+='<span>\uD83D\uDC41 '+fN(p.views)+'</span><span>\u2764 '+fN(p.likes)+'</span>';
       html+='</div></div>';
-      if(p.link) html+='<a href="'+p.link+'" target="_blank" rel="noopener" style="font-size:11px;color:var(--pur);font-weight:600;white-space:nowrap;">Ver \u2192</a>';
+      if(p.link) html+='<a href="'+p.link+'" target="_blank" rel="noopener" style="font-size:11px;color:var(--pur);font-weight:600;white-space:nowrap;">Ver</a>';
       html+='</div>';
     });
     html+='</div></div>';
@@ -3503,7 +3505,7 @@ function renderComparativo() {
       html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">';
       html+='<span class="ttag '+(TCLS[p.type]||'t-post')+'">'+p.type+'</span>';
       if(er) html+='<span style="font-size:11px;font-weight:700;color:var(--red);">'+er+' ER</span>';
-      if(p.link) html+='<a href="'+p.link+'" target="_blank" rel="noopener" style="margin-left:auto;font-size:11px;color:var(--pur);font-weight:600;">Ver \u2192</a>';
+      if(p.link) html+='<a href="'+p.link+'" target="_blank" rel="noopener" style="margin-left:auto;font-size:11px;color:var(--pur);font-weight:600;">Ver</a>';
       html+='</div>';
       html+='<div style="font-size:12px;font-weight:600;color:var(--tx);margin-bottom:6px;">'+(p.desc||'\u2014')+'</div>';
       html+='<div style="display:flex;gap:10px;font-size:11px;color:var(--t2);flex-wrap:wrap;">';
@@ -4651,7 +4653,7 @@ function buildLinkCard(url, platform) {
     '<div style="font-size:36px;">>></div>' +
     '<div style="font-size:15px;font-weight:700;">' + platform + '</div>' +
     '<div style="font-size:11px;color:var(--t2);text-align:center;max-width:280px;">' + platform + ' no permite previsualizacion externa. Abre el enlace directamente.</div>' +
-    '<a href="' + url + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;padding:11px 22px;background:var(--red);color:#fff;border-radius:var(--rs);font-family:var(--fn);font-size:12px;font-weight:700;text-decoration:none;" rel="noopener noreferrer">Abrir publicacion \u2192</a>' +
+    '<a href="' + url + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;padding:11px 22px;background:var(--red);color:#fff;border-radius:var(--rs);font-family:var(--fn);font-size:12px;font-weight:700;text-decoration:none;" rel="noopener noreferrer">Abrir publicacion</a>' +
     '</div>';
 }
 function closePV() { gi("pvModal").classList.remove("open"); }

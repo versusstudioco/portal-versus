@@ -835,7 +835,7 @@ function renderMarcasGrid() {
         </button>
         ${admin ? `<button class="marca-del" data-delmarca="${esc(m.marca)}" title="Eliminar marca">✕</button>` : ''}
       </div>`).join('') + '</div>';
-  $$('.marca-card').forEach(c => c.addEventListener('click', () => openMarca(c.dataset.marca, c.dataset.sector)));
+  $$('.marca-card').forEach(c => c.addEventListener('click', (e) => { e.preventDefault(); const el = e.currentTarget; const mk = el.dataset.marca; if (mk) openMarca(mk, el.dataset.sector); }));
   const am = $('#addMarca'); if (am) am.addEventListener('click', addMarcaPrompt);
   $$('[data-delmarca]').forEach(b => b.addEventListener('click', async (e) => {
     e.stopPropagation();

@@ -823,8 +823,8 @@ textarea.fe-in { min-height:70px; resize:vertical; }
 .marca-grid-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 .2rem 1.1rem; flex-wrap:wrap; }
 .marca-cell { position:relative; }
 .marca-cell .marca-card { width:100%; }
-.marca-del { position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:8px; border:1px solid var(--bd2,rgba(0,0,0,.14)); background:rgba(255,255,255,.9); color:var(--t2); font-size:12px; font-weight:700; cursor:pointer; opacity:0; transition:.15s; z-index:2; }
-.marca-cell:hover .marca-del { opacity:1; }
+.marca-del { position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:8px; border:1px solid var(--bd2,rgba(0,0,0,.14)); background:rgba(255,255,255,.9); color:var(--t2); font-size:12px; font-weight:700; cursor:pointer; opacity:0; pointer-events:none; transition:.15s; z-index:2; }
+.marca-cell:hover .marca-del { opacity:1; pointer-events:auto; }
 .marca-del:hover { background:rgba(249,0,0,.1); color:var(--red); border-color:rgba(249,0,0,.3); }
 
 /* ============================================================
