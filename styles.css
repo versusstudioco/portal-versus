@@ -963,3 +963,7 @@ textarea.fe-in { min-height:70px; resize:vertical; }
 .pz-metgrid .select span { font-size: .66rem; }
 .pz-metgrid input { width: 100%; min-width: 0; padding: .4rem .5rem; }
 @media(max-width:600px){ .pz-metgrid { grid-template-columns: repeat(2, 1fr); } }
+
+/* Navegación de mes en el calendario de la marca (Team) */
+.marca-cal-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: .2rem 0 .8rem; }
+.marca-cal-nav .marca-cal-month { margin: 0; font-size: 1rem; font-weight: 800; text-transform: capitalize; }

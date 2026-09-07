@@ -970,6 +970,7 @@ async function addMarcaPrompt() {
 }
 function openMarca(marca, sector) {
   state.marcaActiva = { marca, sector };
+  state.marcaCalYM = null;
   const out = $('#archivosOut');
   $('#viewTitle').textContent = marca;
   $('#viewSub').textContent = (sector || '') + ' · su universo completo';
@@ -1064,7 +1065,7 @@ function buildMonthGrid(piezas, refISO) {
   const offset = (new Date(y, m - 1, 1).getDay() + 6) % 7;
   const dias = new Date(y, m, 0).getDate();
   const porDia = {};
-  piezas.forEach(p => { if (p.fecha.slice(0, 7) === ym) (porDia[p.fecha] || (porDia[p.fecha] = [])).push(p); });
+  piezas.forEach(p => { const f = p.fecha || p.fechaEntrega; if (!f) return; if (f.slice(0, 7) === ym) (porDia[f] || (porDia[f] = [])).push(p); });
   const hoyISO = new Date().toISOString().slice(0, 10);
   let celdas = '';
   DIAS_SEM.forEach(d => celdas += `<div class="cal__dow">${d}</div>`);
@@ -1087,29 +1088,39 @@ async function marcaCalendario(marca) {
   state.piezas = state.piezas || {}; mine.forEach(p => state.piezas[p.id] = p);
   const creativos = mine.filter(p => p.tipo !== 'Historia').length;
   const historias = mine.filter(p => p.tipo === 'Historia').length;
-  const conFecha = mine.filter(p => p.fecha).sort((a, b) => a.fecha.localeCompare(b.fecha));
-  const sinFecha = mine.filter(p => !p.fecha);
-  const ref = (conFecha[0] && conFecha[0].fecha) || new Date().toISOString().slice(0, 10);
-  const cal = buildMonthGrid(conFecha, ref);
-  let html = `<div class="marca-cal-top">
-      <div class="marca-cal-counts">
-        <span class="mc-count"><b>${creativos}</b> creativos</span>
-        <span class="mc-count mc-count--hist"><b>${historias}</b> historias</span>
-      </div>
-      <button class="btn btn--primary btn--sm" id="addCreativo">+ Agregar creativo</button>
-    </div>`;
-  html += `<div class="marca-cal-month">${cal.label}</div>` + cal.html;
-  if (sinFecha.length) {
-    html += `<h4 class="marca-cal-sub">Sin fecha asignada</h4><div class="hub-cal">` + sinFecha.map(p => `
-      <button class="hub-cal__item hub-pieza" data-id="${p.id}">
-        <span class="hub-cal__tipo">${esc(p.tipo || '')}</span>
-        <span class="hub-cal__idea">${esc(p.idea || '(sin título)')}</span>
-        <span class="hub-cal__etapa">${esc(p.etapa || '')}</span>
-      </button>`).join('') + `</div>`;
+  const conFecha = mine.filter(p => p.fecha || p.fechaEntrega).sort((a, b) => (a.fecha || a.fechaEntrega).localeCompare(b.fecha || b.fechaEntrega));
+  const sinFecha = mine.filter(p => !(p.fecha || p.fechaEntrega));
+  if (!state.marcaCalYM) {
+    const ref = (conFecha.length ? (conFecha[conFecha.length - 1].fecha || conFecha[conFecha.length - 1].fechaEntrega) : new Date().toISOString().slice(0, 10));
+    const [ry, rm] = ref.split('-'); state.marcaCalYM = { y: +ry, m: +rm };
   }
-  pane.innerHTML = html;
-  $('#addCreativo').addEventListener('click', () => openAgregarCreativo(marca));
-  pane.querySelectorAll('.cal-pz, .hub-pieza').forEach(el => el.addEventListener('click', () => openPieza(el.dataset.id)));
+  const render = () => {
+    const ym = state.marcaCalYM;
+    const refISO = `${ym.y}-${String(ym.m).padStart(2, '0')}-01`;
+    const cal = buildMonthGrid(conFecha, refISO);
+    let html = `<div class="marca-cal-top">
+        <div class="marca-cal-counts">
+          <span class="mc-count"><b>${creativos}</b> creativos</span>
+          <span class="mc-count mc-count--hist"><b>${historias}</b> historias</span>
+        </div>
+        <button class="btn btn--primary btn--sm" id="addCreativo">+ Agregar creativo</button>
+      </div>`;
+    html += `<div class="marca-cal-nav"><button class="btn btn--ghost btn--sm" id="mcPrev">Anterior</button><div class="marca-cal-month">${cal.label}</div><button class="btn btn--ghost btn--sm" id="mcNext">Siguiente</button></div>` + cal.html;
+    if (sinFecha.length) {
+      html += `<h4 class="marca-cal-sub">Sin fecha asignada</h4><div class="hub-cal">` + sinFecha.map(p => `
+        <button class="hub-cal__item hub-pieza" data-id="${p.id}">
+          <span class="hub-cal__tipo">${esc(p.tipo || '')}</span>
+          <span class="hub-cal__idea">${esc(p.idea || '(sin título)')}</span>
+          <span class="hub-cal__etapa">${esc(p.etapa || '')}</span>
+        </button>`).join('') + `</div>`;
+    }
+    pane.innerHTML = html;
+    $('#addCreativo').addEventListener('click', () => openAgregarCreativo(marca));
+    $('#mcPrev').addEventListener('click', () => { let { y, m } = state.marcaCalYM; m--; if (m < 1) { m = 12; y--; } state.marcaCalYM = { y, m }; render(); });
+    $('#mcNext').addEventListener('click', () => { let { y, m } = state.marcaCalYM; m++; if (m > 12) { m = 1; y++; } state.marcaCalYM = { y, m }; render(); });
+    pane.querySelectorAll('.cal-pz, .hub-pieza').forEach(el => el.addEventListener('click', () => openPieza(el.dataset.id)));
+  };
+  render();
 }
 function openAgregarCreativo(marca) {
   const html = `<div class="g-modal" id="acModal"><div class="g-modal__box glass">
