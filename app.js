@@ -791,7 +791,7 @@ function fitLogoBg(img) {
   } catch (e) {}
 }
 function bindLogoFit(scope) {
-  (scope || document).querySelectorAll('.marca-card__logo--img img, .marca-uni-logo--img img').forEach(img => {
+  (scope || document).querySelectorAll('.marca-card__logo--img img, .marca-uni-logo--img img, .bcard-av--img img').forEach(img => {
     if (img.complete && img.naturalWidth) fitLogoBg(img);
     else img.addEventListener('load', () => fitLogoBg(img));
   });
@@ -812,13 +812,20 @@ function renderMarcasGrid() {
   const admin = (state.me || {}).role === 'admin';
   $('#viewTitle').textContent = 'Marcas';
   $('#viewSub').textContent = 'Cada marca es su universo: calendario, métricas, estrategia y archivos';
-  out.innerHTML = `<div class="marca-grid-head"><p class="topbar__sub" style="margin:0 .2rem">Elige una marca para entrar a su universo.</p>${admin ? '<button class="btn btn--primary btn--sm" id="addMarca">+ Agregar marca</button>' : ''}</div>
+  const handle = s => '@' + normStr(s).replace(/[^a-z0-9]+/g, '');
+  out.innerHTML = `<div class="marca-grid-head"><p class="topbar__sub" style="margin:0 .2rem">Toca una marca para gestionar todo lo suyo: calendario, métricas, estrategia y archivos.</p>${admin ? '<button class="btn btn--primary btn--sm" id="addMarca">+ Agregar marca</button>' : ''}</div>
     <div class="marca-grid">` + state.hubMarcas.map(m => `
       <div class="marca-cell">
-        <button class="marca-card" data-marca="${esc(m.marca)}" data-sector="${esc(m.sector)}">
-          ${marcaLogoHTML(m.marca, 'marca-card__logo')}
-          <div class="marca-card__name">${esc(m.marca)}</div>
-          <div class="marca-card__sector">${esc(m.sector)}</div>
+        <button class="bcard marca-card" data-marca="${esc(m.marca)}" data-sector="${esc(m.sector || '')}">
+          <div class="bcard-head"><div class="bcard-id">
+            ${marcaLogoHTML(m.marca, 'bcard-av')}
+            <div style="min-width:0"><div class="bcard-name">${esc(m.marca)}</div><div class="bcard-user">${esc(handle(m.marca))}</div></div>
+          </div></div>
+          <div class="bcard-chips">
+            ${m.sector ? `<span class="bchip">${esc(m.sector)}</span>` : ''}
+            <span class="bchip bchip--on">Activo</span>
+          </div>
+          <div class="bcard-foot">Gestionar marca →</div>
         </button>
         ${admin ? `<button class="marca-del" data-delmarca="${esc(m.marca)}" title="Eliminar marca">✕</button>` : ''}
       </div>`).join('') + '</div>';

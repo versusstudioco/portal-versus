@@ -856,3 +856,20 @@ textarea.fe-in { min-height:70px; resize:vertical; }
   .topbar { background: var(--card); padding: .7rem .9rem; }
   .sb-head { padding: 0 1.2rem 1rem; }
 }
+
+/* ---------- Tarjetas de marca estilo Admin de Clientes (bcard) ---------- */
+.marca-grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
+.bcard { display: flex; flex-direction: column; align-items: stretch; text-align: left; gap: 12px; background: var(--card); border: 1px solid var(--bd2); border-radius: 16px; padding: 16px 18px; cursor: pointer; font-family: var(--font); color: var(--ink); box-shadow: var(--glass-shadow); transition: transform .15s ease, box-shadow .15s ease, border-color .15s; }
+.bcard:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,0,0,.12); border-color: var(--bd2); }
+.bcard-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bcard-id { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.bcard-av { width: 46px; height: 46px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: var(--ink-60); background: var(--bg4); overflow: hidden; }
+.bcard-av.bcard-av--img { background: #fff; border: 1px solid var(--line); padding: 5px; }
+.bcard-av--img img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.bcard-av.logo--ondark { background: #1d1d1d; border-color: #1d1d1d; }
+.bcard-name { font-size: 15px; font-weight: 800; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bcard-user { font-size: 11px; color: var(--ink-60); font-family: ui-monospace, monospace; margin-top: 3px; }
+.bcard-chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; min-height: 22px; }
+.bchip { font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 99px; background: var(--bg4); color: var(--ink-60); }
+.bchip--on { background: rgba(249,0,0,.10); color: var(--red); }
+.bcard-foot { font-size: 11px; color: var(--ink-60); font-weight: 600; border-top: 1px solid var(--line-soft); padding-top: 10px; }
