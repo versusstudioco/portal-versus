@@ -189,7 +189,7 @@ async function loadGestion() {
 function renderGestionStats(d) {
   const r = d.resumen || {};
   $('#gStats').innerHTML = `
-    <div class="g-stat"><b>${d.marcasDetectadas}</b><span>marcas</span></div>
+    <div class="g-stat"><b>${d.marcasDetectadas || 0}</b><span>marcas</span></div>
     <div class="g-stat g-stat--red"><b>${r.retrasadas || 0}</b><span>retrasadas</span></div>
     <div class="g-stat"><b>${r.enProceso || 0}</b><span>en proceso</span></div>
     <div class="g-stat"><b>${r.alDia || 0}</b><span>al día</span></div>
@@ -294,7 +294,7 @@ async function renderFlujo() {
   state.piezas = {}; // índice para el modal
   (Object.values(data.columnas || {}).flat()).forEach(p => state.piezas[p.id] = p);
   const head = `<div class="fl-top">
-      <span class="topbar__sub">${data.total} piezas en el flujo · arrastra… o abre una para ver guion, características y mover de etapa</span>
+      <span class="topbar__sub">${data.total || 0} piezas en el flujo · arrastra… o abre una para ver guion, características y mover de etapa</span>
       <button class="btn btn--primary btn--sm" id="flNueva">+ Nueva pieza</button>
     </div>`;
   cont.innerHTML = head + '<div class="fl-board">' + data.etapas.map(e => {
@@ -456,8 +456,8 @@ async function loadCommunity() {
   html += (data.historias || []).map(h => `
     <div class="g-card">
       <div class="g-card__top"><div class="g-card__name">${esc(h.marca)}</div>
-        <div class="g-ciclo"><div class="g-ciclo__pct">${h.hechas}/${h.meta}</div><span>publicadas</span></div></div>
-      <div class="g-chips"><span class="g-chip">🧠 ${h.enBanco} en banco</span></div>
+        <div class="g-ciclo"><div class="g-ciclo__pct">${h.hechas || 0}/${h.meta || 0}</div><span>publicadas</span></div></div>
+      <div class="g-chips"><span class="g-chip">🧠 ${h.enBanco || 0} en banco</span></div>
     </div>`).join('') + '</div>';
   out.innerHTML = html;
 }
@@ -677,10 +677,10 @@ async function loadEquipo() {
   const d = rep.data, people = ppl.data.people || [], areas = ppl.data.areas || [];
   state.equipoAreas = areas; state.equipoPeople = people;
   let html = `<div class="g-stats">
-      <div class="g-stat"><b>${d.resumen.personas}</b><span>personas</span></div>
-      <div class="g-stat"><b>${d.resumen.tareas}</b><span>tareas</span></div>
-      <div class="g-stat g-stat--red"><b>${d.resumen.atrasadas}</b><span>atrasadas</span></div>
-      <div class="g-stat"><b>${d.resumen.hechas}</b><span>hechas</span></div>
+      <div class="g-stat"><b>${(d.resumen || {}).personas || 0}</b><span>personas</span></div>
+      <div class="g-stat"><b>${(d.resumen || {}).tareas || 0}</b><span>tareas</span></div>
+      <div class="g-stat g-stat--red"><b>${(d.resumen || {}).atrasadas || 0}</b><span>atrasadas</span></div>
+      <div class="g-stat"><b>${(d.resumen || {}).hechas || 0}</b><span>hechas</span></div>
     </div>
     <div class="seg" id="eqMode">
       <button class="seg__btn active" data-eq="personas">Personas</button>
@@ -744,11 +744,11 @@ async function loadEquipo() {
     <h3 class="live-h3">Por persona</h3>
     <div class="reddit-list">${d.porPersona.map(p => `
       <div class="reddit-item"><span class="reddit-t"><b>${esc(p.name)}</b> · ${esc(p.area)}</span>
-        <span class="tag">${p.hechas}/${p.total} hechas</span>${p.atrasadas ? `<span class="tag tag--red">${p.atrasadas} atrasadas</span>` : ''}</div>`).join('')}</div>
+        <span class="tag">${p.hechas || 0}/${p.total || 0} hechas</span>${p.atrasadas ? `<span class="tag tag--red">${p.atrasadas} atrasadas</span>` : ''}</div>`).join('')}</div>
     <h3 class="live-h3">Por área</h3>
     <div class="reddit-list">${d.porArea.map(a => `
       <div class="reddit-item"><span class="reddit-t"><b>${esc(a.area)}</b></span>
-        <span class="tag">${a.personas} personas</span><span class="tag">${a.tareas} tareas</span>${a.atrasadas ? `<span class="tag tag--red">${a.atrasadas} atrasadas</span>` : ''}</div>`).join('')}</div>`;
+        <span class="tag">${a.personas || 0} personas</span><span class="tag">${a.tareas || 0} tareas</span>${a.atrasadas ? `<span class="tag tag--red">${a.atrasadas} atrasadas</span>` : ''}</div>`).join('')}</div>`;
 
   $$('#eqMode .seg__btn').forEach(btn => btn.addEventListener('click', () => {
     $$('#eqMode .seg__btn').forEach(x => x.classList.toggle('active', x === btn));
@@ -1023,7 +1023,7 @@ async function marcaMetricas(marca) {
   if (!m) { pane.innerHTML = '<div class="hub-empty">Esta marca aún no tiene métricas en el Portal de clientes.</div>'; return; }
   const idx = state.metricas.marcas.indexOf(m);
   pane.innerHTML = `<div class="hub-metrics-top">
-      <div class="g-stat"><b>${m.total}</b><span>publicaciones</span></div>
+      <div class="g-stat"><b>${m.total || 0}</b><span>publicaciones</span></div>
       <div class="g-stat"><b>${fmtViews(m.medianaViews)}</b><span>mediana views</span></div>
     </div>
     <div class="kv"><b>⬆ Lo que más funcionó</b>${m.mejores.map(p => metricRow(p)).join('')}</div>
@@ -1208,7 +1208,7 @@ async function estGenerar(marca, kind, btn) {
       const hs = data.historias || [];
       out.innerHTML = hs.length ? `<div class="result-card"><h3>📖 Secuencia de historias ${sourcePill(data.source)} <span class="tag">cuenta aparte</span></h3>
         <div class="hist-seq">${hs.map(h => `<div class="hist-frame">
-          <div class="hist-frame__n">${h.frame}</div>
+          <div class="hist-frame__n">${esc(h.frame || '')}</div>
           <div class="hist-frame__body"><div class="hist-frame__txt">${esc(h.texto || '')}</div>
             ${h.elemento ? `<span class="hist-el">🎯 ${esc(h.elemento)}</span>` : ''}
             ${h.objetivo ? `<div class="note">${esc(h.objetivo)}</div>` : ''}</div>
@@ -1251,15 +1251,15 @@ async function loadMetricas(refresh) {
   state.metricasLoaded = true;
   state.metricas = data;
   out.innerHTML = `<div class="g-stats">
-      <div class="g-stat"><b>${data.marcas.length}</b><span>marcas con data</span></div>
-      <div class="g-stat"><b>${data.totalPublicaciones}</b><span>publicaciones</span></div>
+      <div class="g-stat"><b>${(data.marcas || []).length}</b><span>marcas con data</span></div>
+      <div class="g-stat"><b>${data.totalPublicaciones || 0}</b><span>publicaciones</span></div>
       <div class="g-stat-note">Del <b>Portal de clientes</b> (Firebase) · toca una marca para ver su detalle</div>
     </div>
     <div class="acc">` + data.marcas.map((m, i) => `
       <div class="acc-item">
         <button class="acc-head" data-i="${i}">
           <div class="acc-head__l"><span class="acc-name">${esc(m.marca)}</span>
-            <span class="acc-sub">${m.total} posts · mediana ${fmtViews(m.medianaViews)} views</span></div>
+            <span class="acc-sub">${m.total || 0} posts · mediana ${fmtViews(m.medianaViews)} views</span></div>
           <span class="acc-chev">›</span>
         </button>
         <div class="acc-body hidden" id="accb-${i}"></div>
@@ -1324,8 +1324,8 @@ async function loadProduccion() {
     html += '<div class="g-grid">' + data.porGrabar.slice(0, 12).map(p => `
       <div class="g-card">
         <div class="g-card__top"><div class="g-card__name">${esc(p.marca)}</div>
-          <span class="g-status st-red">${p.pendientes} por grabar</span></div>
-        <div class="g-chips"><span class="g-chip">🧠 ${p.enBanco} ideas en banco</span></div>
+          <span class="g-status st-red">${p.pendientes || 0} por grabar</span></div>
+        <div class="g-chips"><span class="g-chip">🧠 ${p.enBanco || 0} ideas en banco</span></div>
       </div>`).join('') + '</div>';
   } else html += '<div class="empty">Nada pendiente de grabar este ciclo.</div>';
   html += '<h3 class="live-h3">✅ Grabado (listo para Creativa)</h3>';
@@ -1392,7 +1392,7 @@ function renderPauta() {
           <div class="p-field"><span>Invertido</span><b>${M(m.invertido)}</b></div>
           <div class="p-field"><span>Alcance</span><b>${fmtViews(m.alcance)}</b></div>
           <div class="p-field"><span>Clicks</span><b>${fmtViews(m.clicks)}</b></div>
-          <div class="p-field"><span>Anuncios</span><b>${m.anuncios}</b></div>
+          <div class="p-field"><span>Anuncios</span><b>${m.anuncios || 0}</b></div>
         </div>
       </div>`).join('') + '</div>';
   }
@@ -1559,7 +1559,7 @@ async function loadLive(refresh) {
 }
 $('#fTopic').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); loadLive(); } });
 
-function fmtViews(n) { return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'K' : String(n); }
+function fmtViews(n) { n = +n || 0; return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'K' : String(n); }
 
 function renderLive(area, d, topic, country) {
   const nicheL = topic;
