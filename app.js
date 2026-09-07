@@ -709,11 +709,12 @@ async function loadEquipo() {
       </div>
       <button class="btn btn--primary" id="npSave">Guardar persona</button>
     </div>
-    <div class="reddit-list">${people.map(p => `
-      <div class="reddit-item">
-        <span class="reddit-t"><b>${esc(p.name)}</b> · @${esc(p.username)}</span>
-        ${((p.areas && p.areas.length) ? p.areas : [p.area]).filter(Boolean).map(a => `<span class="tag">${esc(a)}</span>`).join('')}<span class="tag ${p.role === 'admin' ? 'tag--red' : ''}">${esc(p.role)}</span>
-        ${p.username !== 'versus_admin' ? `<button class="btn btn--ghost btn--sm p-del" data-id="${p.id}">✕</button>` : ''}
+    <div class="eq-list">${people.map(p => `
+      <div class="eq-person">
+        <div class="eq-av">${esc((p.name || '?').trim().charAt(0).toUpperCase())}</div>
+        <div class="eq-person__id"><div class="eq-person__name">${esc(p.name)}</div><div class="eq-person__user">@${esc(p.username)}</div></div>
+        <div class="eq-person__tags">${((p.areas && p.areas.length) ? p.areas : [p.area]).filter(Boolean).map(a => `<span class="tag">${esc(a)}</span>`).join('')}<span class="tag ${p.role === 'admin' ? 'tag--red' : ''}">${esc(p.role)}</span></div>
+        ${p.username !== 'versus_admin' ? `<button class="eq-del p-del" data-id="${p.id}" title="Quitar">✕</button>` : ''}
       </div>`).join('')}</div>`;
   $('#npSave').addEventListener('click', async () => {
     const chk = $$('.npAreaChk').filter(c => c.checked).map(c => c.value);
@@ -747,13 +748,13 @@ async function loadEquipo() {
   // Ejecución (informe por persona y área)
   $('#eqEjec').innerHTML = `
     <h3 class="live-h3">Por persona</h3>
-    <div class="reddit-list">${d.porPersona.map(p => `
-      <div class="reddit-item"><span class="reddit-t"><b>${esc(p.name)}</b> · ${esc(p.area)}</span>
-        <span class="tag">${p.hechas || 0}/${p.total || 0} hechas</span>${p.atrasadas ? `<span class="tag tag--red">${p.atrasadas} atrasadas</span>` : ''}</div>`).join('')}</div>
+    <div class="eq-list">${d.porPersona.map(p => `
+      <div class="eq-row"><div class="eq-row__id"><div class="eq-av eq-av--sm">${esc((p.name || '?').trim().charAt(0).toUpperCase())}</div><div><div class="eq-person__name">${esc(p.name)}</div><div class="eq-person__user">${esc(p.area)}</div></div></div>
+        <div class="eq-person__tags"><span class="tag">${p.hechas || 0}/${p.total || 0} hechas</span>${p.atrasadas ? `<span class="tag tag--red">${p.atrasadas} atrasadas</span>` : ''}</div></div>`).join('')}</div>
     <h3 class="live-h3">Por área</h3>
-    <div class="reddit-list">${d.porArea.map(a => `
-      <div class="reddit-item"><span class="reddit-t"><b>${esc(a.area)}</b></span>
-        <span class="tag">${a.personas || 0} personas</span><span class="tag">${a.tareas || 0} tareas</span>${a.atrasadas ? `<span class="tag tag--red">${a.atrasadas} atrasadas</span>` : ''}</div>`).join('')}</div>`;
+    <div class="eq-list">${d.porArea.map(a => `
+      <div class="eq-row"><div class="eq-row__id"><div class="eq-person__name">${esc(a.area)}</div></div>
+        <div class="eq-person__tags"><span class="tag">${a.personas || 0} personas</span><span class="tag">${a.tareas || 0} tareas</span>${a.atrasadas ? `<span class="tag tag--red">${a.atrasadas} atrasadas</span>` : ''}</div></div>`).join('')}</div>`;
 
   $$('#eqMode .seg__btn').forEach(btn => btn.addEventListener('click', () => {
     $$('#eqMode .seg__btn').forEach(x => x.classList.toggle('active', x === btn));

@@ -281,7 +281,7 @@ input, select, textarea { max-width: 100%; }
 .seg { display: inline-flex; gap: .25rem; padding: .25rem; margin-bottom: 1.2rem; background: #ececec; border-radius: 999px; }
 .seg__btn { font-family: var(--font); font-weight: 600; font-size: .9rem; color: var(--ink-60); background: transparent; border: none; border-radius: 999px; padding: .5rem 1.1rem; cursor: pointer; display: flex; align-items: center; gap: .45rem; transition: all .18s ease; }
 .seg__btn:hover { color: var(--ink); }
-.seg__btn.active { background: var(--ink); color: #fff; }
+.seg__btn.active { background: var(--red); color: #fff; }
 .seg__btn .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 0 rgba(249,0,0,.5); animation: pulse 1.8s infinite; }
 .seg__btn.active .dot { background: #fff; }
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(249,0,0,.5);} 70% { box-shadow: 0 0 0 6px rgba(249,0,0,0);} 100% { box-shadow: 0 0 0 0 rgba(249,0,0,0);} }
@@ -879,3 +879,18 @@ textarea.fe-in { min-height:70px; resize:vertical; }
 .pz-links .select { min-width: 0; }
 .pz-links input { width: 100%; min-width: 0; }
 @media(max-width:600px){ .pz-links { grid-template-columns: 1fr; } }
+
+/* ---------- Equipo (admin): filas pulidas estilo cliente ---------- */
+.eq-list { display: flex; flex-direction: column; gap: .5rem; margin-top: 1rem; }
+.eq-person, .eq-row { display: flex; align-items: center; gap: .85rem; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: .7rem .9rem; box-shadow: var(--glass-shadow); transition: transform .15s ease, box-shadow .15s ease; }
+.eq-person:hover, .eq-row:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,.08); }
+.eq-av { width: 40px; height: 40px; border-radius: 11px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #fff; background: linear-gradient(135deg, var(--red), var(--pur)); }
+.eq-av--sm { width: 34px; height: 34px; border-radius: 9px; font-size: 13px; }
+.eq-person__id { flex: 1; min-width: 0; }
+.eq-person__name { font-size: .95rem; font-weight: 800; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.eq-person__user { font-size: .76rem; color: var(--ink-60); font-family: ui-monospace, monospace; margin-top: 1px; }
+.eq-person__tags { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
+.eq-row__id { flex: 1; min-width: 0; display: flex; align-items: center; gap: .7rem; }
+.eq-del { flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--ink-60); cursor: pointer; font-size: 12px; font-weight: 700; }
+.eq-del:hover { background: rgba(249,0,0,.08); color: var(--red); border-color: rgba(249,0,0,.3); }
+@media(max-width:600px){ .eq-person__tags { width: 100%; } }
