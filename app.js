@@ -440,7 +440,20 @@ async function loadCommunity() {
   const out = $('#communityOut');
   out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando calendario…</div>';
   const { data } = await api('/api/gestion/community');
-  let html = '';
+  const marcasR = (state.hubMarcas && state.hubMarcas.length) ? { marcas: state.hubMarcas } : ((await api('/api/marca/lista')).data || { marcas: [] });
+  const cwMarcas = marcasR.marcas || [];
+  let html = `<div class="glass panel form-panel">
+      <h3 class="live-h3" style="margin-top:0">📈 Seguidores y visualizaciones por semana</h3>
+      <p class="hub-hint" style="margin:.1rem 0 .8rem">Community registra el crecimiento de cada marca — alimenta las métricas del cliente.</p>
+      <div class="form-grid">
+        <label class="select"><span>Marca</span><select id="cwMarca">${cwMarcas.map(m => `<option value="${esc(m.marca)}">${esc(m.marca)}</option>`).join('')}</select></label>
+        <label class="select"><span>Semana</span><input id="cwWeek" type="week"></label>
+        <label class="select"><span>Seguidores</span><input id="cwFollowers" type="number" min="0" placeholder="ej: 12500"></label>
+        <label class="select"><span>Visualizaciones (semana)</span><input id="cwViews" type="number" min="0" placeholder="ej: 84000"></label>
+      </div>
+      <button class="btn btn--primary" id="cwSave">Guardar semana</button>
+      <div id="cwList" style="margin-top:1rem"></div>
+    </div>`;
   if ((data.retrasos || []).length) {
     html += `<div class="result-card" style="margin-bottom:1rem;border-color:rgba(249,0,0,.3)">
       <h3>⏰ Retrasos (${data.retrasos.length}) — publicar ya</h3>
@@ -465,6 +478,25 @@ async function loadCommunity() {
       <div class="g-chips"><span class="g-chip">🧠 ${h.enBanco || 0} en banco</span></div>
     </div>`).join('') + '</div>';
   out.innerHTML = html;
+  // Semanal (seguidores/views) por marca
+  const cwLoad = async () => {
+    const marca = $('#cwMarca') && $('#cwMarca').value; if (!marca) { $('#cwList').innerHTML = ''; return; }
+    const r = await api('/api/marca/semanas?marca=' + encodeURIComponent(marca));
+    const sem = (r.ok && r.data.semanas) || [];
+    $('#cwList').innerHTML = sem.length ? `<div class="eq-list">${sem.map(s => `
+      <div class="eq-row"><div class="eq-row__id"><div class="eq-person__name">${esc(s.semana)}</div></div>
+        <div class="eq-person__tags"><span class="tag">👥 ${(+s.seguidores || 0).toLocaleString('es-CO')} seguidores</span><span class="tag">👁 ${(+s.views || 0).toLocaleString('es-CO')} views</span></div></div>`).join('')}</div>`
+      : '<div class="empty">Aún no hay semanas registradas para esta marca.</div>';
+  };
+  if ($('#cwMarca')) { $('#cwMarca').addEventListener('change', cwLoad); cwLoad(); }
+  if ($('#cwSave')) $('#cwSave').addEventListener('click', async () => {
+    const body = { marca: $('#cwMarca').value, semana: $('#cwWeek').value, seguidores: $('#cwFollowers').value, views: $('#cwViews').value };
+    if (!body.semana) { alert('Elige la semana.'); return; }
+    const btn = $('#cwSave'); btn.disabled = true; btn.textContent = 'Guardando…';
+    const r = await api('/api/marca/semana', { method: 'POST', body });
+    btn.disabled = false; btn.textContent = 'Guardar semana';
+    if (r.ok) { $('#cwFollowers').value = ''; $('#cwViews').value = ''; cwLoad(); } else alert(r.data.error || 'No se pudo');
+  });
 }
 
 /* ---------------- Mis tareas ---------------- */

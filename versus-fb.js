@@ -345,6 +345,21 @@
         for (const m of all) { const k = fbKey(m.marca); if (seen[k] || ocultas[k]) continue; seen[k] = 1; marcas.push(m); }
         return { ok: true, data: { marcas } };
       }
+      if (p === '/api/marca/semanas') {
+        const marca = q.get('marca') || body.marca || '';
+        const obj = (await fbGet('gestor/marcas/' + fbKey(marca) + '/semanas').catch(() => null)) || {};
+        const semanas = Object.entries(obj).map(([k, v]) => ({ semana: k, ...v })).sort((a, b) => String(b.semana).localeCompare(String(a.semana)));
+        return { ok: true, data: { semanas } };
+      }
+      if (p === '/api/marca/semana' && method === 'POST') {
+        const s = await sesionActual();
+        if (!s) return { ok: false, status: 403, data: { error: 'Sin sesión' } };
+        const marca = body.marca || '', semana = String(body.semana || '').trim();
+        if (!marca || !semana) return { ok: false, status: 400, data: { error: 'Falta la marca o la semana' } };
+        const rec = { seguidores: +body.seguidores || 0, views: +body.views || 0, por: s.name || s.username || '', at: new Date().toISOString() };
+        await fbPut('gestor/marcas/' + fbKey(marca) + '/semanas/' + fbKey(semana), rec);
+        return { ok: true, data: { ok: true } };
+      }
       if (p === '/api/marca/remove' && method === 'POST') {
         const s = await sesionActual();
         if (!s || s.role !== 'admin') return { ok: false, status: 403, data: { error: 'Solo el admin elimina marcas' } };
