@@ -967,3 +967,11 @@ textarea.fe-in { min-height:70px; resize:vertical; }
 /* Navegación de mes en el calendario de la marca (Team) */
 .marca-cal-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: .2rem 0 .8rem; }
 .marca-cal-nav .marca-cal-month { margin: 0; font-size: 1rem; font-weight: 800; text-transform: capitalize; }
+
+/* Ficha histórica (solo lectura) en el Team */
+.pz-hist__head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:.4rem; }
+.pz-hist__sub { font-size:.72rem; color:var(--ink-40); }
+.pz-hist__title { font-size:1.2rem; font-weight:800; margin-top:2px; }
+.pz-hist__guion { font-size:.92rem; line-height:1.55; white-space:pre-wrap; background:var(--bg3); border-radius:12px; padding:12px 14px; margin-bottom:.8rem; }
+.pz-hist__met { font-size:.88rem; color:var(--ink-60); margin-bottom:.35rem; }
+.pz-hist__met b { color:var(--ink); }

@@ -339,9 +339,39 @@ function refreshPiezaView() {
   if (state.marcaActiva) { marcaCalendario(state.marcaActiva.marca); }
   else if (typeof renderFlujo === 'function') { try { renderFlujo(); } catch (_) {} }
 }
+function metricsFromMet(met) {
+  const names = { ig: 'Instagram', tiktok: 'TikTok', linkedin: 'LinkedIn' };
+  let out = '';
+  Object.keys(met || {}).forEach(pl => {
+    const m = met[pl] || {}; const parts = [];
+    if (m.views) parts.push('👁 ' + (+m.views).toLocaleString('es-CO'));
+    if (m.likes) parts.push('❤️ ' + (+m.likes).toLocaleString('es-CO'));
+    if (m.comments) parts.push('💬 ' + (+m.comments).toLocaleString('es-CO'));
+    if (m.saved) parts.push('🔖 ' + (+m.saved).toLocaleString('es-CO'));
+    if (m.shared) parts.push('🔁 ' + (+m.shared).toLocaleString('es-CO'));
+    if (parts.length) out += `<div class="pz-hist__met"><b>${names[pl] || pl}:</b> ${parts.join(' &nbsp; ')}</div>`;
+  });
+  return out;
+}
+function openPiezaHistorico(p) {
+  const mets = metricsFromMet(p.met);
+  const html = `<div class="g-modal" id="pzModal"><div class="g-modal__box glass pz-box">
+      <div class="pz-hist__head"><div><div class="pz-hist__sub">${esc(p.tipo || '')}${p.fecha ? ' · ' + esc(p.fecha) : ''}</div><div class="pz-hist__title">${esc(p.idea || 'Publicación')}</div></div><span class="g-status st-green">Publicado</span></div>
+      ${p.plataforma ? `<div style="margin:.2rem 0 .8rem"><span class="tag" style="background:rgba(108,0,255,.1);color:var(--pur)">📱 ${esc(p.plataforma)}</span></div>` : ''}
+      ${p.guion ? `<div class="pz-hist__guion">${esc(p.guion)}</div>` : ''}
+      ${mets || '<div class="hub-hint">Sin métricas registradas.</div>'}
+      ${p.link ? `<a class="btn btn--primary btn--sm" href="${esc(p.link)}" target="_blank" rel="noopener" style="margin-top:.8rem">Ver publicación</a>` : ''}
+      <div class="g-modal__actions"><button class="btn btn--ghost btn--sm" id="pzCancel">Cerrar</button></div>
+    </div></div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+  const close = () => $('#pzModal').remove();
+  $('#pzCancel').addEventListener('click', close);
+  $('#pzModal').addEventListener('click', e => { if (e.target.id === 'pzModal') close(); });
+}
 function openPieza(id) {
   const et = [['idea', 'Idea'], ['aprobada', 'Aprobada'], ['grabada', 'Grabada'], ['editada', 'Editada'], ['publicada', 'Publicada']];
   const p = id ? state.piezas[id] : { id: '', marca: '', idea: '', tipo: 'Reel', guion: '', caracteristicas: '', etapa: 'idea', responsable: '', comentarios: [] };
+  if (p && p.historico) return openPiezaHistorico(p);
   const people = ((state.teamPeople && state.teamPeople.length ? state.teamPeople : state.equipoPeople) || []).map(x => x.name);
   const PLATS = [['ig', 'Instagram'], ['tiktok', 'TikTok'], ['linkedin', 'LinkedIn']];
   const MET_KEYS = [['views', 'Vistas'], ['likes', 'Likes'], ['comments', 'Coment.'], ['saved', 'Guard.'], ['shared', 'Comp.']];
@@ -1083,8 +1113,11 @@ function buildMonthGrid(piezas, refISO) {
 async function marcaCalendario(marca) {
   const pane = $('#marcaPane');
   pane.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando calendario…</div>';
-  const { data } = await api('/api/piezas'); state.hubBoard = data;
+  const [board, histR] = await Promise.all([api('/api/piezas'), api('/api/marca/publicaciones?marca=' + encodeURIComponent(marca))]);
+  const data = board.data; state.hubBoard = data;
   const mine = Object.values(data.columnas || {}).flat().filter(p => p.marca === marca);
+  const hist = (histR.ok && histR.data.items) || [];
+  hist.forEach(h => { if (!mine.some(x => x.id === h.id)) mine.push(h); });
   state.piezas = state.piezas || {}; mine.forEach(p => state.piezas[p.id] = p);
   const creativos = mine.filter(p => p.tipo !== 'Historia').length;
   const historias = mine.filter(p => p.tipo === 'Historia').length;

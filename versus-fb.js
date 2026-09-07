@@ -387,6 +387,24 @@
         await fbPut('gestor/config/marcasExtra/' + fbKey(nombre), { marca: nombre, sector: String(body.sector || '') });
         return { ok: true, data: { ok: true } };
       }
+      if (p === '/api/marca/publicaciones') {
+        const marca = q.get('marca') || body.marca || '';
+        const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+        const k = norm(marca);
+        const cache = await portal();
+        const pubs = cache.pubs || [];
+        const creds = (await fbGet('db/creds').catch(() => ({}))) || {};
+        const items = pubs.filter(x => {
+          if (!x || x.status !== 'published' || !x.date) return false;
+          const b = norm(x.brand), n = norm((creds[x.brand] && creds[x.brand].name) || '');
+          return b === k || n === k || (k && b.indexOf(k) >= 0) || (k && b && k.indexOf(b) >= 0) || (n && (n.indexOf(k) >= 0 || k.indexOf(n) >= 0));
+        }).map(x => ({
+          id: 'pub_' + (x.id || Math.random().toString(36).slice(2)), marca, tipo: x.type || 'Post', idea: x.desc || 'Publicación',
+          etapa: 'publicada', fecha: x.date, plataforma: x.platform || 'Instagram', link: x.link || '', historico: true, guion: x.desc || '',
+          met: { ig: { views: +x.views || 0, likes: +x.likes || 0, comments: +x.comments || 0, saved: +x.saved || 0, shared: +(x.shares || x.shared) || 0 } }
+        }));
+        return { ok: true, data: { items } };
+      }
       if (p === '/api/marca/semanas') {
         const marca = q.get('marca') || body.marca || '';
         const obj = (await fbGet('gestor/marcas/' + fbKey(marca) + '/semanas').catch(() => null)) || {};
