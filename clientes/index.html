@@ -2453,6 +2453,12 @@ function renderGestorContenido(){
     var all=res[0], ciclo=res[1]||{pactado:{}};
     var mine = Object.keys(all).map(function(k){return all[k];}).filter(function(p){ if(!p||!p.marca) return false; var pm=vgNorm(p.marca); return pm===k1||pm===k2||(k1&&pm.indexOf(k1)>=0)||(k1&&k1.indexOf(pm)>=0); });
     _vgPiezas={}; mine.forEach(function(p){ if(p.id) _vgPiezas[p.id]=p; });
+    // Traer histórico del perfil del cliente (DB.publications) al calendario — publicadas (hoy Instagram)
+    (DB.publications||[]).filter(function(p){ return p && p.brand===CU && p.status==="published" && p.date; }).forEach(function(p){
+      _vgPiezas["pub_"+p.id] = { id:"pub_"+p.id, tipo:p.type||"Post", idea:p.desc||"Publicación", etapa:"publicada",
+        fecha:p.date, plataforma:p.platform||"Instagram", guion:p.desc||"", link:p.link||"",
+        mViews:p.views, mLikes:p.likes, mSaved:p.saved, mShared:p.shares||p.shared, mComments:p.comments, _historico:true, comentarios:{} };
+    });
     // Pactado vs realizado (realizado = publicadas dentro del rango del ciclo — respeta ciclos 8→8, no solo mes)
     var _ini=ciclo.inicio||"", _fin=ciclo.fin||"";
     var pub = mine.filter(function(p){ if(p.etapa!=="publicada") return false; if(_ini&&p.fecha&&p.fecha<_ini) return false; if(_fin&&p.fecha&&p.fecha>_fin) return false; return true; });
@@ -2462,7 +2468,7 @@ function renderGestorContenido(){
     el._head=head;
     // Mes inicial: el que tenga piezas más próximo a hoy, o el actual
     if(!_vgCalYM){
-      var fechas=mine.filter(function(p){return p.fecha;}).map(function(p){return p.fecha;}).sort();
+      var fechas=Object.keys(_vgPiezas).map(function(id){return _vgPiezas[id].fecha||_vgPiezas[id].fechaEntrega;}).filter(Boolean).sort();
       var ref = fechas.length ? fechas[fechas.length-1] : (new Date()).toISOString().slice(0,10);
       var pz=ref.split("-"); _vgCalYM={y:+pz[0], m:+pz[1]};
     }
@@ -2497,6 +2503,14 @@ function vgLinks(p){
   if(!items.length) return "";
   return '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">'+items.map(function(x){return '<a href="'+vgEsc(x[1])+'" target="_blank" rel="noopener" style="font-size:12px;font-weight:700;color:#fff;background:var(--red);border-radius:99px;padding:7px 14px;text-decoration:none">'+vgEsc(x[0])+'</a>';}).join("")+'</div>';
 }
+function vgMetrics(p){
+  var out='', names={ig:'Instagram',tiktok:'TikTok',linkedin:'LinkedIn'};
+  if(p.met && typeof p.met==='object' && Object.keys(p.met).length){
+    Object.keys(p.met).forEach(function(pl){ var m=p.met[pl]||{}; var parts=[]; if(m.views)parts.push('👁 '+m.views); if(m.likes)parts.push('❤️ '+m.likes); if(m.comments)parts.push('💬 '+m.comments); if(m.saved)parts.push('🔖 '+m.saved); if(m.shared)parts.push('🔁 '+m.shared); if(parts.length) out+='<div style="font-size:13px;color:var(--t2);margin-bottom:6px"><b style="color:var(--tx)">'+(names[pl]||pl)+':</b> '+parts.join(' &nbsp; ')+'</div>'; });
+  }
+  if(!out){ var pr=[]; if(p.mViews)pr.push('👁 '+vgEsc(p.mViews)); if(p.mLikes)pr.push('❤️ '+vgEsc(p.mLikes)); if(p.mComments)pr.push('💬 '+vgEsc(p.mComments)); if(p.mSaved)pr.push('🔖 '+vgEsc(p.mSaved)); if(p.mShared)pr.push('🔁 '+vgEsc(p.mShared)); if(pr.length) out='<div style="font-size:13px;color:var(--t2)">'+pr.join(' &nbsp; ')+'</div>'; }
+  return out?'<div style="margin-bottom:16px">'+out+'</div>':'';
+}
 function vgFechas(p){
   var f=[]; if(p.fechaEntrega)f.push('📥 Entrega: <b>'+vgEsc(p.fechaEntrega)+'</b>'); if(p.fecha)f.push('📣 Publica: <b>'+vgEsc(p.fecha)+'</b>');
   return f.length?'<div style="font-size:12.5px;color:var(--t2);margin-bottom:16px">'+f.join(' &nbsp;·&nbsp; ')+'</div>':'';
@@ -2525,20 +2539,24 @@ function vgOpenPieza(id){
   ov.onclick=function(ev){ if(ev.target===ov) vgCloseModal(); };
   var coms=(p.comentarios?(Array.isArray(p.comentarios)?p.comentarios:Object.keys(p.comentarios).map(function(k){return p.comentarios[k];})):[]).filter(function(c){return c&&!c.sistema;});
   var comHtml=coms.length?coms.map(function(c){ var esCli=c.cliente; return '<div style="background:'+(esCli?"rgba(249,0,0,.06)":"var(--bg3)")+';border-radius:10px;padding:9px 11px;margin-bottom:7px"><div style="font-size:11px;font-weight:700;color:'+(esCli?"var(--red)":"var(--t2)")+';margin-bottom:2px">'+vgEsc(c.autor||"—")+(esCli?" (tú)":"")+'</div><div style="font-size:13px;color:var(--tx)">'+vgEsc(c.texto||"")+'</div></div>'; }).join(""):'<div style="font-size:12px;color:var(--t3);margin-bottom:8px">Aún no hay comentarios. Sé el primero en dar feedback.</div>';
-  var met=[]; if(p.mViews)met.push("👁 "+vgEsc(p.mViews)); if(p.mLikes)met.push("❤️ "+vgEsc(p.mLikes)); if(p.mSaved)met.push("🔖 "+vgEsc(p.mSaved)); if(p.mShared)met.push("↗ "+vgEsc(p.mShared));
+  var met=[]; if(p.mViews)met.push("👁 "+vgEsc(p.mViews)); if(p.mLikes)met.push("❤️ "+vgEsc(p.mLikes)); if(p.mComments)met.push("💬 "+vgEsc(p.mComments)); if(p.mSaved)met.push("🔖 "+vgEsc(p.mSaved)); if(p.mShared)met.push("🔁 "+vgEsc(p.mShared));
+  var platHtml = p.plataforma?'<div style="margin-bottom:12px"><span style="font-size:11px;font-weight:700;background:rgba(108,0,255,.1);color:var(--pur);border-radius:99px;padding:3px 10px">📱 '+vgEsc(p.plataforma)+'</span></div>':'';
   var guion = p.guion||p.caracteristicas||"";
   ov.innerHTML='<div style="background:var(--card);border-radius:18px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)" onclick="event.stopPropagation()">'
     +'<div style="padding:20px 22px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div><div style="font-size:11px;color:var(--t3)">'+vgEsc(p.tipo||"")+(p.fecha?" · "+vgEsc(p.fecha):"")+'</div><div style="font-size:19px;font-weight:800;margin-top:2px">'+vgEsc(p.idea||"Publicación")+'</div></div><span style="font-size:10px;font-weight:700;color:#fff;background:'+e.c+';border-radius:999px;padding:3px 10px;white-space:nowrap">'+e.l+'</span></div>'
     +'<div style="padding:18px 22px">'
     +(guion?'<div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Guion / Texto</div><div style="font-size:14px;line-height:1.55;white-space:pre-wrap;background:var(--bg3);border-radius:12px;padding:12px 14px;margin-bottom:16px">'+vgEsc(guion)+'</div>':'<div style="font-size:12px;color:var(--t3);margin-bottom:16px">El guion/texto aún no está cargado.</div>')
-    +(met.length?'<div style="font-size:13px;color:var(--t2);margin-bottom:16px">'+met.join(" &nbsp; ")+'</div>':'')
+    +vgMetrics(p)
+    +platHtml
     +vgFechas(p)
     +vgLinks(p)
-    +vgAprobacion(p)
-    +'<div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Comentarios y cambios</div>'
-    +'<div id="vgComs">'+comHtml+'</div>'
-    +'<textarea id="vgComTxt" placeholder="Escribe un cambio o comentario sobre el guion/texto…" style="width:100%;font-family:var(--fn);font-size:14px;padding:11px 13px;border:1.5px solid var(--bd2);border-radius:12px;background:var(--bg2);color:var(--tx);outline:none;min-height:70px;resize:vertical"></textarea>'
-    +'<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px"><button class="btn btn-ghost" onclick="vgCloseModal()">Cerrar</button><button class="btn btn-red" id="vgComSend" onclick="vgSendComment(\''+p.id+'\')">Enviar comentario</button></div>'
+    +(p._historico
+      ? '<div style="font-size:12px;color:var(--t3);border-top:1px solid var(--bd);padding-top:12px">Publicación de tu histórico (ya publicada).</div><div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn btn-ghost" onclick="vgCloseModal()">Cerrar</button></div>'
+      : vgAprobacion(p)
+        +'<div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Comentarios y cambios</div>'
+        +'<div id="vgComs">'+comHtml+'</div>'
+        +'<textarea id="vgComTxt" placeholder="Escribe un cambio o comentario sobre el guion/texto…" style="width:100%;font-family:var(--fn);font-size:14px;padding:11px 13px;border:1.5px solid var(--bd2);border-radius:12px;background:var(--bg2);color:var(--tx);outline:none;min-height:70px;resize:vertical"></textarea>'
+        +'<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px"><button class="btn btn-ghost" onclick="vgCloseModal()">Cerrar</button><button class="btn btn-red" id="vgComSend" onclick="vgSendComment(\''+p.id+'\')">Enviar comentario</button></div>')
     +'</div></div>';
 }
 function vgCloseModal(){ var ov=gi("vgModal"); if(ov) ov.remove(); }

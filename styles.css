@@ -954,3 +954,12 @@ textarea.fe-in { min-height:70px; resize:vertical; }
 .plat-row__user { flex: 1; min-width: 160px; font-family: var(--font); font-size: .88rem; padding: .5rem .7rem; border: 1.5px solid var(--bd2, rgba(0,0,0,.14)); border-radius: 10px; background: var(--card); color: var(--ink); }
 .plat-row__user:focus { outline: none; border-color: var(--red); }
 @media(max-width:600px){ .plat-row__name { width: 100%; } }
+
+/* Métricas por plataforma en la ficha de pieza */
+.pz-metplats { display: flex; flex-direction: column; gap: .5rem; }
+.pz-metplat { border: 1px solid var(--line); border-radius: 10px; padding: .55rem .7rem; }
+.pz-metplat__h { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-60); margin-bottom: .4rem; }
+.pz-metgrid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: .4rem; }
+.pz-metgrid .select span { font-size: .66rem; }
+.pz-metgrid input { width: 100%; min-width: 0; padding: .4rem .5rem; }
+@media(max-width:600px){ .pz-metgrid { grid-template-columns: repeat(2, 1fr); } }

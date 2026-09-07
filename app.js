@@ -343,6 +343,15 @@ function openPieza(id) {
   const et = [['idea', 'Idea'], ['aprobada', 'Aprobada'], ['grabada', 'Grabada'], ['editada', 'Editada'], ['publicada', 'Publicada']];
   const p = id ? state.piezas[id] : { id: '', marca: '', idea: '', tipo: 'Reel', guion: '', caracteristicas: '', etapa: 'idea', responsable: '', comentarios: [] };
   const people = ((state.teamPeople && state.teamPeople.length ? state.teamPeople : state.equipoPeople) || []).map(x => x.name);
+  const PLATS = [['ig', 'Instagram'], ['tiktok', 'TikTok'], ['linkedin', 'LinkedIn']];
+  const MET_KEYS = [['views', 'Vistas'], ['likes', 'Likes'], ['comments', 'Coment.'], ['saved', 'Guard.'], ['shared', 'Comp.']];
+  const metVal = (plat, k) => {
+    const m = (p.met && p.met[plat]) || {};
+    if (m[k] != null && m[k] !== '') return m[k];
+    if (plat === 'ig') { const legacy = { views: p.mViews, likes: p.mLikes, saved: p.mSaved, shared: p.mShared }; return legacy[k] || ''; }
+    return '';
+  };
+  const metricsHTML = PLATS.map(([pk, pl]) => `<div class="pz-metplat"><div class="pz-metplat__h">${pl}</div><div class="pz-metgrid">${MET_KEYS.map(([k, l]) => `<label class="select"><span>${l}</span><input class="pzm" data-plat="${pk}" data-k="${k}" type="number" min="0" value="${esc(metVal(pk, k))}"></label>`).join('')}</div></div>`).join('');
   const html = `<div class="g-modal" id="pzModal"><div class="g-modal__box glass pz-box">
       <div class="pz-head">
         <input id="pzMarca" class="pz-marca" placeholder="Marca" value="${esc(p.marca)}">
@@ -364,12 +373,7 @@ function openPieza(id) {
           <label class="select"><span>TikTok</span><input id="pzLinkTiktok" placeholder="Link de TikTok" value="${esc(p.linkTiktok || '')}"></label>
           <label class="select"><span>LinkedIn</span><input id="pzLinkLinkedin" placeholder="Link de LinkedIn" value="${esc(p.linkLinkedin || '')}"></label>
         </div>
-        <div class="pz-metrics">
-          <label class="select"><span>Vistas</span><input id="pzViews" type="number" min="0" value="${esc(p.mViews || '')}"></label>
-          <label class="select"><span>Likes</span><input id="pzLikes" type="number" min="0" value="${esc(p.mLikes || '')}"></label>
-          <label class="select"><span>Guardados</span><input id="pzSaved" type="number" min="0" value="${esc(p.mSaved || '')}"></label>
-          <label class="select"><span>Compartidos</span><input id="pzShared" type="number" min="0" value="${esc(p.mShared || '')}"></label>
-        </div>
+        <div class="pz-metplats">${metricsHTML}</div>
       </div>
       ${id ? `<div class="pz-field"><span>Comentarios</span>
         <div class="pz-comments">${(p.comentarios || []).map(c => `<div class="pz-comment ${c.sistema ? 'pz-comment--sys' : ''}"><b>${esc(c.autor)}</b> ${esc(c.texto)}</div>`).join('') || '<div class="gw-none">Sin comentarios</div>'}</div>
@@ -387,8 +391,10 @@ function openPieza(id) {
   $('#pzSave').addEventListener('click', async () => {
     const body = { id, marca: $('#pzMarca').value, idea: $('#pzIdea').value, tipo: $('#pzTipo').value, responsable: $('#pzResp').value, guion: $('#pzGuion').value, caracteristicas: $('#pzCar').value,
       fecha: $('#pzFecha').value || null, fechaEntrega: $('#pzFechaEntrega').value || null,
-      linkIg: $('#pzLinkIg').value, linkTiktok: $('#pzLinkTiktok').value, linkLinkedin: $('#pzLinkLinkedin').value,
-      mViews: $('#pzViews').value, mLikes: $('#pzLikes').value, mSaved: $('#pzSaved').value, mShared: $('#pzShared').value };
+      linkIg: $('#pzLinkIg').value, linkTiktok: $('#pzLinkTiktok').value, linkLinkedin: $('#pzLinkLinkedin').value };
+    const met = {}; $$('.pzm').forEach(inp => { if (inp.value !== '') { const pl = inp.dataset.plat, k = inp.dataset.k; (met[pl] || (met[pl] = {}))[k] = +inp.value || 0; } });
+    body.met = met;
+    body.mViews = (met.ig && met.ig.views) || ''; body.mLikes = (met.ig && met.ig.likes) || ''; body.mSaved = (met.ig && met.ig.saved) || ''; body.mShared = (met.ig && met.ig.shared) || '';
     if (!id) { const r = await api('/api/piezas/crear', { method: 'POST', body }); if (r.data.ok && $('#pzEtapa').value !== 'idea') await api('/api/piezas/etapa', { method: 'POST', body: { id: r.data.pieza.id, etapa: $('#pzEtapa').value } }); }
     else { await api('/api/piezas/update', { method: 'POST', body }); if ($('#pzEtapa').value !== p.etapa) await api('/api/piezas/etapa', { method: 'POST', body: { id, etapa: $('#pzEtapa').value } }); }
     close(); refreshPiezaView();

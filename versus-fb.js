@@ -138,6 +138,7 @@
       fecha: p.fecha || null, fechaEntrega: p.fechaEntrega || null,
       aprobadoCliente: p.aprobadoCliente || null,
       link: p.link || '', linkIg: p.linkIg || '', linkTiktok: p.linkTiktok || '', linkLinkedin: p.linkLinkedin || '',
+      met: p.met || {},
       mViews: p.mViews || '', mLikes: p.mLikes || '', mSaved: p.mSaved || '', mShared: p.mShared || '',
       comentarios: p.comentarios ? (Array.isArray(p.comentarios) ? p.comentarios : Object.values(p.comentarios)) : []
     };
@@ -328,7 +329,7 @@
         return { ok: true, data: { ok: true, pieza } };
       }
       if (p === '/api/piezas/update' && method === 'POST') {
-        const patch = {}; ['idea', 'guion', 'caracteristicas', 'responsable', 'tipo', 'fecha', 'fechaEntrega', 'aprobadoCliente', 'link', 'linkIg', 'linkTiktok', 'linkLinkedin', 'mViews', 'mLikes', 'mSaved', 'mShared'].forEach(k => { if (body[k] != null) patch[k] = body[k]; });
+        const patch = {}; ['idea', 'guion', 'caracteristicas', 'responsable', 'tipo', 'fecha', 'fechaEntrega', 'aprobadoCliente', 'link', 'linkIg', 'linkTiktok', 'linkLinkedin', 'met', 'mViews', 'mLikes', 'mSaved', 'mShared'].forEach(k => { if (body[k] != null) patch[k] = body[k]; });
         await fbPatch('gestor/piezas/' + body.id, patch);
         return { ok: true, data: { ok: true } };
       }
