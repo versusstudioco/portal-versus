@@ -339,6 +339,11 @@
         return { ok: true, data: { marcas } };
       }
       if (p === '/api/marca/logos') return { ok: true, data: { logos: await logos() } };
+      if (p === '/api/onboarding') {
+        const obj = (await fbGet('onboarding').catch(() => null)) || {};
+        const altas = Object.entries(obj).map(([id, v]) => ({ id, ...v })).sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
+        return { ok: true, data: { altas } };
+      }
       if (p === '/api/marca/contexto') {
         const marca = q.get('marca') || body.marca || '';
         const CAMPOS = ['industria', 'pais', 'tipoClientes', 'comunicacion', 'servicios', 'tono', 'publico', 'notas'];

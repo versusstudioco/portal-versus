@@ -16,6 +16,13 @@
       "gestor": {
         ".read": "auth != null",
         ".write": "auth != null"
+      },
+      "onboarding": {
+        ".read": "auth != null",
+        "$id": {
+          ".write": "!data.exists() && newData.exists()",
+          ".validate": "newData.hasChildren()"
+        }
       }
     }
   }
