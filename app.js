@@ -58,7 +58,7 @@ async function enterApp(me) {
   state.me = me;
   $('#userName').textContent = (me.name || 'Versus') + (me.area ? ' · ' + me.area : '');
   $('.avatar').textContent = (me.name || 'V').trim().charAt(0).toUpperCase();
-  if (me.role === 'admin') $('#navEquipo').classList.remove('hidden');
+  if (me.role === 'admin') { $('#navEquipo').classList.remove('hidden'); $('#navAltas')?.classList.remove('hidden'); }
   const badge = $('#aiBadge');
   if (me.aiEnabled) { badge.textContent = '● IA activa' + (me.provider === 'gemini' ? ' · Gemini' : me.provider === 'claude' ? ' · Claude' : ''); badge.className = 'ai-badge on'; }
   else { badge.textContent = '● Modo demo'; badge.className = 'ai-badge demo'; }
@@ -121,6 +121,7 @@ const VIEW_META = {
   archivos: ['Marcas', 'Cada marca es su universo: calendario, métricas, estrategia y archivos'],
   mistareas: ['✅ Mis tareas', 'Tu día: tareas asignadas, por cliente y por estado'],
   equipo: ['👥 Equipo', 'Administra personas, asigna tareas y revisa la ejecución'],
+  altas: ['📥 Altas de marca', 'Marcas nuevas que llenaron el formulario de onboarding'],
   radar: ['🎯 Estrategia · Radar', 'Análisis de tendencias en vivo por país y categoría'],
   ideas: ['🎯 Estrategia · Ideas y guiones', 'Ideas y estructura de creativos según lo que está en tendencia'],
   tendencias: ['🎯 Estrategia · Biblioteca', 'Estructuras ganadoras de referencia'],
@@ -147,6 +148,7 @@ $$('.nav__item').forEach(btn => {
     if (view === 'archivos') loadArchivos();
     if (view === 'mistareas') loadMisTareas();
     if (view === 'equipo') loadEquipo();
+    if (view === 'altas') loadAltas();
     if (view === 'produccion') loadProduccion();
     if (view === 'edicion') loadEdicion();
     if (view === 'community') loadCommunity();
@@ -514,6 +516,34 @@ function bindTaskActions(reload) {
 }
 
 /* ---------------- Equipo (admin) ---------------- */
+async function loadAltas() {
+  const out = $('#altasOut');
+  out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando altas…</div>';
+  const r = await api('/api/onboarding');
+  if (!r.ok) { out.innerHTML = `<div class="empty">${esc(r.data.error || 'Sin acceso')}</div>`; return; }
+  const altas = r.data.altas || [];
+  if (!altas.length) { out.innerHTML = `<div class="empty">Aún no hay marcas nuevas.<br><small>Comparte el formulario: <b>portal.versusstudio.co/alta-marca.html</b></small></div>`; return; }
+  const fila = (lbl, val) => val ? `<div class="alta-row"><span class="alta-lbl">${lbl}</span><span class="alta-val">${esc(val)}</span></div>` : '';
+  const manual = a => {
+    if (a.manual !== 'si') return `<div class="alta-row"><span class="alta-lbl">Manual de marca</span><span class="alta-val">No aún</span></div>`;
+    let v = 'Sí';
+    if (a.manualLink) v += ` · <a href="${esc(a.manualLink)}" target="_blank" rel="noopener">ver link</a>`;
+    if (a.manualData) v += ` · <a href="${a.manualData}" download="${esc(a.manualNombre || 'manual')}">descargar ${esc(a.manualNombre || 'archivo')}</a>`;
+    return `<div class="alta-row"><span class="alta-lbl">Manual de marca</span><span class="alta-val">${v}</span></div>`;
+  };
+  out.innerHTML = `<div class="alta-hint">Comparte el formulario con marcas nuevas: <b>portal.versusstudio.co/alta-marca.html</b></div>` +
+    altas.map(a => `<div class="glass alta-card">
+      <div class="alta-head"><h3>${esc(a.marca || 'Sin nombre')}</h3><span class="alta-when">${a.at ? new Date(a.at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}</span></div>
+      ${fila('Qué hacen', a.hacen)}
+      ${fila('Clientes', a.clientes)}
+      ${fila('En 3 palabras', a.tresPalabras)}
+      ${fila('Marcas que le inspiran', a.inspiran)}
+      ${fila('Redes sociales', a.redes)}
+      ${fila('Qué espera de Versus', a.esperan)}
+      ${manual(a)}
+    </div>`).join('');
+}
+
 async function loadEquipo() {
   const out = $('#equipoOut');
   out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando equipo…</div>';

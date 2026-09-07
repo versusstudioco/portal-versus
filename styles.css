@@ -761,3 +761,15 @@ a.tag--platform { text-decoration: none; }
   .g-stat b { font-size: 1.3rem; }
   .btn { padding: .7rem 1rem; }
 }
+
+/* ---------- Altas de marca (onboarding) ---------- */
+.alta-hint { font-size:.85rem; color:var(--t2); margin-bottom:14px; }
+.alta-card { padding:18px 20px; margin-bottom:14px; }
+.alta-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.alta-head h3 { font-size:1.15rem; font-weight:800; letter-spacing:-.01em; margin:0; }
+.alta-when { font-size:.75rem; color:var(--t3); white-space:nowrap; }
+.alta-row { display:grid; grid-template-columns:180px minmax(0,1fr); gap:14px; padding:9px 0; border-top:1px solid rgba(0,0,0,.06); }
+.alta-lbl { font-size:.78rem; font-weight:700; color:var(--t3); text-transform:uppercase; letter-spacing:.04em; }
+.alta-val { font-size:.92rem; color:var(--tx); line-height:1.5; word-break:break-word; white-space:pre-wrap; }
+.alta-val a { color:var(--red); font-weight:600; }
+@media(max-width:600px){ .alta-row { grid-template-columns:1fr; gap:2px; } }
