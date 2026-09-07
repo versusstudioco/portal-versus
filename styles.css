@@ -826,3 +826,33 @@ textarea.fe-in { min-height:70px; resize:vertical; }
 .marca-del { position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:8px; border:1px solid var(--bd2,rgba(0,0,0,.14)); background:rgba(255,255,255,.9); color:var(--t2); font-size:12px; font-weight:700; cursor:pointer; opacity:0; transition:.15s; z-index:2; }
 .marca-cell:hover .marca-del { opacity:1; }
 .marca-del:hover { background:rgba(249,0,0,.1); color:var(--red); border-color:rgba(249,0,0,.3); }
+
+/* ============================================================
+   LAYOUT estilo Portal de Clientes — sidebar pegado + contenido con padding
+   ============================================================ */
+.app { grid-template-columns: 244px 1fr; gap: 0; padding: 0; }
+.sidebar { background: var(--card); border: none; border-right: 1px solid var(--line); border-radius: 0; box-shadow: none; padding: 1.3rem 0; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.sb-head { display: flex; align-items: center; gap: 8px; padding: 0 1.2rem 1.05rem; margin-bottom: .55rem; border-bottom: 1px solid var(--line); }
+.sidebar__logo { width: 104px; margin: 0; }
+.sb-badge { display: inline-block; padding: 2px 7px; background: var(--red); color: #fff; font-size: 8px; font-weight: 700; letter-spacing: 1.5px; border-radius: 4px; text-transform: uppercase; }
+.nav { padding: 0 .6rem; gap: .15rem; }
+.nav__item { margin: 1px 0; padding: .7rem .8rem; font-size: .92rem; }
+.nav__section { padding: .85rem .8rem .3rem; }
+.sidebar__foot { padding: 1rem 1rem 0; margin-top: auto; border-top: 1px solid var(--line); }
+.content { padding: 1.5rem 1.9rem 2rem; gap: 1rem; overflow: hidden; }
+.topbar { background: transparent; border: none; box-shadow: none; border-radius: 0; padding: 0 0 .2rem; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.topbar h1 { font-size: 1.4rem; font-weight: 800; }
+
+/* Tablet: sidebar más angosta pero igual pegada */
+@media (max-width: 1080px) and (min-width: 861px) {
+  .app { grid-template-columns: 212px 1fr; gap: 0; padding: 0; }
+  .sidebar { padding: 1.2rem 0; }
+  .content { padding: 1.3rem 1.3rem 2rem; }
+}
+
+/* Móvil: el cajón y la topbar necesitan fondo sólido */
+@media (max-width: 860px) {
+  .content { padding: 0; }
+  .topbar { background: var(--card); padding: .7rem .9rem; }
+  .sb-head { padding: 0 1.2rem 1rem; }
+}
