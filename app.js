@@ -1544,9 +1544,19 @@ async function loadInicio() {
   const frase = fraseDelDia();
   $('#viewSub').textContent = new Date().toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' });
 
-  let html = `<div class="hello">
-      <h2>${saludo}, ${esc((me.name || '').split(' ')[0] || 'Versus')} 👋</h2>
-      <p class="hello__frase">${esc(frase)}</p>
+  const primer = esc((me.name || '').split(' ')[0] || 'Versus');
+  const fechaLarga = new Date().toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' });
+  let html = `<div class="hero-hello">
+      <div class="hero-hello__main">
+        <div class="hero-hello__eyebrow">${esc(fechaLarga)}</div>
+        <h2 class="hero-hello__title">${saludo}, ${primer} 👋</h2>
+        <p class="hero-hello__frase">${esc(frase)}</p>
+      </div>
+      <div class="hero-hello__stats">
+        <div class="hh-stat"><b>${hoy.length}</b><span>hoy</span></div>
+        <div class="hh-stat"><b>${proximas.length}</b><span>esta semana</span></div>
+        ${me.area ? `<div class="hh-stat hh-stat--wide"><b>${esc(me.area)}</b><span>tu área</span></div>` : ''}
+      </div>
     </div>`;
 
   // Dos cuadros: Tareas de hoy · Próximas de la semana
@@ -1554,19 +1564,19 @@ async function loadInicio() {
   html += `<section class="mid-box">
       <div class="mid-box__head"><h3>📌 Tareas de hoy</h3><span class="g-card__meta">${hoy.length} pendiente${hoy.length === 1 ? '' : 's'}</span></div>
       ${hoy.length ? '<div class="stack">' + hoy.map(t => taskCard(t, true)).join('') + '</div>'
-        : '<div class="empty">Nada urgente para hoy. 🎉</div>'}
+        : '<div class="mid-empty"><div class="mid-empty__ico">✅</div><p>Nada urgente para hoy.</p></div>'}
     </section>`;
   html += `<section class="mid-box">
       <div class="mid-box__head"><h3>🗓️ Próximas esta semana</h3><span class="g-card__meta">${proximas.length}</span></div>
       ${proximas.length ? '<div class="stack">' + proximas.map(t => taskCard(t, true)).join('') + '</div>'
-        : '<div class="empty">Sin tareas programadas para el resto de la semana.</div>'}
+        : '<div class="mid-empty"><div class="mid-empty__ico">🗓️</div><p>Sin tareas para el resto de la semana.</p></div>'}
     </section>`;
   html += '</div>';
 
-  // Accesos rápidos: el trabajo entra por Marcas y Gestión.
-  const tools = [['archivos', 'Ir a Marcas'], ['gestion', 'Ver Gestión']];
+  // Accesos rápidos con ícono
+  const tools = [['archivos', 'Marcas', '🗂️'], ['gestion', 'Gestión', '📊'], ['calendario', 'Calendario', '🗓️'], ['altas', 'Formularios', '📋']];
   html += `<h3 class="live-h3">Ir al trabajo</h3>
-    <div class="quick">${tools.map(([v, l]) => `<button class="quick__btn" data-goto="${v}">${esc(l)}</button>`).join('')}</div>`;
+    <div class="quick-grid">${tools.map(([v, l, i]) => `<button class="quick-card" data-goto="${v}"><span class="quick-card__i">${i}</span><span class="quick-card__l">${esc(l)}</span></button>`).join('')}</div>`;
   out.innerHTML = html;
   bindTaskActions(loadInicio);
   $$('.quick__btn').forEach(b => b.addEventListener('click', () => {
