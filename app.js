@@ -58,7 +58,7 @@ async function enterApp(me) {
   state.me = me;
   $('#userName').textContent = (me.name || 'Versus') + (me.area ? ' · ' + me.area : '');
   $('.avatar').textContent = (me.name || 'V').trim().charAt(0).toUpperCase();
-  if (me.role === 'admin') { $('#navEquipo').classList.remove('hidden'); $('#navAltas')?.classList.remove('hidden'); }
+  if (me.role === 'admin') { $('#navEquipo').classList.remove('hidden'); }
   const badge = $('#aiBadge');
   if (me.aiEnabled) { badge.textContent = '● IA activa' + (me.provider === 'gemini' ? ' · Gemini' : me.provider === 'claude' ? ' · Claude' : ''); badge.className = 'ai-badge on'; }
   else { badge.textContent = '● Modo demo'; badge.className = 'ai-badge demo'; }
@@ -121,7 +121,7 @@ const VIEW_META = {
   archivos: ['Marcas', 'Cada marca es su universo: calendario, métricas, estrategia y archivos'],
   mistareas: ['✅ Mis tareas', 'Tu día: tareas asignadas, por cliente y por estado'],
   equipo: ['👥 Equipo', 'Administra personas, asigna tareas y revisa la ejecución'],
-  altas: ['📥 Altas de marca', 'Marcas nuevas que llenaron el formulario de onboarding'],
+  altas: ['📋 Formularios', 'Crea el typeform, comparte el link y revisa las respuestas de marcas nuevas'],
   radar: ['🎯 Estrategia · Radar', 'Análisis de tendencias en vivo por país y categoría'],
   ideas: ['🎯 Estrategia · Ideas y guiones', 'Ideas y estructura de creativos según lo que está en tendencia'],
   tendencias: ['🎯 Estrategia · Biblioteca', 'Estructuras ganadoras de referencia'],
@@ -516,32 +516,165 @@ function bindTaskActions(reload) {
 }
 
 /* ---------------- Equipo (admin) ---------------- */
+/* ---------------- Formularios (typeforms) ---------------- */
+const DEFAULT_ONB = {
+  id: 'onboarding', name: 'Alta de marca', title: 'Cuéntanos de tu marca', subtitle: '', banner: '', accent: '#F90000',
+  questions: [
+    { id: 'marca', label: '¿Cuál es tu marca?', hint: 'El nombre con el que te conocen.', type: 'text', required: true, name: true },
+    { id: 'hacen', label: '¿Qué hacen?', hint: 'En pocas líneas, a qué se dedica tu marca.', type: 'area', required: true },
+    { id: 'clientes', label: '¿Cuáles son tus clientes?', hint: 'A quién le vendes o le hablas.', type: 'area' },
+    { id: 'tresPalabras', label: 'Describe en 3 palabras tu marca.', hint: 'Las 3 que mejor la definen.', type: 'text' },
+    { id: 'inspiran', label: '¿Qué marcas te inspiran y por qué?', hint: 'Referentes que admiras.', type: 'area' },
+    { id: 'redes', label: 'Copia tus redes sociales.', hint: 'Instagram, TikTok, web… pega los links.', type: 'area' },
+    { id: 'esperan', label: '¿Qué esperas de Versus como tu equipo?', hint: 'Qué te gustaría lograr con nosotros.', type: 'area' },
+    { id: 'manual', label: '¿Tienes manual de marca?', hint: 'Si sí, pega el link o súbelo.', type: 'manual' }
+  ]
+};
+const TIPOS = { text: 'Texto corto', area: 'Texto largo', choice: 'Opciones', manual: 'Sí/No + adjunto' };
+function isAdmin() { return state.me && state.me.role === 'admin'; }
+function formBase() { return location.origin + '/alta-marca.html'; }
+
 async function loadAltas() {
   const out = $('#altasOut');
-  out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando altas…</div>';
-  const r = await api('/api/onboarding');
-  if (!r.ok) { out.innerHTML = `<div class="empty">${esc(r.data.error || 'Sin acceso')}</div>`; return; }
-  const altas = r.data.altas || [];
-  if (!altas.length) { out.innerHTML = `<div class="empty">Aún no hay marcas nuevas.<br><small>Comparte el formulario: <b>portal.versusstudio.co/alta-marca.html</b></small></div>`; return; }
-  const fila = (lbl, val) => val ? `<div class="alta-row"><span class="alta-lbl">${lbl}</span><span class="alta-val">${esc(val)}</span></div>` : '';
-  const manual = a => {
-    if (a.manual !== 'si') return `<div class="alta-row"><span class="alta-lbl">Manual de marca</span><span class="alta-val">No aún</span></div>`;
-    let v = 'Sí';
-    if (a.manualLink) v += ` · <a href="${esc(a.manualLink)}" target="_blank" rel="noopener">ver link</a>`;
-    if (a.manualData) v += ` · <a href="${a.manualData}" download="${esc(a.manualNombre || 'manual')}">descargar ${esc(a.manualNombre || 'archivo')}</a>`;
-    return `<div class="alta-row"><span class="alta-lbl">Manual de marca</span><span class="alta-val">${v}</span></div>`;
+  out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando…</div>';
+  const [fr, ar] = await Promise.all([api('/api/formConfig'), api('/api/onboarding')]);
+  state.forms = (fr.ok && fr.data.forms) ? fr.data.forms.slice() : [];
+  if (!state.forms.some(f => f.id === 'onboarding')) state.forms.unshift(Object.assign({ _virtual: true }, DEFAULT_ONB));
+  state.altas = (ar.ok && ar.data.altas) ? ar.data.altas : [];
+  state.formTab = state.formTab || 'respuestas';
+  state.formEdit = null;
+  renderFormsView();
+}
+function renderFormsView() {
+  const out = $('#altasOut');
+  out.innerHTML = `<div class="seg formseg">
+    <button class="seg__btn ${state.formTab === 'respuestas' ? 'active' : ''}" data-ftab="respuestas">Respuestas</button>
+    <button class="seg__btn ${state.formTab === 'formularios' ? 'active' : ''}" data-ftab="formularios">Formularios</button>
+  </div><div id="formBody"></div>`;
+  $$('.formseg .seg__btn').forEach(b => b.onclick = () => { state.formTab = b.dataset.ftab; state.formEdit = null; renderFormsView(); });
+  if (state.formTab === 'respuestas') renderRespuestas();
+  else if (state.formEdit) renderFormEditor();
+  else renderFormsList();
+}
+function renderRespuestas() {
+  const body = $('#formBody');
+  const altas = state.altas || [];
+  if (!altas.length) { body.innerHTML = `<div class="empty">Aún no hay respuestas.<br><small>Comparte un formulario desde la pestaña <b>Formularios</b>.</small></div>`; return; }
+  body.innerHTML = altas.map(a => {
+    const items = (a.items || []).filter(it => it.value).map(it => `<div class="alta-row"><span class="alta-lbl">${esc(it.label)}</span><span class="alta-val">${esc(it.value)}</span></div>`).join('');
+    let manual = '';
+    if (a.manual) {
+      let v = a.manual.tiene === 'si' ? 'Sí' : 'No aún';
+      if (a.manual.link) v += ` · <a href="${esc(a.manual.link)}" target="_blank" rel="noopener">ver link</a>`;
+      if (a.manual.data) v += ` · <a href="${a.manual.data}" download="${esc(a.manual.nombre || 'manual')}">descargar ${esc(a.manual.nombre || 'archivo')}</a>`;
+      manual = `<div class="alta-row"><span class="alta-lbl">Manual de marca</span><span class="alta-val">${v}</span></div>`;
+    }
+    return `<div class="glass alta-card">
+      <div class="alta-head"><h3>${esc(a.marca || 'Sin nombre')}</h3>
+        <div class="alta-meta">${a.formName ? `<span class="alta-tag">${esc(a.formName)}</span>` : ''}<span class="alta-when">${a.at ? new Date(a.at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}</span><button class="alta-del" data-del="${esc(a.id)}" title="Eliminar">✕</button></div>
+      </div>${items}${manual}
+    </div>`;
+  }).join('');
+  body.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+    if (!confirm('¿Eliminar esta respuesta? No se puede deshacer.')) return;
+    b.disabled = true;
+    const r = await api('/api/onboarding/remove', { method: 'POST', body: JSON.stringify({ id: b.dataset.del }) });
+    if (r.ok) { state.altas = state.altas.filter(x => x.id !== b.dataset.del); renderRespuestas(); }
+    else { alert(r.data.error || 'No se pudo eliminar'); b.disabled = false; }
+  });
+}
+function renderFormsList() {
+  const body = $('#formBody');
+  const forms = state.forms || [];
+  let html = `<div class="alta-hint">${isAdmin() ? 'Crea o edita el typeform, comparte el link y las respuestas llegan a la pestaña «Respuestas».' : 'Estos son los formularios activos. Solo el admin los edita.'}</div>`;
+  if (isAdmin()) html += `<button class="btn btn--primary" id="newForm" style="margin-bottom:14px">+ Nuevo formulario</button>`;
+  html += forms.map(f => {
+    const url = formBase() + '?f=' + encodeURIComponent(f.id);
+    return `<div class="glass alta-card">
+      <div class="alta-head"><h3>${esc(f.name || f.id)}${f._virtual ? ' <span class="alta-tag">predeterminado</span>' : ''}</h3><span class="alta-when">${(f.questions || []).length} preguntas</span></div>
+      <div class="alta-row"><span class="alta-lbl">Link para compartir</span><span class="alta-val"><a href="${esc(url)}" target="_blank" rel="noopener">${esc(url)}</a> · <button class="mini" data-copy="${esc(url)}">copiar</button></span></div>
+      <div class="form-actions">
+        <button class="btn btn--ghost btn--sm" data-preview="${esc(f.id)}">Ver preguntas</button>
+        ${isAdmin() ? `<button class="btn btn--ghost btn--sm" data-edit="${esc(f.id)}">Editar</button>${f._virtual ? '' : `<button class="btn btn--ghost btn--sm" data-delform="${esc(f.id)}">Eliminar</button>`}` : ''}
+      </div>
+      <div class="form-preview hidden" id="prev-${esc(f.id)}"></div>
+    </div>`;
+  }).join('');
+  body.innerHTML = html;
+  const nf = document.getElementById('newForm'); if (nf) nf.onclick = () => { state.formEdit = { id: '', name: '', title: '', subtitle: '', banner: '', accent: '#F90000', questions: [{ id: 'q1', label: '', hint: '', type: 'text', required: true, name: true }] }; renderFormsView(); };
+  body.querySelectorAll('[data-copy]').forEach(b => b.onclick = () => { navigator.clipboard?.writeText(b.dataset.copy); b.textContent = '¡copiado!'; setTimeout(() => b.textContent = 'copiar', 1400); });
+  body.querySelectorAll('[data-preview]').forEach(b => b.onclick = () => {
+    const f = forms.find(x => x.id === b.dataset.preview); const el = document.getElementById('prev-' + b.dataset.preview);
+    if (!el.classList.contains('hidden')) { el.classList.add('hidden'); return; }
+    el.innerHTML = (f.questions || []).map((q, n) => `<div class="pv-q"><span class="pv-n">${n + 1}</span><div><b>${esc(q.label || '(sin texto)')}</b>${q.hint ? `<div class="pv-h">${esc(q.hint)}</div>` : ''}<span class="pv-t">${TIPOS[q.type] || q.type}${q.required ? ' · obligatoria' : ''}</span></div></div>`).join('');
+    el.classList.remove('hidden');
+  });
+  body.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => { const f = forms.find(x => x.id === b.dataset.edit); state.formEdit = JSON.parse(JSON.stringify(f)); delete state.formEdit._virtual; renderFormsView(); });
+  body.querySelectorAll('[data-delform]').forEach(b => b.onclick = async () => {
+    if (!confirm('¿Eliminar este formulario? Las respuestas ya recibidas se conservan.')) return;
+    const r = await api('/api/formConfig/remove', { method: 'POST', body: JSON.stringify({ id: b.dataset.delform }) });
+    if (r.ok) loadAltas(); else alert(r.data.error || 'No se pudo');
+  });
+}
+function syncEditorFromDOM() {
+  const fe = state.formEdit; if (!fe) return;
+  fe.name = $('#feName')?.value || ''; fe.title = $('#feTitle')?.value || ''; fe.subtitle = $('#feSub')?.value || '';
+  fe.accent = $('#feAccent')?.value || '#F90000'; const bl = $('#feBannerUrl'); if (bl && bl.value.trim()) fe.banner = bl.value.trim();
+  $$('.fe-q').forEach((el, n) => {
+    const q = fe.questions[n]; if (!q) return;
+    q.label = el.querySelector('.feq-label').value; q.hint = el.querySelector('.feq-hint').value;
+    q.type = el.querySelector('.feq-type').value; q.required = el.querySelector('.feq-req').checked;
+    const opt = el.querySelector('.feq-opts'); if (opt) q.options = opt.value.split('\n').map(s => s.trim()).filter(Boolean);
+  });
+}
+function renderFormEditor() {
+  const body = $('#formBody'); const fe = state.formEdit;
+  const q = fe.questions.map((qq, n) => `<div class="fe-q" data-n="${n}">
+    <div class="fe-q-top"><span class="fe-q-n">Pregunta ${n + 1}</span>
+      <div class="fe-q-move"><button class="mini" data-up="${n}" ${n === 0 ? 'disabled' : ''}>↑</button><button class="mini" data-down="${n}" ${n === fe.questions.length - 1 ? 'disabled' : ''}>↓</button><button class="mini mini--del" data-rmq="${n}">✕</button></div>
+    </div>
+    <input class="fe-in feq-label" placeholder="Texto de la pregunta" value="${esc(qq.label || '')}">
+    <input class="fe-in feq-hint" placeholder="Ayuda / aclaración (opcional)" value="${esc(qq.hint || '')}">
+    <div class="fe-q-row">
+      <select class="fe-in feq-type">${Object.entries(TIPOS).map(([k, v]) => `<option value="${k}" ${qq.type === k ? 'selected' : ''}>${v}</option>`).join('')}</select>
+      <label class="fe-chk"><input type="checkbox" class="feq-req" ${qq.required ? 'checked' : ''}> Obligatoria</label>
+      <label class="fe-chk"><input type="radio" name="feName" class="feq-name" ${qq.name ? 'checked' : ''}> Es el nombre de la marca</label>
+    </div>
+    ${qq.type === 'choice' ? `<textarea class="fe-in feq-opts" placeholder="Una opción por línea">${esc((qq.options || []).join('\n'))}</textarea>` : ''}
+  </div>`).join('');
+  body.innerHTML = `<div class="glass fe-card">
+    <div class="fe-head"><h3>${fe.id ? 'Editar formulario' : 'Nuevo formulario'}</h3></div>
+    <label class="fe-lbl">Nombre interno</label><input class="fe-in" id="feName" placeholder="Ej: Alta de marca" value="${esc(fe.name || '')}">
+    <label class="fe-lbl">Título (lo ve la marca)</label><input class="fe-in" id="feTitle" placeholder="Ej: Cuéntanos de tu marca" value="${esc(fe.title || '')}">
+    <label class="fe-lbl">Subtítulo (opcional)</label><input class="fe-in" id="feSub" placeholder="Una línea de contexto" value="${esc(fe.subtitle || '')}">
+    <div class="fe-q-row">
+      <div style="flex:1"><label class="fe-lbl">Color de acento</label><input class="fe-in" id="feAccent" type="color" value="${esc(fe.accent || '#F90000')}" style="height:44px;padding:4px"></div>
+      <div style="flex:2"><label class="fe-lbl">Banner / imagen</label><div class="fe-banner-row"><label class="filebtn">📎 Subir imagen<input type="file" id="feBannerFile" accept="image/*" hidden></label><input class="fe-in" id="feBannerUrl" placeholder="…o pega un link de imagen" value="${esc((fe.banner || '').startsWith('data:') ? '' : (fe.banner || ''))}" style="flex:1"></div><div id="feBannerPrev">${fe.banner ? `<img src="${fe.banner}" class="fe-banner-img">` : ''}</div></div>
+    </div>
+    <label class="fe-lbl" style="margin-top:16px">Preguntas</label>
+    <div id="feQs">${q}</div>
+    <button class="btn btn--ghost btn--sm" id="addQ" style="margin-top:8px">+ Agregar pregunta</button>
+    <div class="fe-actions"><button class="btn btn--ghost" id="feCancel">Cancelar</button><button class="btn btn--primary" id="feSave">Guardar</button></div>
+  </div>`;
+  // marca-name radios
+  body.querySelectorAll('.feq-name').forEach((r, n) => r.onchange = () => { fe.questions.forEach((qq, m) => qq.name = (m === n)); });
+  $('#addQ').onclick = () => { syncEditorFromDOM(); fe.questions.push({ id: 'q' + (fe.questions.length + 1), label: '', hint: '', type: 'text', required: false }); renderFormEditor(); };
+  body.querySelectorAll('[data-rmq]').forEach(b => b.onclick = () => { syncEditorFromDOM(); fe.questions.splice(+b.dataset.rmq, 1); if (!fe.questions.length) fe.questions.push({ id: 'q1', label: '', hint: '', type: 'text', required: true, name: true }); renderFormEditor(); });
+  body.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { syncEditorFromDOM(); const n = +b.dataset.up; [fe.questions[n - 1], fe.questions[n]] = [fe.questions[n], fe.questions[n - 1]]; renderFormEditor(); });
+  body.querySelectorAll('[data-down]').forEach(b => b.onclick = () => { syncEditorFromDOM(); const n = +b.dataset.down; [fe.questions[n + 1], fe.questions[n]] = [fe.questions[n], fe.questions[n + 1]]; renderFormEditor(); });
+  body.querySelectorAll('.feq-type').forEach((s, n) => s.onchange = () => { syncEditorFromDOM(); renderFormEditor(); });
+  const bf = $('#feBannerFile'); bf.onchange = () => { const file = bf.files[0]; if (!file) return; if (file.size > 500 * 1024) { alert('Imagen muy pesada (máx 500KB). Mejor usa un link.'); bf.value = ''; return; } const rd = new FileReader(); rd.onload = () => { fe.banner = rd.result; $('#feBannerUrl').value = ''; $('#feBannerPrev').innerHTML = `<img src="${fe.banner}" class="fe-banner-img">`; }; rd.readAsDataURL(file); };
+  $('#feBannerUrl').onchange = () => { const v = $('#feBannerUrl').value.trim(); if (v) { fe.banner = v; $('#feBannerPrev').innerHTML = `<img src="${fe.banner}" class="fe-banner-img">`; } };
+  $('#feCancel').onclick = () => { state.formEdit = null; renderFormsView(); };
+  $('#feSave').onclick = async () => {
+    syncEditorFromDOM();
+    if (!fe.name.trim()) { alert('Ponle un nombre al formulario.'); return; }
+    if (!fe.questions.some(q => q.label.trim())) { alert('Agrega al menos una pregunta con texto.'); return; }
+    if (!fe.questions.some(q => q.name)) fe.questions[0].name = true;
+    const btn = $('#feSave'); btn.disabled = true; btn.textContent = 'Guardando…';
+    const r = await api('/api/formConfig/save', { method: 'POST', body: JSON.stringify({ form: fe }) });
+    if (r.ok) { state.formEdit = null; loadAltas(); } else { alert(r.data.error || 'No se pudo guardar'); btn.disabled = false; btn.textContent = 'Guardar'; }
   };
-  out.innerHTML = `<div class="alta-hint">Comparte el formulario con marcas nuevas: <b>portal.versusstudio.co/alta-marca.html</b></div>` +
-    altas.map(a => `<div class="glass alta-card">
-      <div class="alta-head"><h3>${esc(a.marca || 'Sin nombre')}</h3><span class="alta-when">${a.at ? new Date(a.at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}</span></div>
-      ${fila('Qué hacen', a.hacen)}
-      ${fila('Clientes', a.clientes)}
-      ${fila('En 3 palabras', a.tresPalabras)}
-      ${fila('Marcas que le inspiran', a.inspiran)}
-      ${fila('Redes sociales', a.redes)}
-      ${fila('Qué espera de Versus', a.esperan)}
-      ${manual(a)}
-    </div>`).join('');
 }
 
 async function loadEquipo() {

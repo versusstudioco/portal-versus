@@ -20,9 +20,13 @@
       "onboarding": {
         ".read": "auth != null",
         "$id": {
-          ".write": "!data.exists() && newData.exists()",
+          ".write": "(!data.exists() && newData.exists()) || auth != null",
           ".validate": "newData.hasChildren()"
         }
+      },
+      "formConfig": {
+        ".read": true,
+        ".write": "auth != null"
       }
     }
   }

@@ -344,6 +344,37 @@
         const altas = Object.entries(obj).map(([id, v]) => ({ id, ...v })).sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
         return { ok: true, data: { altas } };
       }
+      if (p === '/api/onboarding/remove' && method === 'POST') {
+        const s = await sesionActual();
+        if (!s) return { ok: false, status: 403, data: { error: 'Sin sesión' } };
+        await fbDelete('onboarding/' + String(body.id || '').replace(/[.#$/\[\]]/g, ''));
+        return { ok: true, data: { ok: true } };
+      }
+      // Formularios (typeforms) — admin crea/edita; todo el equipo los lee.
+      if (p === '/api/formConfig') {
+        const obj = (await fbGet('formConfig').catch(() => null)) || {};
+        const forms = Object.entries(obj).map(([id, v]) => ({ ...v, id })).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+        return { ok: true, data: { forms } };
+      }
+      if (p === '/api/formConfig/save' && method === 'POST') {
+        const s = await sesionActual();
+        if (!s || s.role !== 'admin') return { ok: false, status: 403, data: { error: 'Solo el admin edita los formularios' } };
+        const f = body.form || {};
+        const id = String(f.id || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || ('form-' + Date.now().toString(36));
+        const form = {
+          id, name: String(f.name || 'Formulario').trim(), title: String(f.title || '').trim(),
+          subtitle: String(f.subtitle || '').trim(), banner: String(f.banner || ''), accent: String(f.accent || '#F90000'),
+          questions: Array.isArray(f.questions) ? f.questions : [], updatedAt: new Date().toISOString(), updatedBy: s.username || ''
+        };
+        await fbPut('formConfig/' + id, form);
+        return { ok: true, data: { ok: true, form } };
+      }
+      if (p === '/api/formConfig/remove' && method === 'POST') {
+        const s = await sesionActual();
+        if (!s || s.role !== 'admin') return { ok: false, status: 403, data: { error: 'Solo el admin borra formularios' } };
+        await fbDelete('formConfig/' + String(body.id || '').replace(/[.#$/\[\]]/g, ''));
+        return { ok: true, data: { ok: true } };
+      }
       if (p === '/api/marca/contexto') {
         const marca = q.get('marca') || body.marca || '';
         const CAMPOS = ['industria', 'pais', 'tipoClientes', 'comunicacion', 'servicios', 'tono', 'publico', 'notas'];
