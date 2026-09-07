@@ -1112,7 +1112,8 @@ function openAgregarCreativo(marca) {
         <select id="acTipo">${TIPOS_CREATIVO.map(t => `<option${t === 'Reel' ? ' selected' : ''}>${t}</option>`).join('')}</select></label>
       <p class="hub-hint" id="acHint">Los creativos cuentan al ciclo. Las historias se cuentan aparte.</p>
       <label class="select" style="margin-bottom:.7rem"><span>Idea / título</span><input id="acIdea" placeholder="De qué trata"></label>
-      <label class="select" style="margin-bottom:.7rem"><span>Fecha (opcional)</span><input id="acFecha" type="date"></label>
+      <label class="select" style="margin-bottom:.7rem"><span>📥 Fecha de entrega (aprobación, opcional)</span><input id="acFechaEntrega" type="date"></label>
+      <label class="select" style="margin-bottom:.7rem"><span>📣 Fecha de publicación (opcional)</span><input id="acFecha" type="date"></label>
       <div class="g-modal__actions">
         <button class="btn btn--ghost btn--sm" id="acCancel">Cancelar</button>
         <button class="btn btn--primary btn--sm" id="acSave">Crear</button>
@@ -1127,7 +1128,7 @@ function openAgregarCreativo(marca) {
   $('#acSave').addEventListener('click', async () => {
     const idea = $('#acIdea').value.trim();
     if (!idea) { $('#acIdea').focus(); return; }
-    await api('/api/piezas/crear', { method: 'POST', body: { marca, tipo: tipoSel.value, idea, fecha: $('#acFecha').value || null } });
+    await api('/api/piezas/crear', { method: 'POST', body: { marca, tipo: tipoSel.value, idea, fecha: $('#acFecha').value || null, fechaEntrega: $('#acFechaEntrega').value || null } });
     close();
     marcaCalendario(marca);
   });
@@ -1140,17 +1141,47 @@ async function marcaMetricas(marca) {
   if (!state.metricas) { const r = await api('/api/metricas'); if (r.ok) state.metricas = r.data; }
   const key = normKey(marca);
   const m = (state.metricas && state.metricas.marcas || []).find(x => normKey(x.marca) === key || normKey(x.marca).includes(key) || key.includes(normKey(x.marca)));
-  if (!m) { pane.innerHTML = '<div class="hub-empty">Esta marca aún no tiene métricas en el Portal de clientes.</div>'; return; }
-  const idx = state.metricas.marcas.indexOf(m);
-  pane.innerHTML = `<div class="hub-metrics-top">
+  const idx = m ? state.metricas.marcas.indexOf(m) : -1;
+  const semanalCard = `<div class="est-ctx">
+      <h4>📈 Seguidores y visualizaciones por semana</h4>
+      <p class="hub-hint" style="margin:.1rem 0 .7rem">Community registra el crecimiento de la cuenta — alimenta las métricas del cliente.</p>
+      <div class="est-ctx-grid">
+        <label class="select"><span>Semana</span><input id="swWeek" type="week"></label>
+        <label class="select"><span>Seguidores</span><input id="swFollowers" type="number" min="0" placeholder="12500"></label>
+        <label class="select"><span>Visualizaciones</span><input id="swViews" type="number" min="0" placeholder="84000"></label>
+      </div>
+      <button class="btn btn--ghost btn--sm" id="swSave" style="margin-top:.6rem">Guardar semana</button>
+      <div id="swList" style="margin-top:.9rem"></div>
+    </div>`;
+  const pubCard = m ? `<div class="hub-metrics-top">
       <div class="g-stat"><b>${m.total || 0}</b><span>publicaciones</span></div>
       <div class="g-stat"><b>${fmtViews(m.medianaViews)}</b><span>mediana views</span></div>
     </div>
-    <div class="kv"><b>⬆ Lo que más funcionó</b>${m.mejores.map(p => metricRow(p)).join('')}</div>
-    <div class="kv"><b>⬇ Lo que menos funcionó</b>${m.peores.map(p => metricRow(p)).join('')}</div>
+    <div class="kv"><b>⬆ Lo que más funcionó</b>${(m.mejores || []).map(p => metricRow(p)).join('')}</div>
+    <div class="kv"><b>⬇ Lo que menos funcionó</b>${(m.peores || []).map(p => metricRow(p)).join('')}</div>
     <button class="btn btn--primary btn--sm m-ia" data-i="${idx}">Análisis con IA</button>
-    <div class="m-ia-out" id="mia-${idx}"></div>`;
-  pane.querySelector('.m-ia').addEventListener('click', (e) => analizarMarca(idx, e.target));
+    <div class="m-ia-out" id="mia-${idx}"></div>`
+    : '<div class="hub-empty">Aún no hay métricas de publicaciones del Portal de clientes para esta marca.</div>';
+  pane.innerHTML = semanalCard + pubCard;
+  // Registro semanal
+  const swLoad = async () => {
+    const r = await api('/api/marca/semanas?marca=' + encodeURIComponent(marca));
+    const sem = (r.ok && r.data.semanas) || [];
+    $('#swList').innerHTML = sem.length ? `<div class="eq-list">${sem.map(s => `
+      <div class="eq-row"><div class="eq-row__id"><div class="eq-person__name">${esc(s.semana)}</div></div>
+        <div class="eq-person__tags"><span class="tag">👥 ${(+s.seguidores || 0).toLocaleString('es-CO')}</span><span class="tag">👁 ${(+s.views || 0).toLocaleString('es-CO')}</span></div></div>`).join('')}</div>`
+      : '<div class="empty">Sin semanas registradas todavía.</div>';
+  };
+  swLoad();
+  $('#swSave').addEventListener('click', async () => {
+    const body = { marca, semana: $('#swWeek').value, seguidores: $('#swFollowers').value, views: $('#swViews').value };
+    if (!body.semana) { alert('Elige la semana.'); return; }
+    const btn = $('#swSave'); btn.disabled = true; btn.textContent = 'Guardando…';
+    const r = await api('/api/marca/semana', { method: 'POST', body });
+    btn.disabled = false; btn.textContent = 'Guardar semana';
+    if (r.ok) { $('#swFollowers').value = ''; $('#swViews').value = ''; swLoad(); } else alert(r.data.error || 'No se pudo');
+  });
+  if (m) { const b = pane.querySelector('.m-ia'); if (b) b.addEventListener('click', (e) => analizarMarca(idx, e.target)); }
 }
 
 /* --- Archivos de la marca: Drive + logos + manual --- */
@@ -1238,6 +1269,15 @@ async function marcaEstrategia(marca) {
       </div>
       <label class="select" style="margin-top:.6rem"><span>Servicios / productos</span><textarea id="esServicios" rows="2" placeholder="qué vende u ofrece la marca">${esc(ctx.servicios || '')}</textarea></label>
       <label class="select" style="margin-top:.6rem"><span>Notas / do's & don'ts</span><textarea id="esNotas" rows="2" placeholder="qué mencionar, qué evitar…">${esc(ctx.notas || '')}</textarea></label>
+      <div class="est-plats">
+        <h4 style="font-size:.92rem;margin:.9rem 0 .5rem">📱 Plataformas, usuarios y pauta</h4>
+        ${[['ig', 'Instagram'], ['tiktok', 'TikTok'], ['linkedin', 'LinkedIn']].map(([k, l]) => `
+          <div class="plat-row">
+            <span class="plat-row__name">${l}</span>
+            <input class="plat-row__user" id="es${k}User" value="${esc(ctx[k + 'User'] || '')}" placeholder="@usuario (vacío = no se maneja)">
+            <label class="np-chk"><input type="checkbox" id="es${k}Pauta" ${ctx[k + 'Pauta'] === 'si' ? 'checked' : ''}> Con pauta</label>
+          </div>`).join('')}
+      </div>
       <button class="btn btn--ghost btn--sm" id="esCtxSave" style="margin-top:.6rem">Guardar contexto</button>
     </div>
 
@@ -1272,7 +1312,8 @@ async function marcaEstrategia(marca) {
     await api('/api/marca/contexto', { method: 'POST', body: {
       marca, industria: $('#esIndustria').value, pais: $('#esPais').value, tipoClientes: $('#esTipoClientes').value,
       publico: $('#esPublico').value, tono: $('#esTono').value, comunicacion: $('#esComunicacion').value,
-      servicios: $('#esServicios').value, notas: $('#esNotas').value
+      servicios: $('#esServicios').value, notas: $('#esNotas').value,
+      igUser: $('#esigUser').value, igPauta: $('#esigPauta').checked ? 'si' : '', tiktokUser: $('#estiktokUser').value, tiktokPauta: $('#estiktokPauta').checked ? 'si' : '', linkedinUser: $('#eslinkedinUser').value, linkedinPauta: $('#eslinkedinPauta').checked ? 'si' : ''
     } });
     $('#esCtxSave').textContent = 'Guardado ✓';
     const alert = $('.est-ctx-alert'); if (alert && $('#esIndustria').value && $('#esServicios').value && $('#esTono').value) alert.remove();

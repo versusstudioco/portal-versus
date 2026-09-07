@@ -946,3 +946,11 @@ textarea.fe-in { min-height:70px; resize:vertical; }
 .tgl::after { content: ""; position: absolute; width: 16px; height: 16px; background: var(--ink-60); border-radius: 50%; top: 2px; left: 2px; transition: .25s; }
 .dark .tgl { background: rgba(249,0,0,.25); }
 .dark .tgl::after { left: calc(100% - 18px); background: var(--red); }
+
+/* Plataformas / usuarios / pauta por marca (contexto) */
+.est-plats { margin-top: .4rem; }
+.plat-row { display: flex; align-items: center; gap: .7rem; margin-bottom: .5rem; flex-wrap: wrap; }
+.plat-row__name { width: 84px; font-weight: 700; font-size: .85rem; flex-shrink: 0; }
+.plat-row__user { flex: 1; min-width: 160px; font-family: var(--font); font-size: .88rem; padding: .5rem .7rem; border: 1.5px solid var(--bd2, rgba(0,0,0,.14)); border-radius: 10px; background: var(--card); color: var(--ink); }
+.plat-row__user:focus { outline: none; border-color: var(--red); }
+@media(max-width:600px){ .plat-row__name { width: 100%; } }
