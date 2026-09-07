@@ -135,7 +135,8 @@
     return {
       id: p.id, marca: p.marca, tipo: p.tipo || 'Reel', idea: p.idea || '', guion: p.guion || '',
       caracteristicas: p.caracteristicas || '', etapa: p.etapa || 'idea', responsable: p.responsable || '',
-      fecha: p.fecha || null,
+      fecha: p.fecha || null, fechaEntrega: p.fechaEntrega || null,
+      aprobadoCliente: p.aprobadoCliente || null,
       link: p.link || '', linkIg: p.linkIg || '', linkTiktok: p.linkTiktok || '', linkLinkedin: p.linkLinkedin || '',
       mViews: p.mViews || '', mLikes: p.mLikes || '', mSaved: p.mSaved || '', mShared: p.mShared || '',
       comentarios: p.comentarios ? (Array.isArray(p.comentarios) ? p.comentarios : Object.values(p.comentarios)) : []
@@ -230,6 +231,12 @@
     const area = perfil.area || (perfil.areas && perfil.areas[0]) || (esAdmin ? 'Administrativa' : (perfil.brand || ''));
     return { username, name: perfil.name || username, area, areas: perfil.areas || (area ? [area] : []), role: esAdmin ? 'admin' : (perfil.role || 'miembro'), type: perfil.type || 'client' };
   }
+  function esEstrategiaOAdmin(s) {
+    if (!s) return false;
+    if (s.role === 'admin') return true;
+    const ar = [].concat(s.areas || [], s.area || []);
+    return ar.map(x => String(x).toLowerCase()).some(x => x.indexOf('estrateg') >= 0);
+  }
 
   const META = {
     niches: [{ slug: 'general', label: 'General' }, { slug: 'moda', label: 'Moda' }, { slug: 'comida', label: 'Comida' }, { slug: 'tech', label: 'Tecnología' }, { slug: 'salud', label: 'Salud' }, { slug: 'inmobiliario', label: 'Inmobiliario' }, { slug: 'legal', label: 'Legal' }],
@@ -316,12 +323,12 @@
       if (p === '/api/piezas') return { ok: true, data: await board() };
       if (p === '/api/piezas/crear' && method === 'POST') {
         const id = uid();
-        const pieza = { id, marca: String(body.marca || '').trim() || 'Sin marca', tipo: body.tipo || 'Reel', idea: String(body.idea || '').trim() || 'Nueva idea', guion: body.guion || '', caracteristicas: body.caracteristicas || '', etapa: 'idea', responsable: body.responsable || '', fecha: body.fecha || null, comentarios: {}, createdAt: new Date().toISOString() };
+        const pieza = { id, marca: String(body.marca || '').trim() || 'Sin marca', tipo: body.tipo || 'Reel', idea: String(body.idea || '').trim() || 'Nueva idea', guion: body.guion || '', caracteristicas: body.caracteristicas || '', etapa: 'idea', responsable: body.responsable || '', fecha: body.fecha || null, fechaEntrega: body.fechaEntrega || null, comentarios: {}, createdAt: new Date().toISOString() };
         await fbPut('gestor/piezas/' + id, pieza);
         return { ok: true, data: { ok: true, pieza } };
       }
       if (p === '/api/piezas/update' && method === 'POST') {
-        const patch = {}; ['idea', 'guion', 'caracteristicas', 'responsable', 'tipo', 'fecha', 'link', 'linkIg', 'linkTiktok', 'linkLinkedin', 'mViews', 'mLikes', 'mSaved', 'mShared'].forEach(k => { if (body[k] != null) patch[k] = body[k]; });
+        const patch = {}; ['idea', 'guion', 'caracteristicas', 'responsable', 'tipo', 'fecha', 'fechaEntrega', 'aprobadoCliente', 'link', 'linkIg', 'linkTiktok', 'linkLinkedin', 'mViews', 'mLikes', 'mSaved', 'mShared'].forEach(k => { if (body[k] != null) patch[k] = body[k]; });
         await fbPatch('gestor/piezas/' + body.id, patch);
         return { ok: true, data: { ok: true } };
       }
@@ -465,7 +472,7 @@
         const marca = q.get('marca') || body.marca || '';
         if (method === 'POST') {
           const s = await sesionActual();
-          if (!s || s.role !== 'admin') return { ok: false, status: 403, data: { error: 'Solo el admin edita el ciclo' } };
+          if (!esEstrategiaOAdmin(s)) return { ok: false, status: 403, data: { error: 'Solo Admin o Estrategia editan el ciclo' } };
           const c = {
             periodo: String(body.periodo || '').trim(), inicio: body.inicio || '', fin: body.fin || '',
             pactado: { reels: +body.reels || 0, carruseles: +body.carruseles || 0, posts: +body.posts || 0, banners: +body.banners || 0, historias: +body.historias || 0 }

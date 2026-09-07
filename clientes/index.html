@@ -2472,8 +2472,8 @@ function renderGestorContenido(){
 function vgRenderCal(){
   var el=gi("calGestorPanel"); if(!el) return;
   var y=_vgCalYM.y, m=_vgCalYM.m;
-  var porDia={}; Object.keys(_vgPiezas).forEach(function(id){ var p=_vgPiezas[id]; if(!p.fecha) return; if(p.fecha.slice(0,7)===y+"-"+String(m).padStart(2,"0")) (porDia[p.fecha]||(porDia[p.fecha]=[])).push(p); });
-  var sinF=Object.keys(_vgPiezas).map(function(id){return _vgPiezas[id];}).filter(function(p){return !p.fecha;});
+  var porDia={}; Object.keys(_vgPiezas).forEach(function(id){ var p=_vgPiezas[id]; var f=p.fecha||p.fechaEntrega; if(!f) return; if(f.slice(0,7)===y+"-"+String(m).padStart(2,"0")) (porDia[f]||(porDia[f]=[])).push(p); });
+  var sinF=Object.keys(_vgPiezas).map(function(id){return _vgPiezas[id];}).filter(function(p){return !(p.fecha||p.fechaEntrega);});
   var offset=(new Date(y,m-1,1).getDay()+6)%7, dias=new Date(y,m,0).getDate(), hoy=(new Date()).toISOString().slice(0,10);
   var nav='<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><button class="cpill" onclick="vgCalNav(-1)">Anterior</button><div style="font-size:15px;font-weight:800;text-transform:capitalize">'+VG_MESES[m-1]+" "+y+'</div><button class="cpill" onclick="vgCalNav(1)">Siguiente</button></div>';
   var cells=''; VG_DOW.forEach(function(d){ cells+='<div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;text-align:center;padding:4px 0">'+d+'</div>'; });
@@ -2497,6 +2497,26 @@ function vgLinks(p){
   if(!items.length) return "";
   return '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">'+items.map(function(x){return '<a href="'+vgEsc(x[1])+'" target="_blank" rel="noopener" style="font-size:12px;font-weight:700;color:#fff;background:var(--red);border-radius:99px;padding:7px 14px;text-decoration:none">'+vgEsc(x[0])+'</a>';}).join("")+'</div>';
 }
+function vgFechas(p){
+  var f=[]; if(p.fechaEntrega)f.push('📥 Entrega: <b>'+vgEsc(p.fechaEntrega)+'</b>'); if(p.fecha)f.push('📣 Publica: <b>'+vgEsc(p.fecha)+'</b>');
+  return f.length?'<div style="font-size:12.5px;color:var(--t2);margin-bottom:16px">'+f.join(' &nbsp;·&nbsp; ')+'</div>':'';
+}
+function vgAprobacion(p){
+  var ap=p.aprobadoCliente;
+  var estado = ap==='si'?'<div style="background:rgba(34,197,94,.12);color:var(--grn);border-radius:10px;padding:8px 12px;font-size:12.5px;font-weight:600;margin-bottom:10px">✅ Aprobaste este contenido</div>'
+    : ap==='no'?'<div style="background:rgba(249,0,0,.1);color:var(--red);border-radius:10px;padding:8px 12px;font-size:12.5px;font-weight:600;margin-bottom:10px">✋ Pediste cambios (mira/deja un comentario abajo)</div>':'';
+  return '<div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Tu aprobación</div>'+estado
+    +'<div style="display:flex;gap:8px;margin-bottom:18px"><button class="btn '+(ap==="si"?"btn-red":"btn-ghost")+'" style="flex:1" onclick="vgAprobar(\''+p.id+'\',\'si\')">✅ Aprobar</button><button class="btn '+(ap==="no"?"btn-red":"btn-ghost")+'" style="flex:1" onclick="vgAprobar(\''+p.id+'\',\'no\')">✋ Pedir cambios</button></div>';
+}
+function vgAprobar(id,val){
+  var p=_vgPiezas[id]; if(!p) return;
+  p.aprobadoCliente=val;
+  FBDB.ref("vsportal/gestor/piezas/"+vgKey(id)+"/aprobadoCliente").set(val);
+  var c={ autor:_vgBrandName||"Cliente", texto: val==="si"?"✅ Aprobó el contenido.":"✋ Pidió cambios en el contenido.", fecha:new Date().toISOString(), cliente:true, sistema:false };
+  FBDB.ref("vsportal/gestor/piezas/"+vgKey(id)+"/comentarios").push(c);
+  if(!p.comentarios||Array.isArray(p.comentarios)) p.comentarios=Array.isArray(p.comentarios)?arrToObj(p.comentarios):{}; p.comentarios["c"+Date.now()]=c;
+  vgOpenPieza(id);
+}
 function vgOpenPieza(id){
   var p=_vgPiezas[id]; if(!p) return;
   var e=VG_EST[p.etapa]||VG_EST.editada;
@@ -2512,7 +2532,9 @@ function vgOpenPieza(id){
     +'<div style="padding:18px 22px">'
     +(guion?'<div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Guion / Texto</div><div style="font-size:14px;line-height:1.55;white-space:pre-wrap;background:var(--bg3);border-radius:12px;padding:12px 14px;margin-bottom:16px">'+vgEsc(guion)+'</div>':'<div style="font-size:12px;color:var(--t3);margin-bottom:16px">El guion/texto aún no está cargado.</div>')
     +(met.length?'<div style="font-size:13px;color:var(--t2);margin-bottom:16px">'+met.join(" &nbsp; ")+'</div>':'')
+    +vgFechas(p)
     +vgLinks(p)
+    +vgAprobacion(p)
     +'<div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Comentarios y cambios</div>'
     +'<div id="vgComs">'+comHtml+'</div>'
     +'<textarea id="vgComTxt" placeholder="Escribe un cambio o comentario sobre el guion/texto…" style="width:100%;font-family:var(--fn);font-size:14px;padding:11px 13px;border:1.5px solid var(--bd2);border-radius:12px;background:var(--bg2);color:var(--tx);outline:none;min-height:70px;resize:vertical"></textarea>'

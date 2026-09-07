@@ -353,6 +353,8 @@ function openPieza(id) {
         <label class="select"><span>Tipo</span><select id="pzTipo">${['Reel', 'Post', 'Carrusel', 'Historia'].map(t => `<option ${p.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
         <label class="select select--grow"><span>Responsable</span>
           <select id="pzResp"><option value="">— Sin asignar —</option>${people.map(n => `<option ${p.responsable === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}${(p.responsable && !people.includes(p.responsable)) ? `<option selected>${esc(p.responsable)}</option>` : ''}</select></label>
+        <label class="select"><span>📥 Fecha de entrega <em style="font-weight:400;color:var(--ink-40)">(para aprobación)</em></span><input id="pzFechaEntrega" type="date" value="${esc(p.fechaEntrega || '')}"></label>
+        <label class="select"><span>📣 Fecha de publicación</span><input id="pzFecha" type="date" value="${esc(p.fecha || '')}"></label>
       </div>
       <label class="pz-field"><span>Guion</span><textarea id="pzGuion" rows="4" placeholder="El guion del contenido…">${esc(p.guion || '')}</textarea></label>
       <label class="pz-field"><span>Características</span><textarea id="pzCar" rows="2" placeholder="Formato, duración, música, referencias…">${esc(p.caracteristicas || '')}</textarea></label>
@@ -384,6 +386,7 @@ function openPieza(id) {
   $('#pzModal').addEventListener('click', e => { if (e.target.id === 'pzModal') close(); });
   $('#pzSave').addEventListener('click', async () => {
     const body = { id, marca: $('#pzMarca').value, idea: $('#pzIdea').value, tipo: $('#pzTipo').value, responsable: $('#pzResp').value, guion: $('#pzGuion').value, caracteristicas: $('#pzCar').value,
+      fecha: $('#pzFecha').value || null, fechaEntrega: $('#pzFechaEntrega').value || null,
       linkIg: $('#pzLinkIg').value, linkTiktok: $('#pzLinkTiktok').value, linkLinkedin: $('#pzLinkLinkedin').value,
       mViews: $('#pzViews').value, mLikes: $('#pzLikes').value, mSaved: $('#pzSaved').value, mShared: $('#pzShared').value };
     if (!id) { const r = await api('/api/piezas/crear', { method: 'POST', body }); if (r.data.ok && $('#pzEtapa').value !== 'idea') await api('/api/piezas/etapa', { method: 'POST', body: { id: r.data.pieza.id, etapa: $('#pzEtapa').value } }); }
@@ -580,6 +583,12 @@ const DEFAULT_ONB = {
 };
 const TIPOS = { text: 'Texto corto', area: 'Texto largo', choice: 'Opciones', manual: 'Sí/No + adjunto' };
 function isAdmin() { return state.me && state.me.role === 'admin'; }
+function esEstrategia() {
+  const m = state.me || {};
+  if (m.role === 'admin') return true;
+  const ar = [].concat(m.areas || [], m.area || []);
+  return ar.map(x => String(x).toLowerCase()).some(x => x.indexOf('estrateg') >= 0);
+}
 function formBase() { return location.origin + '/alta-marca.html'; }
 
 async function loadAltas() {
@@ -992,7 +1001,7 @@ async function marcaCiclo(marca) {
   pane.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando ciclo…</div>';
   const { data } = await api('/api/marca/ciclo?marca=' + encodeURIComponent(marca));
   const pac = data.pactado || {}, real = data.realizado || {};
-  const isAdmin = (state.me || {}).role === 'admin';
+  const isAdmin = esEstrategia(); // Admin o Estrategia pueden editar el ciclo/fechas
   const totalPac = CICLO_TIPOS.reduce((s, [k]) => s + (+pac[k] || 0), 0);
   const totalReal = CICLO_TIPOS.reduce((s, [k]) => s + (+real[k] || 0), 0);
   const configAdmin = `
