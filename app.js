@@ -338,7 +338,11 @@ function openPieza(id) {
       <label class="pz-field"><span>Guion</span><textarea id="pzGuion" rows="4" placeholder="El guion del contenido…">${esc(p.guion || '')}</textarea></label>
       <label class="pz-field"><span>Características</span><textarea id="pzCar" rows="2" placeholder="Formato, duración, música, referencias…">${esc(p.caracteristicas || '')}</textarea></label>
       <div class="pz-field pz-pub"><span>📢 Publicación y métricas <em>(aparece en el portal del cliente al llegar a Editada/Publicada)</em></span>
-        <input id="pzLink" placeholder="Link de la publicación (Instagram, TikTok…)" value="${esc(p.link || '')}">
+        <div class="pz-links">
+          <label class="select"><span>Instagram</span><input id="pzLinkIg" placeholder="Link de Instagram" value="${esc(p.linkIg || p.link || '')}"></label>
+          <label class="select"><span>TikTok</span><input id="pzLinkTiktok" placeholder="Link de TikTok" value="${esc(p.linkTiktok || '')}"></label>
+          <label class="select"><span>LinkedIn</span><input id="pzLinkLinkedin" placeholder="Link de LinkedIn" value="${esc(p.linkLinkedin || '')}"></label>
+        </div>
         <div class="pz-metrics">
           <label class="select"><span>Vistas</span><input id="pzViews" type="number" min="0" value="${esc(p.mViews || '')}"></label>
           <label class="select"><span>Likes</span><input id="pzLikes" type="number" min="0" value="${esc(p.mLikes || '')}"></label>
@@ -361,7 +365,8 @@ function openPieza(id) {
   $('#pzModal').addEventListener('click', e => { if (e.target.id === 'pzModal') close(); });
   $('#pzSave').addEventListener('click', async () => {
     const body = { id, marca: $('#pzMarca').value, idea: $('#pzIdea').value, tipo: $('#pzTipo').value, responsable: $('#pzResp').value, guion: $('#pzGuion').value, caracteristicas: $('#pzCar').value,
-      link: $('#pzLink').value, mViews: $('#pzViews').value, mLikes: $('#pzLikes').value, mSaved: $('#pzSaved').value, mShared: $('#pzShared').value };
+      linkIg: $('#pzLinkIg').value, linkTiktok: $('#pzLinkTiktok').value, linkLinkedin: $('#pzLinkLinkedin').value,
+      mViews: $('#pzViews').value, mLikes: $('#pzLikes').value, mSaved: $('#pzSaved').value, mShared: $('#pzShared').value };
     if (!id) { const r = await api('/api/piezas/crear', { method: 'POST', body }); if (r.data.ok && $('#pzEtapa').value !== 'idea') await api('/api/piezas/etapa', { method: 'POST', body: { id: r.data.pieza.id, etapa: $('#pzEtapa').value } }); }
     else { await api('/api/piezas/update', { method: 'POST', body }); if ($('#pzEtapa').value !== p.etapa) await api('/api/piezas/etapa', { method: 'POST', body: { id, etapa: $('#pzEtapa').value } }); }
     close(); refreshPiezaView();
@@ -731,7 +736,7 @@ async function loadEquipo() {
       </div>
       <button class="btn btn--primary" id="ntSave">Crear y asignar</button>
     </div>
-    <div class="stack">${d.tasks.map(t => `<div class="result-card">${taskCard(t, false)}<div class="ed-item__date">→ ${esc((people.find(p => p.username === t.assignedTo) || {}).name || t.assignedTo)} · <span class="tag">${TASK_STATE[t.status]}</span> <button class="btn btn--ghost btn--sm t-del" data-id="${t.id}">✕</button></div></div>`).join('') || '<div class="empty">Sin tareas aún.</div>'}</div>`;
+    <div class="stack">${d.tasks.map(t => `<div class="result-card">${taskCard(t, false)}<div class="ed-item__date">${esc((people.find(p => p.username === t.assignedTo) || {}).name || t.assignedTo)} · <span class="tag">${TASK_STATE[t.status]}</span> <button class="btn btn--ghost btn--sm t-del" data-id="${t.id}">✕</button></div></div>`).join('') || '<div class="empty">Sin tareas aún.</div>'}</div>`;
   $('#ntSave').addEventListener('click', async () => {
     const body = { title: $('#ntTitle').value, assignedTo: $('#ntWho').value, area: $('#ntArea').value, cliente: $('#ntCli').value, dueDate: $('#ntDue').value, priority: $('#ntPrio').value };
     const { data } = await api('/api/team/admin/task', { method: 'POST', body });
@@ -825,7 +830,7 @@ function renderMarcasGrid() {
             ${m.sector ? `<span class="bchip">${esc(m.sector)}</span>` : ''}
             <span class="bchip bchip--on">Activo</span>
           </div>
-          <div class="bcard-foot">Gestionar marca →</div>
+          <div class="bcard-foot">Gestionar marca</div>
         </button>
         ${admin ? `<button class="marca-del" data-delmarca="${esc(m.marca)}" title="Eliminar marca">✕</button>` : ''}
       </div>`).join('') + '</div>';
@@ -1035,7 +1040,7 @@ async function marcaMetricas(marca) {
     </div>
     <div class="kv"><b>⬆ Lo que más funcionó</b>${m.mejores.map(p => metricRow(p)).join('')}</div>
     <div class="kv"><b>⬇ Lo que menos funcionó</b>${m.peores.map(p => metricRow(p)).join('')}</div>
-    <button class="btn btn--primary btn--sm m-ia" data-i="${idx}">Análisis con IA →</button>
+    <button class="btn btn--primary btn--sm m-ia" data-i="${idx}">Análisis con IA</button>
     <div class="m-ia-out" id="mia-${idx}"></div>`;
   pane.querySelector('.m-ia').addEventListener('click', (e) => analizarMarca(idx, e.target));
 }
@@ -1281,7 +1286,7 @@ function toggleMetrica(i, head) {
   body.innerHTML = `
     <div class="kv"><b>⬆ Lo que más funcionó</b>${m.mejores.map(p => metricRow(p)).join('')}</div>
     <div class="kv"><b>⬇ Lo que menos funcionó</b>${m.peores.map(p => metricRow(p)).join('')}</div>
-    <button class="btn btn--primary btn--sm m-ia" data-i="${i}">Análisis con IA →</button>
+    <button class="btn btn--primary btn--sm m-ia" data-i="${i}">Análisis con IA</button>
     <div class="m-ia-out" id="mia-${i}"></div>`;
   body.classList.remove('hidden');
   head.classList.add('acc-head--open');
@@ -1301,7 +1306,7 @@ async function analizarMarca(i, btn) {
   const { data } = await api('/api/metricas/analisis', { method: 'POST', body: {
     marca: m.marca, medianaViews: m.medianaViews, mejores: m.mejores, peores: m.peores
   }});
-  resetBtn(btn, 'Análisis con IA →');
+  resetBtn(btn, 'Análisis con IA');
   box.innerHTML = `<div class="radar-summary" style="margin-top:.8rem">${esc(data.diagnostico || '')} ${sourcePill(data.source)}</div>
     ${listBox('✅ Repetir', data.que_repetir)}
     ${listBox('⛔ Evitar', data.que_evitar)}
@@ -1481,7 +1486,7 @@ async function loadInicio() {
   // Accesos rápidos: el trabajo entra por Marcas y Gestión.
   const tools = [['archivos', 'Ir a Marcas'], ['gestion', 'Ver Gestión']];
   html += `<h3 class="live-h3">Ir al trabajo</h3>
-    <div class="quick">${tools.map(([v, l]) => `<button class="quick__btn" data-goto="${v}">${esc(l)} →</button>`).join('')}</div>`;
+    <div class="quick">${tools.map(([v, l]) => `<button class="quick__btn" data-goto="${v}">${esc(l)}</button>`).join('')}</div>`;
   out.innerHTML = html;
   bindTaskActions(loadInicio);
   $$('.quick__btn').forEach(b => b.addEventListener('click', () => {

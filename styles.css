@@ -873,3 +873,9 @@ textarea.fe-in { min-height:70px; resize:vertical; }
 .bchip { font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 99px; background: var(--bg4); color: var(--ink-60); }
 .bchip--on { background: rgba(249,0,0,.10); color: var(--red); }
 .bcard-foot { font-size: 11px; color: var(--ink-60); font-weight: 600; border-top: 1px solid var(--line-soft); padding-top: 10px; }
+
+/* Links por plataforma en la ficha de pieza */
+.pz-links { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: .5rem; margin-bottom: .6rem; }
+.pz-links .select { min-width: 0; }
+.pz-links input { width: 100%; min-width: 0; }
+@media(max-width:600px){ .pz-links { grid-template-columns: 1fr; } }

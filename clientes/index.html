@@ -853,7 +853,7 @@ img{max-width:100%;display:block;}
   <div style="background:#f7f5ff;border:1px solid #e6e0ff;border-radius:14px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
     <div style="font-size:13px;line-height:1.5">🚀 <b>La gestión ahora vive en el Portal Team.</b><br>
     Marcas, ciclos, publicaciones, pauta y estrategia se editan allá. Este panel queda solo como respaldo/consulta.</div>
-    <a href="/team/" style="flex:0 0 auto;background:#111;color:#fff;text-decoration:none;font-weight:700;font-size:13px;border-radius:10px;padding:10px 16px">Ir al Portal Team →</a>
+    <a href="/team/" style="flex:0 0 auto;background:#111;color:#fff;text-decoration:none;font-weight:700;font-size:13px;border-radius:10px;padding:10px 16px">Ir al Portal Team</a>
   </div>
 
   <!-- MARCAS (home por marca) -->
@@ -2451,8 +2451,9 @@ function renderGestorContenido(){
     var all=res[0], ciclo=res[1]||{pactado:{}};
     var mine = Object.keys(all).map(function(k){return all[k];}).filter(function(p){ if(!p||!p.marca) return false; var pm=vgNorm(p.marca); return pm===k1||pm===k2||(k1&&pm.indexOf(k1)>=0)||(k1&&k1.indexOf(pm)>=0); });
     _vgPiezas={}; mine.forEach(function(p){ if(p.id) _vgPiezas[p.id]=p; });
-    // Pactado vs realizado (realizado = publicadas)
-    var pub = mine.filter(function(p){return p.etapa==="publicada";});
+    // Pactado vs realizado (realizado = publicadas dentro del rango del ciclo — respeta ciclos 8→8, no solo mes)
+    var _ini=ciclo.inicio||"", _fin=ciclo.fin||"";
+    var pub = mine.filter(function(p){ if(p.etapa!=="publicada") return false; if(_ini&&p.fecha&&p.fecha<_ini) return false; if(_fin&&p.fecha&&p.fecha>_fin) return false; return true; });
     var pac=ciclo.pactado||{}, totP=0, totR=0;
     var barras = VG_TIPOS.map(function(t){ var p=+pac[t[1]]||0, r=pub.filter(function(x){return x.tipo===t[0];}).length; totP+=p; totR+=r; if(!p&&!r) return ""; var pct=p?Math.min(100,Math.round(r/p*100)):(r?100:0); return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><b>'+t[0]+'s</b><span>'+r+" / "+(p||"—")+(p&&r>=p?" ✅":"")+'</span></div><div style="height:8px;background:var(--bg3);border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+(p&&r>=p?"#1e8e3e":"var(--red)")+';border-radius:99px"></div></div></div>'; }).join("");
     var head='<div class="card"><div class="card-title">'+(ciclo.periodo?vgEsc(ciclo.periodo):"Ciclo actual")+' · Pactado vs. Realizado <span style="font-weight:400;color:var(--t3)">('+totR+"/"+totP+')</span></div>'+(barras||'<div style="color:var(--t3);font-size:13px;margin-top:6px">El equipo aún no ha configurado el ciclo.</div>')+'</div>';
@@ -2472,7 +2473,7 @@ function vgRenderCal(){
   var porDia={}; Object.keys(_vgPiezas).forEach(function(id){ var p=_vgPiezas[id]; if(!p.fecha) return; if(p.fecha.slice(0,7)===y+"-"+String(m).padStart(2,"0")) (porDia[p.fecha]||(porDia[p.fecha]=[])).push(p); });
   var sinF=Object.keys(_vgPiezas).map(function(id){return _vgPiezas[id];}).filter(function(p){return !p.fecha;});
   var offset=(new Date(y,m-1,1).getDay()+6)%7, dias=new Date(y,m,0).getDate(), hoy=(new Date()).toISOString().slice(0,10);
-  var nav='<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><button class="cpill" onclick="vgCalNav(-1)">‹ Anterior</button><div style="font-size:15px;font-weight:800;text-transform:capitalize">'+VG_MESES[m-1]+" "+y+'</div><button class="cpill" onclick="vgCalNav(1)">Siguiente ›</button></div>';
+  var nav='<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><button class="cpill" onclick="vgCalNav(-1)">Anterior</button><div style="font-size:15px;font-weight:800;text-transform:capitalize">'+VG_MESES[m-1]+" "+y+'</div><button class="cpill" onclick="vgCalNav(1)">Siguiente</button></div>';
   var cells=''; VG_DOW.forEach(function(d){ cells+='<div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;text-align:center;padding:4px 0">'+d+'</div>'; });
   for(var i=0;i<offset;i++) cells+='<div style="min-height:84px;border-radius:10px;background:transparent"></div>';
   for(var d=1;d<=dias;d++){
@@ -2488,6 +2489,12 @@ function vgRenderCal(){
   el.innerHTML=(el._head||"")+body;
 }
 function vgCalNav(delta){ if(!_vgCalYM)return; var m=_vgCalYM.m+delta, y=_vgCalYM.y; if(m<1){m=12;y--;} if(m>12){m=1;y++;} _vgCalYM={y:y,m:m}; vgRenderCal(); }
+function vgLinks(p){
+  var items=[["Instagram",p.linkIg],["TikTok",p.linkTiktok],["LinkedIn",p.linkLinkedin]].filter(function(x){return x[1];});
+  if(!items.length && p.link) items=[["Ver publicación",p.link]];
+  if(!items.length) return "";
+  return '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">'+items.map(function(x){return '<a href="'+vgEsc(x[1])+'" target="_blank" rel="noopener" style="font-size:12px;font-weight:700;color:#fff;background:var(--red);border-radius:99px;padding:7px 14px;text-decoration:none">'+vgEsc(x[0])+'</a>';}).join("")+'</div>';
+}
 function vgOpenPieza(id){
   var p=_vgPiezas[id]; if(!p) return;
   var e=VG_EST[p.etapa]||VG_EST.editada;
@@ -2503,7 +2510,7 @@ function vgOpenPieza(id){
     +'<div style="padding:18px 22px">'
     +(guion?'<div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Guion / Texto</div><div style="font-size:14px;line-height:1.55;white-space:pre-wrap;background:var(--bg3);border-radius:12px;padding:12px 14px;margin-bottom:16px">'+vgEsc(guion)+'</div>':'<div style="font-size:12px;color:var(--t3);margin-bottom:16px">El guion/texto aún no está cargado.</div>')
     +(met.length?'<div style="font-size:13px;color:var(--t2);margin-bottom:16px">'+met.join(" &nbsp; ")+'</div>':'')
-    +(p.link?'<a href="'+vgEsc(p.link)+'" target="_blank" rel="noopener" style="display:inline-block;font-size:13px;font-weight:700;color:var(--red);text-decoration:none;margin-bottom:16px">Ver publicación →</a>':'')
+    +vgLinks(p)
     +'<div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Comentarios y cambios</div>'
     +'<div id="vgComs">'+comHtml+'</div>'
     +'<textarea id="vgComTxt" placeholder="Escribe un cambio o comentario sobre el guion/texto…" style="width:100%;font-family:var(--fn);font-size:14px;padding:11px 13px;border:1.5px solid var(--bd2);border-radius:12px;background:var(--bg2);color:var(--tx);outline:none;min-height:70px;resize:vertical"></textarea>'
