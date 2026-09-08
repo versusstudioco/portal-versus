@@ -158,8 +158,8 @@ async function enterApp(me) {
  else { badge.textContent = '● Modo demo'; badge.className = 'ai-badge demo'; }
  $('#viewTitle').textContent = VIEW_META.inicio[0];
  $('#viewSub').textContent = VIEW_META.inicio[1];
- loadInicio();
- loadMeta(); // en segundo plano, para los selects de las demás vistas
+ loadInicio().catch(e => { const o = $('#inicioOut'); if (o) o.innerHTML = `<div class="md-none">No se pudo cargar tu día. <button class="btn btn--ghost btn--sm" onclick="loadInicio()">Reintentar</button></div>`; });
+ loadMeta().catch(() => {}); // en segundo plano, para los selects de las demás vistas
  api('/api/team/people').then(r => { if (r.ok && r.data.people) state.teamPeople = r.data.people; }).catch(() => {}); // para el selector de Responsable
 }
 
@@ -168,10 +168,10 @@ async function loadMeta() {
  const { data } = await api('/api/meta');
  state.meta = data;
  // Filtros de tendencias
- fillSelect('#fNiche', data.niches, 'slug', 'label', 'Todos');
- fillSelect('#fCountry', data.countries, 'code', 'label', 'Todos');
- fillSelect('#fPlatform', data.platforms.map(p => ({ v: p, l: PLATFORM_LABEL[p] })), 'v', 'l', 'Todas');
- fillSelect('#fType', data.types, 'slug', 'label', 'Orgánico + Ads');
+ fillSelect('#fNiche', data.niches || [], 'slug', 'label', 'Todos');
+ fillSelect('#fCountry', data.countries || [], 'code', 'label', 'Todos');
+ fillSelect('#fPlatform', (data.platforms || []).map(p => ({ v: p, l: PLATFORM_LABEL[p] })), 'v', 'l', 'Todas');
+ fillSelect('#fType', data.types || [], 'slug', 'label', 'Orgánico + Ads');
  // Selects de generadores (todos aceptan texto libre en el campo de tema)
  ['#rCountry', '#iCountry', '#hCountry'].forEach(id => fillSelect(id, data.countries, 'code', 'label'));
  ['#iCategory', '#hCategory'].forEach(id => fillSelect(id, data.contentCategories || [], 'slug', 'label', 'Sin tono específico'));
