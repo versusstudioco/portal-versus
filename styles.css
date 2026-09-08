@@ -1078,3 +1078,13 @@ textarea.fe-in { min-height:70px; resize:vertical; }
 .md-badge { background: var(--bg4); color: var(--ink-60); border-radius: 999px; padding: 1px 9px; font-size: .75rem; font-weight: 700; flex-shrink: 0; }
 @media (max-width: 820px) { .md-grid { grid-template-columns: 1fr; } }
 @media (max-width: 600px) { .md-hello { font-size: 1.55rem; } .md-chips { margin: .8rem 0 1.1rem; } .md-sec, .md-grid { max-width: none; } }
+
+/* Fix responsive: en móvil el contenido ocupa todo el ancho (una sola columna) */
+@media (max-width: 860px) {
+  .app { grid-template-columns: 1fr !important; }
+  .content { padding: 0 !important; }
+  .view { padding: 0 1rem 2rem !important; }
+  .md-row { flex-wrap: wrap; }
+  .md-row__t { min-width: 0; flex: 1 1 auto; }
+  .md-row__r { flex-shrink: 0; }
+}
