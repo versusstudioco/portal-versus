@@ -2437,7 +2437,8 @@ function vgNum(v){ var n=parseInt(String(v||"").replace(/[^\d-]/g,""),10); retur
 function vgLunes(iso){ var d=new Date(iso+"T00:00:00"); var g=(d.getDay()+6)%7; d.setDate(d.getDate()-g); return d; }
 function vgFmt(d){ return d.getDate()+"/"+(d.getMonth()+1); }
 var VG_TIPOS=[["Reel","reels"],["Carrusel","carruseles"],["Post","posts"],["Banner","banners"],["Historia","historias"]];
-var _vgPiezas={}, _vgCalYM=null, _vgBrandName="";
+var _vgPiezas={}, _vgCalYM=null, _vgBrandName="", _vgCicloIni="", _vgCicloFin="", _vgCicloMin=null, _vgCicloMax=null;
+function _vgYMval(o){ return o?o.y*12+o.m:null; }
 var VG_MESES=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 var VG_DOW=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
 function renderGestorContenido(){
@@ -2461,15 +2462,24 @@ function renderGestorContenido(){
  });
  // Pactado vs realizado (realizado = publicadas dentro del rango del ciclo — respeta ciclos 8→8, no solo mes)
  var _ini=ciclo.inicio||"", _fin=ciclo.fin||"";
+ // El calendario del cliente SOLO muestra el ciclo activo. Lo de fuera del rango ya vive en Métricas/Histórico.
+ _vgCicloIni=_ini; _vgCicloFin=_fin;
+ if(_ini||_fin){
+ Object.keys(_vgPiezas).forEach(function(id){ var f=_vgPiezas[id].fecha||_vgPiezas[id].fechaEntrega; if(!f){ return; } if((_ini&&f<_ini)||(_fin&&f>_fin)) delete _vgPiezas[id]; });
+ }
  var pub = mine.filter(function(p){ if(p.etapa!=="publicada") return false; if(_ini&&p.fecha&&p.fecha<_ini) return false; if(_fin&&p.fecha&&p.fecha>_fin) return false; return true; });
  var pac=ciclo.pactado||{}, totP=0, totR=0;
  var barras = VG_TIPOS.map(function(t){ var p=+pac[t[1]]||0, r=pub.filter(function(x){return x.tipo===t[0];}).length; totP+=p; totR+=r; if(!p&&!r) return ""; var pct=p?Math.min(100,Math.round(r/p*100)):(r?100:0); return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><b>'+t[0]+'s</b><span>'+r+" / "+(p||"—")+(p&&r>=p?" ":"")+'</span></div><div style="height:8px;background:var(--bg3);border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+(p&&r>=p?"#1e8e3e":"var(--red)")+';border-radius:99px"></div></div></div>'; }).join("");
  var head='<div class="card"><div class="card-title">'+(ciclo.periodo?vgEsc(ciclo.periodo):"Ciclo actual")+' · Pactado vs. Realizado <span style="font-weight:400;color:var(--t3)">('+totR+"/"+totP+')</span></div>'+(barras||'<div style="color:var(--t3);font-size:13px;margin-top:6px">El equipo aún no ha configurado el ciclo.</div>')+'</div>';
  el._head=head;
- // Mes inicial: el que tenga piezas más próximo a hoy, o el actual
+ // Límites de navegación = meses que toca el ciclo activo (no se puede salir del ciclo)
+ _vgCicloMin=_ini?{y:+_ini.slice(0,4), m:+_ini.slice(5,7)}:null;
+ _vgCicloMax=_fin?{y:+_fin.slice(0,4), m:+_fin.slice(5,7)}:null;
+ // Mes inicial: hoy si cae dentro del ciclo; si no, el inicio del ciclo; si no hay ciclo, el de las piezas.
  if(!_vgCalYM){
- var fechas=Object.keys(_vgPiezas).map(function(id){return _vgPiezas[id].fecha||_vgPiezas[id].fechaEntrega;}).filter(Boolean).sort();
- var ref = fechas.length ? fechas[fechas.length-1] : (new Date()).toISOString().slice(0,10);
+ var hoyISO=(new Date()).toISOString().slice(0,10); var ref;
+ if(_ini||_fin){ ref = (_ini&&hoyISO<_ini)?_ini : (_fin&&hoyISO>_fin)?_fin : hoyISO; }
+ else { var fechas=Object.keys(_vgPiezas).map(function(id){return _vgPiezas[id].fecha||_vgPiezas[id].fechaEntrega;}).filter(Boolean).sort(); ref = fechas.length ? fechas[fechas.length-1] : hoyISO; }
  var pz=ref.split("-"); _vgCalYM={y:+pz[0], m:+pz[1]};
  }
  vgRenderCal();
@@ -2481,23 +2491,27 @@ function vgRenderCal(){
  var porDia={}; Object.keys(_vgPiezas).forEach(function(id){ var p=_vgPiezas[id]; var f=p.fecha||p.fechaEntrega; if(!f) return; if(f.slice(0,7)===y+"-"+String(m).padStart(2,"0")) (porDia[f]||(porDia[f]=[])).push(p); });
  var sinF=Object.keys(_vgPiezas).map(function(id){return _vgPiezas[id];}).filter(function(p){return !(p.fecha||p.fechaEntrega);});
  var offset=(new Date(y,m-1,1).getDay()+6)%7, dias=new Date(y,m,0).getDate(), hoy=(new Date()).toISOString().slice(0,10);
- var nav='<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><button class="cpill" onclick="vgCalNav(-1)">Anterior</button><div style="font-size:15px;font-weight:800;text-transform:capitalize">'+VG_MESES[m-1]+" "+y+'</div><button class="cpill" onclick="vgCalNav(1)">Siguiente</button></div>';
+ var _vv=y*12+m; var _atMin=_vgCicloMin&&_vv<=_vgYMval(_vgCicloMin); var _atMax=_vgCicloMax&&_vv>=_vgYMval(_vgCicloMax);
+ var _btnPrev=_atMin?'<span class="cpill" style="opacity:.3;cursor:default">Anterior</span>':'<button class="cpill" onclick="vgCalNav(-1)">Anterior</button>';
+ var _btnNext=_atMax?'<span class="cpill" style="opacity:.3;cursor:default">Siguiente</span>':'<button class="cpill" onclick="vgCalNav(1)">Siguiente</button>';
+ var _rango=(_vgCicloIni||_vgCicloFin)?'<div style="font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Ciclo activo'+(_vgCicloIni?': '+vgEsc(_vgCicloIni):'')+(_vgCicloFin?' → '+vgEsc(_vgCicloFin):'')+'</div>':'';
+ var nav='<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">'+_btnPrev+'<div style="font-size:15px;font-weight:800;text-transform:capitalize">'+VG_MESES[m-1]+" "+y+'</div>'+_btnNext+'</div>'+_rango+'<div style="height:10px"></div>';
  var cells=''; VG_DOW.forEach(function(d){ cells+='<div class="vg-dow">'+d+'</div>'; });
  for(var i=0;i<offset;i++) cells+='<div class="vg-cell vg-cell--empty"></div>';
  for(var d=1;d<=dias;d++){
  var iso=y+"-"+String(m).padStart(2,"0")+"-"+String(d).padStart(2,"0"); var arr=porDia[iso]||[]; var esHoy=iso===hoy;
- var chips=arr.slice(0,2).map(function(p){ var e=VG_EST[p.etapa]||VG_EST.editada; return '<div class="vg-chip" onclick="vgOpenPieza(\''+p.id+'\')" style="background:'+e.c+'" title="'+vgEsc(p.idea||"")+'">'+vgEsc(p.tipo||"")+' · '+vgEsc(p.idea||"")+'</div>'; }).join("");
+ var chips=arr.slice(0,2).map(function(p){ var e=VG_EST[p.etapa]||VG_EST.editada; var esHist=(p.tipo==="Historia"||p.tipo==="Historias"); var col=esHist?"#e0218a":e.c; return '<div class="vg-chip'+(esHist?" vg-chip--hist":"")+'" onclick="vgOpenPieza(\''+p.id+'\')" style="background:'+col+'" title="'+vgEsc(p.idea||"")+'">'+vgEsc(p.tipo||"")+' · '+vgEsc(p.idea||"")+'</div>'; }).join("");
  if(arr.length>2) chips+='<div class="vg-more" onclick="vgDay(\''+iso+'\')">+'+(arr.length-2)+' más</div>';
  cells+='<div class="vg-cell'+(esHoy?' vg-cell--hoy':'')+'"><div class="vg-cell__n">'+d+'</div>'+chips+'</div>';
  }
  var grid='<style>.vg-dow{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;text-align:center;padding:4px 0}.vg-cell{height:96px;border:1px solid var(--bd);border-radius:10px;padding:5px 6px;overflow:hidden;background:var(--bg2)}.vg-cell--empty{border:0;background:transparent}.vg-cell--hoy{background:rgba(249,0,0,.05);border-color:rgba(249,0,0,.35)}.vg-cell__n{font-size:11px;font-weight:700;color:var(--t2);margin-bottom:4px}.vg-cell--hoy .vg-cell__n{color:var(--red)}.vg-chip{cursor:pointer;color:#fff;border-radius:6px;padding:3px 6px;margin-bottom:3px;font-size:10px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.vg-more{cursor:pointer;font-size:10px;font-weight:700;color:var(--t2)}@media(max-width:640px){.vg-cell{height:60px;padding:3px}.vg-cell__n{font-size:10px;margin-bottom:2px}.vg-chip{font-size:0;padding:0;height:7px;margin-bottom:2px;border-radius:3px}.vg-more{font-size:9px}.vg-dow{font-size:8px}}</style><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">'+cells+'</div>';
- var leyenda='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--t2)">'+Object.keys(VG_EST).map(function(k){return '<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:3px;background:'+VG_EST[k].c+';display:inline-block"></span>'+VG_EST[k].l+'</span>';}).join("")+'</div>';
+ var leyenda='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--t2)">'+Object.keys(VG_EST).map(function(k){return '<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:3px;background:'+VG_EST[k].c+';display:inline-block"></span>'+VG_EST[k].l+'</span>';}).join("")+'<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:3px;background:#e0218a;display:inline-block"></span>Historia</span></div>';
  var help='<p class="tip" style="margin-top:6px">Toca una publicación para ver el detalle y <b>dejar tus comentarios</b> sobre el guion o el texto.</p>';
  var body=nav+grid+leyenda+help+'</div>';
  if(sinF.length){ body+='<div class="card"><div class="card-title">Sin fecha asignada</div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">'+sinF.map(function(p){var e=VG_EST[p.etapa]||VG_EST.idea;return '<div onclick="vgOpenPieza(\''+p.id+'\')" style="cursor:pointer;background:'+e.c+';color:#fff;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600">'+vgEsc(p.tipo||"")+' · '+vgEsc(p.idea||"")+'</div>';}).join("")+'</div></div>'; }
  el.innerHTML=(el._head||"")+body;
 }
-function vgCalNav(delta){ if(!_vgCalYM)return; var m=_vgCalYM.m+delta, y=_vgCalYM.y; if(m<1){m=12;y--;} if(m>12){m=1;y++;} _vgCalYM={y:y,m:m}; vgRenderCal(); }
+function vgCalNav(delta){ if(!_vgCalYM)return; var m=_vgCalYM.m+delta, y=_vgCalYM.y; if(m<1){m=12;y--;} if(m>12){m=1;y++;} var v=y*12+m; if(_vgCicloMin&&v<_vgYMval(_vgCicloMin))return; if(_vgCicloMax&&v>_vgYMval(_vgCicloMax))return; _vgCalYM={y:y,m:m}; vgRenderCal(); }
 function vgLinks(p){
  var items=[["Instagram",p.linkIg],["TikTok",p.linkTiktok],["LinkedIn",p.linkLinkedin]].filter(function(x){return x[1];});
  if(!items.length && p.link) items=[["Ver publicación",p.link]];

@@ -135,6 +135,7 @@
     return {
       id: p.id, marca: p.marca, tipo: p.tipo || 'Reel', idea: p.idea || '', guion: p.guion || '',
       caracteristicas: p.caracteristicas || '', etapa: p.etapa || 'idea', responsable: p.responsable || '',
+      numero: p.numero || '',
       fecha: p.fecha || null, fechaEntrega: p.fechaEntrega || null,
       aprobadoCliente: p.aprobadoCliente || null,
       link: p.link || '', linkIg: p.linkIg || '', linkTiktok: p.linkTiktok || '', linkLinkedin: p.linkLinkedin || '',
@@ -266,7 +267,7 @@
       if (p === '/api/me') {
         const s = await sesionActual();
         if (!s) return { ok: true, data: { authenticated: false } };
-        return { ok: true, data: { authenticated: true, name: s.name, area: s.area, role: s.role, aiEnabled: !!window.VFB_GEMINI, provider: window.VFB_GEMINI ? 'gemini' : null } };
+        return { ok: true, data: { authenticated: true, name: s.name, area: s.area, role: s.role, type: s.type, username: s.username, aiEnabled: !!window.VFB_GEMINI, provider: window.VFB_GEMINI ? 'gemini' : null } };
       }
       if (p === '/api/meta') return { ok: true, data: META };
 
@@ -275,8 +276,9 @@
         const s = (await sesionActual()) || {};
         const all = Object.values((await fbGet('gestor/tasks').catch(() => null)) || {});
         const hoyISO = new Date().toISOString().slice(0, 10);
-        const mias = all.filter(t => t.assignedTo === s.username).map(t => ({ ...t, overdue: t.status !== 'hecho' && t.dueDate && t.dueDate < hoyISO }));
-        return { ok: true, data: { tasks: mias, me: { name: s.name, area: s.area, role: s.role } } };
+        const enTarea = t => t.assignedTo === s.username || (Array.isArray(t.colaboradores) && t.colaboradores.includes(s.username)) || (t.creadaPor === s.username);
+        const mias = all.filter(enTarea).map(t => ({ ...t, overdue: t.status !== 'hecho' && t.dueDate && t.dueDate < hoyISO, compartida: t.assignedTo !== s.username, deQuien: t.assignedTo }));
+        return { ok: true, data: { tasks: mias, me: { name: s.name, area: s.area, role: s.role, username: s.username } } };
       }
       if (p === '/api/team/people') {
         const obj = (await fbGet('db/profiles').catch(() => null)) || {};
@@ -291,7 +293,8 @@
         const s = await sesionActual();
         if (!s) return { ok: false, status: 403, data: { error: 'Sin sesión' } };
         const id = uid();
-        await fbPut('gestor/tasks/' + id, { id, title: String(body.title || '').trim(), assignedTo: body.assignedTo || s.username, area: body.area || s.area || '', categoria: body.categoria || 'General', cliente: body.cliente || '', dueDate: body.dueDate || null, horaInicio: body.horaInicio || '', horaFin: body.horaFin || '', priority: body.priority || 'media', status: 'pendiente', createdAt: new Date().toISOString(), creadaPor: s.username });
+        const colaboradores = Array.isArray(body.colaboradores) ? body.colaboradores.filter(Boolean) : [];
+        await fbPut('gestor/tasks/' + id, { id, title: String(body.title || '').trim(), assignedTo: body.assignedTo || s.username, colaboradores, area: body.area || s.area || '', categoria: body.categoria || 'General', cliente: body.cliente || '', dueDate: body.dueDate || null, horaInicio: body.horaInicio || '', horaFin: body.horaFin || '', priority: body.priority || 'media', status: 'pendiente', createdAt: new Date().toISOString(), creadaPor: s.username });
         return { ok: true, data: { ok: true, id } };
       }
       if (p.startsWith('/api/team/admin/')) {
@@ -339,12 +342,12 @@
       if (p === '/api/piezas') return { ok: true, data: await board() };
       if (p === '/api/piezas/crear' && method === 'POST') {
         const id = uid();
-        const pieza = { id, marca: String(body.marca || '').trim() || 'Sin marca', tipo: body.tipo || 'Reel', idea: String(body.idea || '').trim() || 'Nueva idea', guion: body.guion || '', caracteristicas: body.caracteristicas || '', etapa: 'idea', responsable: body.responsable || '', fecha: body.fecha || null, fechaEntrega: body.fechaEntrega || null, comentarios: {}, createdAt: new Date().toISOString() };
+        const pieza = { id, marca: String(body.marca || '').trim() || 'Sin marca', tipo: body.tipo || 'Reel', idea: String(body.idea || '').trim() || 'Nueva idea', guion: body.guion || '', caracteristicas: body.caracteristicas || '', etapa: 'idea', responsable: body.responsable || '', numero: body.numero || '', fecha: body.fecha || null, fechaEntrega: body.fechaEntrega || null, comentarios: {}, createdAt: new Date().toISOString() };
         await fbPut('gestor/piezas/' + id, pieza);
         return { ok: true, data: { ok: true, pieza } };
       }
       if (p === '/api/piezas/update' && method === 'POST') {
-        const patch = {}; ['idea', 'guion', 'caracteristicas', 'responsable', 'tipo', 'fecha', 'fechaEntrega', 'aprobadoCliente', 'link', 'linkIg', 'linkTiktok', 'linkLinkedin', 'met', 'mViews', 'mLikes', 'mSaved', 'mShared'].forEach(k => { if (body[k] != null) patch[k] = body[k]; });
+        const patch = {}; ['idea', 'guion', 'caracteristicas', 'responsable', 'numero', 'tipo', 'fecha', 'fechaEntrega', 'aprobadoCliente', 'link', 'linkIg', 'linkTiktok', 'linkLinkedin', 'met', 'mViews', 'mLikes', 'mSaved', 'mShared'].forEach(k => { if (body[k] != null) patch[k] = body[k]; });
         await fbPatch('gestor/piezas/' + body.id, patch);
         return { ok: true, data: { ok: true } };
       }

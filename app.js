@@ -131,6 +131,14 @@ document.getElementById('themeTgl')?.addEventListener('click', () => { applyThem
 async function checkSession() {
  const { ok, data } = await api('/api/me');
  if (ok && data.authenticated) {
+ if (data.type === 'client') {
+ // Una cuenta de cliente NO entra al Team (aunque el navegador tenga guardada su contraseña).
+ await api('/api/logout', { method: 'POST' });
+ show('#login'); hide('#app');
+ const err = $('#loginError');
+ if (err) err.innerHTML = 'Esa cuenta es de <b>cliente</b>, no entra al panel del equipo. Entra por el <a href="/clientes/" style="color:#F90000;font-weight:700">Portal de Clientes</a>. Si eres del equipo, usa tu usuario del equipo.';
+ return;
+ }
  enterApp(data);
  } else {
  show('#login'); hide('#app');
@@ -165,7 +173,8 @@ async function enterApp(me) {
  state.me = me;
  $('#userName').textContent = (me.name || 'Versus') + (me.area ? ' · ' + me.area : '');
  $('.avatar').textContent = (me.name || 'V').trim().charAt(0).toUpperCase();
- if (me.role === 'admin') { $('#navEquipo').classList.remove('hidden'); $('#navConfig')?.classList.remove('hidden'); }
+ $('#navConfig')?.classList.remove('hidden'); // Configuración: agenda personal (todos) + ajustes de admin
+ if (me.role === 'admin') { $('#navEquipo').classList.remove('hidden'); }
  const badge = $('#aiBadge');
  if (me.aiEnabled) { badge.textContent = '● IA activa' + (me.provider === 'gemini' ? ' · Gemini' : me.provider === 'claude' ? ' · Claude' : ''); badge.className = 'ai-badge on'; }
  else { badge.textContent = '● Modo demo'; badge.className = 'ai-badge demo'; }
@@ -231,7 +240,7 @@ const VIEW_META = {
  mistareas: [' Mis tareas', 'Tu día: tareas asignadas, por cliente y por estado'],
  equipo: [' Equipo', 'Administra personas, asigna tareas y revisa la ejecución'],
  altas: [' Formularios', 'Crea el typeform, comparte el link y revisa las respuestas de marcas nuevas'],
- config: [' Configuración', 'Cuentas de cliente, accesos y ajustes del portal'],
+ config: [' Configuración', 'Tu agenda de Google Calendar, cuentas de cliente y ajustes'],
  radar: [' Estrategia · Radar', 'Análisis de tendencias en vivo por país y categoría'],
  ideas: [' Estrategia · Ideas y guiones', 'Ideas y estructura de creativos según lo que está en tendencia'],
  tendencias: [' Estrategia · Biblioteca', 'Estructuras ganadoras de referencia'],
@@ -519,11 +528,18 @@ function openPiezaHistorico(p) {
  $('#pzCancel').addEventListener('click', close);
  $('#pzModal').addEventListener('click', e => { if (e.target.id === 'pzModal') close(); });
 }
-function openPieza(id) {
+const CATEGORIAS_PIEZA = ['Post', 'Reel', 'Carrusel', 'Historia', 'Banner'];
+function openPieza(id, prefill) {
  const et = [['idea', 'Idea'], ['aprobada', 'Aprobada'], ['grabada', 'Grabada'], ['editada', 'Editada'], ['publicada', 'Publicada']];
- const p = id ? state.piezas[id] : { id: '', marca: '', idea: '', tipo: 'Reel', guion: '', caracteristicas: '', etapa: 'idea', responsable: '', comentarios: [] };
+ const p = id ? state.piezas[id] : Object.assign({ id: '', marca: '', idea: '', tipo: 'Reel', guion: '', caracteristicas: '', etapa: 'idea', responsable: '', numero: '', comentarios: [] }, prefill || {});
  if (p && p.historico) return openPiezaHistorico(p);
- const people = ((state.teamPeople && state.teamPeople.length ? state.teamPeople : state.equipoPeople) || []).map(x => x.name);
+ let people = ((state.teamPeople && state.teamPeople.length ? state.teamPeople : state.equipoPeople) || []).map(x => x.name);
+ if (!people.length) people = ['Michelle', 'Vero'];
+ // Conteo del ciclo para esta marca (para saber qué # de publicación es)
+ const dela = Object.values(state.piezas || {}).filter(x => x.marca === p.marca && x.id !== p.id);
+ const nCreativos = dela.filter(x => x.tipo !== 'Historia').length;
+ const nHistorias = dela.filter(x => x.tipo === 'Historia').length;
+ if (!id && !p.numero) p.numero = String((p.tipo === 'Historia' ? nHistorias : nCreativos) + 1);
  const PLATS = [['ig', 'Instagram'], ['tiktok', 'TikTok'], ['linkedin', 'LinkedIn']];
  const MET_KEYS = [['views', 'Vistas'], ['likes', 'Likes'], ['comments', 'Coment.'], ['saved', 'Guard.'], ['shared', 'Comp.']];
  const metVal = (plat, k) => {
@@ -553,12 +569,14 @@ function openPieza(id) {
  </div>
  <input id="pzIdea" class="pz-idea" placeholder="La idea / título" value="${esc(p.idea)}">
  <div class="form-grid" style="margin:.6rem 0">
- <label class="select"><span>Tipo</span><select id="pzTipo">${['Reel', 'Post', 'Carrusel', 'Historia'].map(t => `<option ${p.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+ <label class="select"><span>Categoría</span><select id="pzTipo">${CATEGORIAS_PIEZA.map(t => `<option ${p.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+ <label class="select"><span>N.º de publicación <em style="font-weight:400;color:var(--ink-40)">(del ciclo)</em></span><input id="pzNum" type="text" value="${esc(p.numero || '')}" placeholder="1"></label>
  <label class="select select--grow"><span>Responsable</span>
- <select id="pzResp"><option value="">— Sin asignar —</option>${people.map(n => `<option ${p.responsable === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}${(p.responsable && !people.includes(p.responsable)) ? `<option selected>${esc(p.responsable)}</option>` : ''}</select></label>
+ <select id="pzResp"><option value="">— Sin asignar —</option>${people.map(n => `<option ${p.responsable === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}<option value="Cliente" ${p.responsable === 'Cliente' ? 'selected' : ''}>Cliente (pendiente de aprobación)</option>${(p.responsable && !people.includes(p.responsable) && p.responsable !== 'Cliente') ? `<option selected>${esc(p.responsable)}</option>` : ''}</select></label>
  <label class="select"><span> Fecha de entrega <em style="font-weight:400;color:var(--ink-40)">(para aprobación)</em></span><input id="pzFechaEntrega" type="date" value="${esc(p.fechaEntrega || '')}"></label>
  <label class="select"><span> Fecha de publicación</span><input id="pzFecha" type="date" value="${esc(p.fecha || '')}"></label>
  </div>
+ <div class="pz-count">En este ciclo de <b>${esc(p.marca || 'la marca')}</b>: ${nCreativos} creativo(s) · ${nHistorias} historia(s)${id ? '' : ' — esta sería la #' + esc(p.numero || '?')}</div>
  <div class="pz-field"><span>Guion</span>
         <div class="rte-bar">
           <button type="button" class="rte-b" data-cmd="bold" title="Negrita"><b>B</b></button>
@@ -586,8 +604,13 @@ function openPieza(id) {
  document.body.insertAdjacentHTML('beforeend', html);
  const close = () => $('#pzModal').remove();
  $('#pzCancel').addEventListener('click', close);
- $('#pzModal').addEventListener('click', e => { if (e.target.id === 'pzModal') close(); });
+ // Cerrar SOLO si el clic empieza y termina en el fondo (no cuando arrastras texto y sueltas fuera).
+ let downOnBackdrop = false;
+ $('#pzModal').addEventListener('mousedown', e => { downOnBackdrop = (e.target.id === 'pzModal'); });
+ $('#pzModal').addEventListener('click', e => { if (e.target.id === 'pzModal' && downOnBackdrop) close(); downOnBackdrop = false; });
  $$('#pzModal .rte-b').forEach(b => b.addEventListener('mousedown', e => { e.preventDefault(); document.execCommand(b.dataset.cmd, false, null); }));
+ const pzNum = $('#pzNum'), pzTipo = $('#pzTipo'), pzCount = $('#pzModal .pz-count');
+ if (!id && pzTipo && pzNum) pzTipo.addEventListener('change', () => { pzNum.value = String((pzTipo.value === 'Historia' ? nHistorias : nCreativos) + 1); if (pzCount) pzCount.innerHTML = `En este ciclo de <b>${esc($('#pzMarca').value || 'la marca')}</b>: ${nCreativos} creativo(s) · ${nHistorias} historia(s) — esta sería la #${esc(pzNum.value)}`; });
  const rteSize = $('#rteSize'); if (rteSize) rteSize.addEventListener('change', () => { if (rteSize.value) { $('#pzGuion').focus(); document.execCommand('fontSize', false, rteSize.value); rteSize.value = ''; } });
  const rteColor = $('#rteColor'); if (rteColor) rteColor.addEventListener('input', () => { $('#pzGuion').focus(); document.execCommand('foreColor', false, rteColor.value); });
  $$('.pz-plattab').forEach(t => t.addEventListener('click', () => {
@@ -597,7 +620,7 @@ function openPieza(id) {
  }));
  (function(){ const pzF = $('#pzFecha'), pzE = $('#pzFechaEntrega'); if (pzF && pzE) pzF.addEventListener('change', () => { if (pzF.value && !pzE.value) { const d = new Date(pzF.value + 'T00:00:00'); d.setDate(d.getDate() - 2); pzE.value = d.toISOString().slice(0, 10); } }); })();
  $('#pzSave').addEventListener('click', async () => {
- const body = { id, marca: $('#pzMarca').value, idea: $('#pzIdea').value, tipo: $('#pzTipo').value, responsable: $('#pzResp').value, guion: ($('#pzGuion').innerHTML || '').trim(), caracteristicas: $('#pzCar').value,
+ const body = { id, marca: $('#pzMarca').value, idea: $('#pzIdea').value, tipo: $('#pzTipo').value, responsable: $('#pzResp').value, numero: $('#pzNum').value, guion: ($('#pzGuion').innerHTML || '').trim(), caracteristicas: $('#pzCar').value,
  fecha: $('#pzFecha').value || null, fechaEntrega: $('#pzFechaEntrega').value || null,
  linkIg: $('#pzLinkIg').value, linkTiktok: $('#pzLinkTiktok').value, linkLinkedin: $('#pzLinkLinkedin').value };
  const met = {}; $$('.pzm').forEach(inp => { if (inp.value !== '') { const pl = inp.dataset.plat, k = inp.dataset.k; (met[pl] || (met[pl] = {}))[k] = +inp.value || 0; } });
@@ -966,13 +989,19 @@ function renderFormEditor() {
 }
 
 /* ---------------- Configuración (admin): cuentas de cliente ---------------- */
+const AGENDA_PANEL = `
+ <div class="glass panel form-panel">
+ <h3 class="live-h3" style="margin-top:0">Mi agenda · Google Calendar</h3>
+ <p class="hub-hint" style="margin:.1rem 0 .8rem">Conecta tu calendario para ver tu día, crear reuniones y bloquear tiempo. Puedes cambiar de cuenta cuando quieras.</p>
+ <div id="mdAgenda"></div>
+ </div>`;
 async function loadConfig() {
  const out = $('#configOut');
- if (!isAdmin()) { out.innerHTML = '<div class="empty">Solo el administrador.</div>'; return; }
+ if (!isAdmin()) { out.innerHTML = AGENDA_PANEL; renderAgenda(); return; }
  out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando configuración…</div>';
  const r = await api('/api/admin/clientes');
  const clientes = (r.ok && r.data.clientes) || [];
- out.innerHTML = `
+ out.innerHTML = AGENDA_PANEL + `
  <div class="glass panel form-panel">
  <h3 class="live-h3" style="margin-top:0"> Crear cuenta de cliente</h3>
  <p class="hub-hint" style="margin:.1rem 0 .8rem">Crea el acceso al Portal de Clientes. Queda disponible al instante y aparece como marca en el Team.</p>
@@ -1017,6 +1046,7 @@ async function loadConfig() {
  if (res.ok) { alert('Cliente creado. Ya puede entrar al Portal de Clientes con su usuario y contraseña.'); loadConfig(); }
  else alert(res.data.error || 'No se pudo crear');
  });
+ renderAgenda();
 }
 
 async function loadEquipo() {
@@ -1330,7 +1360,7 @@ function buildMonthGrid(piezas, refISO) {
  const items = porDia[iso] || [];
  celdas += `<div class="cal__cell ${iso === hoyISO ? 'cal__cell--hoy' : ''}">
  <div class="cal__num">${d}</div>
- ${items.map(p => `<div class="cal__item cal-pz" data-id="${p.id}" title="${esc(p.idea || '')} · ${esc(p.etapa || '')}"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${esc(p.tipo || '')}</div>`).join('')}
+ ${items.map(p => `<div class="cal__item cal-pz" data-id="${p.id}" title="${esc(p.idea || '')} · ${esc(p.etapa || '')}"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${p.numero ? '#' + esc(p.numero) + ' ' : ''}${esc(p.tipo || '')}</div>`).join('')}
  </div>`;
  }
  return { label: `${CAL_MESES[m - 1]} ${y}`, html: `<div class="cal">${celdas}</div>` };
@@ -1346,8 +1376,10 @@ async function marcaCalendario(marca) {
  state.piezas = state.piezas || {}; mine.forEach(p => state.piezas[p.id] = p);
  const creativos = mine.filter(p => p.tipo !== 'Historia').length;
  const historias = mine.filter(p => p.tipo === 'Historia').length;
- const conFecha = mine.filter(p => p.fecha || p.fechaEntrega).sort((a, b) => (a.fecha || a.fechaEntrega).localeCompare(b.fecha || b.fechaEntrega));
- const sinFecha = mine.filter(p => !(p.fecha || p.fechaEntrega));
+ // El calendario de gestión muestra SOLO creativos (post, carrusel, reel, banner). Las historias se cuentan aparte.
+ const soloCreativos = mine.filter(p => p.tipo !== 'Historia');
+ const conFecha = soloCreativos.filter(p => p.fecha || p.fechaEntrega).sort((a, b) => (a.fecha || a.fechaEntrega).localeCompare(b.fecha || b.fechaEntrega));
+ const sinFecha = soloCreativos.filter(p => !(p.fecha || p.fechaEntrega));
  if (!state.marcaCalYM) {
  const ref = (conFecha.length ? (conFecha[conFecha.length - 1].fecha || conFecha[conFecha.length - 1].fechaEntrega) : new Date().toISOString().slice(0, 10));
  const [ry, rm] = ref.split('-'); state.marcaCalYM = { y: +ry, m: +rm };
@@ -1380,33 +1412,9 @@ async function marcaCalendario(marca) {
  };
  render();
 }
-function openAgregarCreativo(marca) {
- const html = `<div class="g-modal" id="acModal"><div class="g-modal__box glass">
- <h3 style="margin-bottom:.9rem">Agregar creativo · ${esc(marca)}</h3>
- <label class="select" style="margin-bottom:.7rem"><span>Tipo</span>
- <select id="acTipo">${TIPOS_CREATIVO.map(t => `<option${t === 'Reel' ? ' selected' : ''}>${t}</option>`).join('')}</select></label>
- <p class="hub-hint" id="acHint">Los creativos cuentan al ciclo. Las historias se cuentan aparte.</p>
- <label class="select" style="margin-bottom:.7rem"><span>Idea / título</span><input id="acIdea" placeholder="De qué trata"></label>
- <label class="select" style="margin-bottom:.7rem"><span> Fecha de entrega (aprobación, opcional)</span><input id="acFechaEntrega" type="date"></label>
- <label class="select" style="margin-bottom:.7rem"><span> Fecha de publicación (opcional)</span><input id="acFecha" type="date"></label>
- <div class="g-modal__actions">
- <button class="btn btn--ghost btn--sm" id="acCancel">Cancelar</button>
- <button class="btn btn--primary btn--sm" id="acSave">Crear</button>
- </div>
- </div></div>`;
- document.body.insertAdjacentHTML('beforeend', html);
- const close = () => $('#acModal').remove();
- const tipoSel = $('#acTipo'), hint = $('#acHint');
- tipoSel.addEventListener('change', () => { hint.textContent = tipoSel.value === 'Historia' ? 'Las historias se cuentan aparte del ciclo de creativos.' : 'Los creativos cuentan al ciclo. Las historias se cuentan aparte.'; });
- $('#acCancel').addEventListener('click', close);
- $('#acModal').addEventListener('click', e => { if (e.target.id === 'acModal') close(); });
- $('#acSave').addEventListener('click', async () => {
- const idea = $('#acIdea').value.trim();
- if (!idea) { $('#acIdea').focus(); return; }
- await api('/api/piezas/crear', { method: 'POST', body: { marca, tipo: tipoSel.value, idea, fecha: $('#acFecha').value || null, fechaEntrega: $('#acFechaEntrega').value || null } });
- close();
- marcaCalendario(marca);
- });
+function openAgregarCreativo(marca, fecha) {
+ // Abre el editor COMPLETO (mismo de una tarjeta), con la marca ya puesta.
+ openPieza(null, { marca, fecha: fecha || null });
 }
 
 /* --- Métricas de la marca --- */
@@ -1968,24 +1976,21 @@ async function loadInicio() {
  const TASK_ST = { pendiente: 'Pendiente', en_curso: 'En proceso', hecho: 'Terminada' };
  const TASK_NEXT = { pendiente: 'en_curso', en_curso: 'hecho', hecho: 'pendiente' };
  const PRIO_DOT = { alta: '#F90000', media: '#f59e0b', baja: '#9aa0a6' };
- const tRow = t => `<div class="md-row"><div class="md-row__t"><span class="md-pd" style="background:${PRIO_DOT[t.priority] || '#ccc'}"></span>${esc(t.title)}<small>${[t.categoria && t.categoria !== 'General' ? t.categoria : '', t.cliente || '', horaTxt(t)].filter(Boolean).join(' · ')}${t.dueDate ? ' · ' + esc(t.dueDate.slice(5)) : ''}${t.overdue ? ' · atrasada' : ''}</small></div><div class="md-row__r">${t.dueDate ? `<a class="md-gcal" href="${gcalUrl(t)}" target="_blank" rel="noopener">Cal</a>` : ''}<button class="md-stpill st-${t.status}" data-st="${t.id}" data-next="${TASK_NEXT[t.status] || 'pendiente'}">${TASK_ST[t.status] || 'Pendiente'}</button></div></div>`;
- const pRow = (p, dot) => `<div class="md-row" data-pieza="${p.id}"><div class="md-row__t"><span class="md-dotc md-dotc--${dot}"></span>${esc(p.marca)} · ${esc(p.idea || '')}<small>${p.fechaEntrega ? 'entrega ' + esc(p.fechaEntrega.slice(5)) : (p.fecha ? 'publica ' + esc(p.fecha.slice(5)) : '')}${ETAPA_ACCION[p.etapa] ? ' · ' + ETAPA_ACCION[p.etapa] : ''}</small></div></div>`;
+ const tRow = t => `<div class="md-row"><div class="md-row__t"><button class="md-check${t.status === 'hecho' ? ' md-check--on' : ''}" data-check="${t.id}" data-status="${t.status}" title="Marcar hecha" aria-label="Marcar hecha"></button><span class="md-pd" style="background:${PRIO_DOT[t.priority] || '#ccc'}"></span>${esc(t.title)}<small>${[t.categoria && t.categoria !== 'General' ? t.categoria : '', t.cliente || '', horaTxt(t)].filter(Boolean).join(' · ')}${t.dueDate ? ' · ' + esc(t.dueDate.slice(5)) : ''}${t.overdue ? ' · atrasada' : ''}${t.compartida ? ' · compartida' : ''}</small></div><div class="md-row__r">${t.dueDate ? `<a class="md-gcal" href="${gcalUrl(t)}" target="_blank" rel="noopener">Cal</a>` : ''}<button class="md-stpill st-${t.status}" data-st="${t.id}" data-next="${TASK_NEXT[t.status] || 'pendiente'}">${TASK_ST[t.status] || 'Pendiente'}</button></div></div>`;
+ const accionDe = p => (p.fecha && p.fecha <= hoyISO && p.etapa === 'editada') ? 'Publicar' : (ETAPA_ACCION[p.etapa] || '');
+ const pRow = (p, dot) => `<div class="md-row" data-pieza="${p.id}"><div class="md-row__t"><span class="md-dotc md-dotc--${dot}"></span>${esc(p.marca)} · ${esc(p.idea || '')}<small>${p.numero ? '#' + esc(p.numero) + ' · ' : ''}${esc(p.tipo || '')}${p.fecha ? ' · publica ' + esc(p.fecha.slice(5)) : (p.fechaEntrega ? ' · entrega ' + esc(p.fechaEntrega.slice(5)) : '')}</small></div><div class="md-row__r">${accionDe(p) ? `<span class="md-act">${accionDe(p)}</span>` : ''}</div></div>`;
  const CAP = 6;
  const capBlock = (arr, rowFn, key) => `<div class="md-rows">${arr.slice(0, CAP).map(rowFn).join('')}</div>${arr.length > CAP ? `<button class="md-more" data-lista="${key}">Ver todas (${arr.length})</button>` : ''}`;
 
- // Contenido: pendientes (admin) o "te toca" (rol)
- let contArr = [], contTitle = 'Contenido', contRow = pRow;
- if (me.role === 'admin') {
-   const porEntregar = allP.filter(p => p.fechaEntrega && p.etapa !== 'publicada' && p.fechaEntrega <= hoyISO).map(p => ({ p, dot: 'amber' }));
-   const atrasadas = allP.filter(p => p.fecha && p.etapa !== 'publicada' && p.fecha < hoyISO).map(p => ({ p, dot: 'red' }));
-   contArr = atrasadas.concat(porEntregar); contTitle = 'Contenido · en producción'; contRow = o => pRow(o.p, o.dot);
- } else if (etapasMias.length) {
-   contArr = allP.filter(p => etapasMias.includes(p.etapa)); contTitle = 'Contenido · te toca'; contRow = piezaRow;
- }
- state._mdTareas = hoy; state._mdCont = contArr; state._mdContRow = contRow;
-
- const porMarca = {}; allP.forEach(p => { if (p.etapa !== 'publicada') porMarca[p.marca] = (porMarca[p.marca] || 0) + 1; });
- const marcasArr = Object.entries(porMarca).map(([m, n]) => ({ m, n })).sort((a, b) => b.n - a.n).slice(0, 8);
+ // Contenido de hoy: piezas para actuar hoy o atrasadas, con la acción (guionizar/grabar/editar/publicar).
+ const contRel = p => p.fecha || p.fechaEntrega;
+ const contArr = allP
+   .filter(p => p.etapa !== 'publicada' && contRel(p) && contRel(p) <= hoyISO)
+   .sort((a, b) => contRel(a).localeCompare(contRel(b)))
+   .map(p => ({ p, dot: (p.fecha && p.fecha < hoyISO) ? 'red' : 'amber' }));
+ const contTitle = 'Contenido de hoy';
+ const contRow = o => pRow(o.p, o.dot);
+ state._mdTareas = hoy; state._mdSemana = proximas; state._mdCont = contArr; state._mdContRow = contRow;
 
  let html = `<div class="md-hero">
    <div class="md-hero__date">${esc(fechaLarga)}</div>
@@ -1997,26 +2002,22 @@ async function loadInicio() {
  <div class="md-grid">`;
 
  html += `<section class="md-card"><div class="md-card__h">Tareas de hoy</div>${hoy.length ? capBlock(hoy, tRow, 'tareas') : '<div class="md-none">Sin tareas para hoy.</div>'}</section>`;
- html += `<section class="md-card"><div class="md-card__h">${contTitle}</div>${contArr.length ? capBlock(contArr, contRow, 'cont') : '<div class="md-none">Nada en contenido por ahora.</div>'}</section>`;
- html += `<section class="md-card"><div class="md-card__h">Mi agenda</div><div id="mdAgenda"></div></section>`;
- html += `<section class="md-card"><div class="md-card__h">Por marca · piezas activas</div>${marcasArr.length ? `<div class="md-rows">${marcasArr.map(x => `<button class="md-brow" data-marca="${esc(x.m)}"><span>${esc(x.m)}</span><span class="md-badge">${x.n}</span></button>`).join('')}</div>` : '<div class="md-none">Sin piezas activas.</div>'}</section>`;
+ html += `<section class="md-card"><div class="md-card__h">Tareas de la semana</div>${proximas.length ? capBlock(proximas, tRow, 'semana') : '<div class="md-none">Nada más programado esta semana.</div>'}</section>`;
+ html += `<section class="md-card md-card--wide"><div class="md-card__h">${contTitle}</div>${contArr.length ? capBlock(contArr, contRow, 'cont') : '<div class="md-none">Nada de contenido para hoy.</div>'}</section>`;
  html += `</div>`;
-
- const tools = [['archivos', 'Marcas'], ['flujo', 'Flujo'], ['gestion', 'Gestión'], ['calendario', 'Calendario'], ['altas', 'Formularios']];
- html += `<section class="md-sec"><div class="md-sec__h">Ir al trabajo</div><div class="md-quick">${tools.map(([v, l]) => `<button class="md-tile" data-goto="${v}">${esc(l)}</button>`).join('')}</div></section>`;
 
  out.innerHTML = html;
  bindDashRows(out);
  out.querySelectorAll('.md-more').forEach(b => b.addEventListener('click', () => {
    if (b.dataset.lista === 'tareas') openLista('Tareas de hoy', (state._mdTareas || []).map(tRow).join(''));
+   else if (b.dataset.lista === 'semana') openLista('Tareas de la semana', (state._mdSemana || []).map(tRow).join(''));
    else openLista(contTitle, (state._mdCont || []).map(contRow).join(''));
  }));
- out.querySelectorAll('.md-tile').forEach(b => b.addEventListener('click', () => { const item = document.querySelector(`.nav__item[data-view="${b.dataset.goto}"]`); if (item) item.click(); }));
  const nt = $('#mdNewTask'); if (nt) nt.onclick = openTarea;
  const nc = $('#mdNewContent'); if (nc) nc.onclick = () => openPieza(null);
- renderAgenda();
 }
 function bindDashRows(scope) {
+ scope.querySelectorAll('.md-check').forEach(b => b.addEventListener('click', async e => { e.stopPropagation(); const id = b.dataset.check; const done = b.dataset.status === 'hecho'; b.disabled = true; await api('/api/team/task-status', { method: 'POST', body: { id, status: done ? 'pendiente' : 'hecho' } }); loadInicio(); }));
  scope.querySelectorAll('.md-stpill').forEach(b => b.addEventListener('click', async e => { e.stopPropagation(); const id = b.dataset.st, next = b.dataset.next; b.disabled = true; await api('/api/team/task-status', { method: 'POST', body: { id, status: next } }); loadInicio(); }));
  scope.querySelectorAll('[data-pieza]').forEach(el => el.addEventListener('click', e => { if (e.target.closest('.md-wa')) return; openPieza(el.dataset.pieza); }));
  scope.querySelectorAll('.md-wa').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); window.open('https://wa.me/?text=' + b.dataset.wa, '_blank'); }));
@@ -2043,6 +2044,7 @@ function openTarea() {
       <label class="select"><span>Fin</span><input id="tkHf" type="time"></label>
       <label class="select"><span>Prioridad</span><select id="tkPrio"><option value="media">Media</option><option value="alta">Alta</option><option value="baja">Baja</option></select></label>
     </div>
+    ${people.filter(p => p.username !== me.username).length ? `<div class="tk-colabs"><span class="tk-colabs__h">¿Quién más está en esta tarea? <em>(la ven en su día)</em></span><div class="tk-colabs__list">${people.filter(p => p.username !== me.username).map(p => `<label class="tk-chip"><input type="checkbox" class="tkColab" value="${esc(p.username)}"> ${esc(p.name)}</label>`).join('')}</div></div>` : ''}
     <div class="g-modal__actions"><button class="btn btn--ghost btn--sm" id="tkCancel">Cancelar</button><button class="btn btn--primary btn--sm" id="tkSave">Crear tarea</button></div>
   </div></div>`;
   document.body.insertAdjacentHTML('beforeend', html);
@@ -2050,7 +2052,8 @@ function openTarea() {
   $('#tkCancel').onclick = close; $('#tkModal').onclick = e => { if (e.target.id === 'tkModal') close(); };
   $('#tkSave').onclick = async () => {
     const title = $('#tkTitle').value.trim(); if (!title) { $('#tkTitle').focus(); return; }
-    const body = { title, assignedTo: $('#tkWho').value, categoria: $('#tkCat').value, dueDate: $('#tkDue').value, horaInicio: $('#tkHi').value, horaFin: $('#tkHf').value, priority: $('#tkPrio').value };
+    const colaboradores = $$('.tkColab').filter(c => c.checked).map(c => c.value);
+    const body = { title, assignedTo: $('#tkWho').value, colaboradores, categoria: $('#tkCat').value, dueDate: $('#tkDue').value, horaInicio: $('#tkHi').value, horaFin: $('#tkHf').value, priority: $('#tkPrio').value };
     const btn = $('#tkSave'); btn.disabled = true; btn.textContent = 'Creando…';
     const r = await api('/api/team/task-crear', { method: 'POST', body });
     if (r.ok) { close(); loadInicio(); } else { btn.disabled = false; btn.textContent = 'Crear tarea'; alert(r.data.error || 'No se pudo'); }
