@@ -283,6 +283,7 @@ async function loadGestion() {
  state.gestionLoaded = true;
  renderGestionStats(data);
  renderMarcas(data);
+ renderFlujo();
 }
 
 function renderGestionStats(d) {
@@ -1904,52 +1905,70 @@ async function loadInicio() {
  const taskRow = t => `<div class="md-row" data-task="${t.id}"><div class="md-row__t">${esc(t.title)}<small>${[t.categoria && t.categoria !== 'General' ? t.categoria : '', t.cliente || '', t.area || '', horaTxt(t)].filter(Boolean).join(' · ')}${t.dueDate ? ' · ' + esc(t.dueDate) : ''}</small></div><div class="md-row__r">${t.overdue ? '<span class="md-flag">atrasada</span>' : ''}${t.dueDate ? `<a class="md-gcal" href="${gcalUrl(t)}" target="_blank" rel="noopener">Calendar</a>` : ''}<button class="md-done" data-done="${t.id}">Hecho</button></div></div>`;
  const piezaRow = p => `<div class="md-row" data-pieza="${p.id}"><div class="md-row__t">${esc(p.marca)} · ${esc(p.idea || '')}<small>${ETAPA_ACCION[p.etapa] || ''}${p.fechaEntrega ? ' · entrega ' + esc(p.fechaEntrega.slice(5)) : ''}</small></div><div class="md-row__r"><span class="tag">${esc(p.tipo)}</span></div></div>`;
 
- let html = `<header class="md-head">
-   <div class="md-date">${esc(fechaLarga)}</div>
-   <h1 class="md-hello">${saludo}, ${primer}</h1>
-   <p class="md-sub">${esc(frase)}</p>
- </header>
- <div class="md-chips"><span class="md-chip"><b>${hoy.length}</b> hoy</span><span class="md-chip"><b>${proximas.length}</b> esta semana</span>${me.area ? `<span class="md-chip">${esc(me.area)}</span>` : ''}</div>
- <div class="md-actions"><button class="btn btn--primary btn--sm" id="mdNewTask">+ Nueva tarea</button><button class="btn btn--ghost btn--sm" id="mdNewContent">+ Nuevo contenido</button></div>
- <div class="md-grid">`;
+ const TASK_ST = { pendiente: 'Pendiente', en_curso: 'En proceso', hecho: 'Terminada' };
+ const TASK_NEXT = { pendiente: 'en_curso', en_curso: 'hecho', hecho: 'pendiente' };
+ const PRIO_DOT = { alta: '#F90000', media: '#f59e0b', baja: '#9aa0a6' };
+ const tRow = t => `<div class="md-row"><div class="md-row__t"><span class="md-pd" style="background:${PRIO_DOT[t.priority] || '#ccc'}"></span>${esc(t.title)}<small>${[t.categoria && t.categoria !== 'General' ? t.categoria : '', t.cliente || '', horaTxt(t)].filter(Boolean).join(' · ')}${t.dueDate ? ' · ' + esc(t.dueDate.slice(5)) : ''}${t.overdue ? ' · atrasada' : ''}</small></div><div class="md-row__r">${t.dueDate ? `<a class="md-gcal" href="${gcalUrl(t)}" target="_blank" rel="noopener">Cal</a>` : ''}<button class="md-stpill st-${t.status}" data-st="${t.id}" data-next="${TASK_NEXT[t.status] || 'pendiente'}">${TASK_ST[t.status] || 'Pendiente'}</button></div></div>`;
+ const pRow = (p, dot, wa) => `<div class="md-row" data-pieza="${p.id}"><div class="md-row__t"><span class="md-dotc md-dotc--${dot}"></span>${esc(p.marca)} · ${esc(p.idea || '')}<small>${p.fechaEntrega ? 'entrega ' + esc(p.fechaEntrega.slice(5)) : (p.fecha ? 'publica ' + esc(p.fecha.slice(5)) : '')}</small></div><div class="md-row__r">${wa ? `<button class="md-wa" data-wa="${encodeURIComponent('Hola, el contenido "' + (p.idea || 'nuevo') + '" de ' + p.marca + ' está listo para tu aprobación: https://portal.versusstudio.co/clientes/')}">WhatsApp</button>` : ''}</div></div>`;
+ const CAP = 6;
+ const capBlock = (arr, rowFn, key) => `<div class="md-rows">${arr.slice(0, CAP).map(rowFn).join('')}</div>${arr.length > CAP ? `<button class="md-more" data-lista="${key}">Ver todas (${arr.length})</button>` : ''}`;
 
- html += `<section class="md-card"><div class="md-card__h">Hoy</div>${hoy.length ? `<div class="md-rows">${hoy.map(taskRow).join('')}</div>` : '<div class="md-none">Nada urgente para hoy.</div>'}</section>`;
-
+ // Contenido: pendientes (admin) o "te toca" (rol)
+ let contArr = [], contTitle = 'Contenido', contRow = pRow;
  if (me.role === 'admin') {
-   const cambios = allP.filter(p => p.aprobadoCliente === 'no');
-   const porAprobar = allP.filter(p => p.fechaEntrega && p.etapa !== 'publicada' && p.aprobadoCliente !== 'si' && p.fechaEntrega <= hoyISO);
-   const atrasadas = allP.filter(p => p.fecha && p.etapa !== 'publicada' && p.fecha < hoyISO);
-   const pRow = (p, dot, wa) => `<div class="md-row" data-pieza="${p.id}"><div class="md-row__t"><span class="md-dotc md-dotc--${dot}"></span>${esc(p.marca)} · ${esc(p.idea || '')}<small>${p.fechaEntrega ? 'entrega ' + esc(p.fechaEntrega.slice(5)) : (p.fecha ? 'publica ' + esc(p.fecha.slice(5)) : '')}</small></div><div class="md-row__r">${wa ? `<button class="md-wa" data-wa="${encodeURIComponent('Hola, el contenido "' + (p.idea || 'nuevo') + '" de ' + p.marca + ' está listo para tu aprobación: https://portal.versusstudio.co/clientes/')}">WhatsApp</button>` : ''}</div></div>`;
-   let grupos = '';
-   if (cambios.length) grupos += `<div class="md-card__sub">Cambios del cliente</div><div class="md-rows">${cambios.map(p => pRow(p, 'red', false)).join('')}</div>`;
-   if (porAprobar.length) grupos += `<div class="md-card__sub">Por aprobar</div><div class="md-rows">${porAprobar.map(p => pRow(p, 'amber', true)).join('')}</div>`;
-   if (atrasadas.length) grupos += `<div class="md-card__sub">Atrasadas</div><div class="md-rows">${atrasadas.map(p => pRow(p, 'red', false)).join('')}</div>`;
-   html += `<section class="md-card"><div class="md-card__h">Pendientes</div>${grupos || '<div class="md-none">Todo al día.</div>'}</section>`;
+   const cambios = allP.filter(p => p.aprobadoCliente === 'no').map(p => ({ p, dot: 'red', wa: false }));
+   const porAprobar = allP.filter(p => p.fechaEntrega && p.etapa !== 'publicada' && p.aprobadoCliente !== 'si' && p.fechaEntrega <= hoyISO).map(p => ({ p, dot: 'amber', wa: true }));
+   const atrasadas = allP.filter(p => p.fecha && p.etapa !== 'publicada' && p.fecha < hoyISO).map(p => ({ p, dot: 'red', wa: false }));
+   contArr = cambios.concat(porAprobar, atrasadas); contTitle = 'Contenido · pendientes'; contRow = o => pRow(o.p, o.dot, o.wa);
  } else if (etapasMias.length) {
-   const mias = allP.filter(p => etapasMias.includes(p.etapa)).slice(0, 10);
-   html += `<section class="md-card"><div class="md-card__h">Te toca</div>${mias.length ? `<div class="md-rows">${mias.map(piezaRow).join('')}</div>` : '<div class="md-none">Nada en tu etapa por ahora.</div>'}</section>`;
+   contArr = allP.filter(p => etapasMias.includes(p.etapa)); contTitle = 'Contenido · te toca'; contRow = piezaRow;
  }
-
- html += `<section class="md-card"><div class="md-card__h">Mi agenda</div><div id="mdAgenda"></div></section>`;
+ state._mdTareas = hoy; state._mdCont = contArr; state._mdContRow = contRow;
 
  const porMarca = {}; allP.forEach(p => { if (p.etapa !== 'publicada') porMarca[p.marca] = (porMarca[p.marca] || 0) + 1; });
  const marcasArr = Object.entries(porMarca).map(([m, n]) => ({ m, n })).sort((a, b) => b.n - a.n).slice(0, 8);
- html += `<section class="md-card"><div class="md-card__h">Por marca · piezas activas</div>${marcasArr.length ? `<div class="md-rows">${marcasArr.map(x => `<button class="md-brow" data-marca="${esc(x.m)}"><span>${esc(x.m)}</span><span class="md-badge">${x.n}</span></button>`).join('')}</div>` : '<div class="md-none">Sin piezas activas.</div>'}</section>`;
 
+ let html = `<div class="md-hero">
+   <div class="md-hero__date">${esc(fechaLarga)}</div>
+   <div class="md-hero__hello">${saludo}, ${primer}</div>
+   <div class="md-hero__frase">${esc(frase)}</div>
+   <div class="md-hero__chips"><span><b>${hoy.length}</b> hoy</span><span><b>${contArr.length}</b> en contenido</span>${me.area ? `<span>${esc(me.area)}</span>` : ''}</div>
+ </div>
+ <div class="md-actions"><button class="btn btn--primary btn--sm" id="mdNewTask">+ Nueva tarea</button><button class="btn btn--ghost btn--sm" id="mdNewContent">+ Nuevo contenido</button></div>
+ <div class="md-grid">`;
+
+ html += `<section class="md-card"><div class="md-card__h">Tareas de hoy</div>${hoy.length ? capBlock(hoy, tRow, 'tareas') : '<div class="md-none">Sin tareas para hoy.</div>'}</section>`;
+ html += `<section class="md-card"><div class="md-card__h">${contTitle}</div>${contArr.length ? capBlock(contArr, contRow, 'cont') : '<div class="md-none">Nada en contenido por ahora.</div>'}</section>`;
+ html += `<section class="md-card"><div class="md-card__h">Mi agenda</div><div id="mdAgenda"></div></section>`;
+ html += `<section class="md-card"><div class="md-card__h">Por marca · piezas activas</div>${marcasArr.length ? `<div class="md-rows">${marcasArr.map(x => `<button class="md-brow" data-marca="${esc(x.m)}"><span>${esc(x.m)}</span><span class="md-badge">${x.n}</span></button>`).join('')}</div>` : '<div class="md-none">Sin piezas activas.</div>'}</section>`;
  html += `</div>`;
 
  const tools = [['archivos', 'Marcas'], ['flujo', 'Flujo'], ['gestion', 'Gestión'], ['calendario', 'Calendario'], ['altas', 'Formularios']];
  html += `<section class="md-sec"><div class="md-sec__h">Ir al trabajo</div><div class="md-quick">${tools.map(([v, l]) => `<button class="md-tile" data-goto="${v}">${esc(l)}</button>`).join('')}</div></section>`;
 
  out.innerHTML = html;
- out.querySelectorAll('[data-pieza]').forEach(el => el.addEventListener('click', e => { if (e.target.closest('.md-wa')) return; openPieza(el.dataset.pieza); }));
- out.querySelectorAll('.md-wa').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); window.open('https://wa.me/?text=' + b.dataset.wa, '_blank'); }));
- out.querySelectorAll('.md-done').forEach(b => b.addEventListener('click', async e => { e.stopPropagation(); b.disabled = true; await api('/api/team/task-status', { method: 'POST', body: { id: b.dataset.done, status: 'hecho' } }); loadInicio(); }));
- out.querySelectorAll('.md-brow').forEach(b => b.addEventListener('click', () => { const marca = b.dataset.marca; const nav = document.querySelector('.nav__item[data-view="archivos"]'); if (nav) nav.click(); setTimeout(() => openMarca(marca, ''), 400); }));
+ bindDashRows(out);
+ out.querySelectorAll('.md-more').forEach(b => b.addEventListener('click', () => {
+   if (b.dataset.lista === 'tareas') openLista('Tareas de hoy', (state._mdTareas || []).map(tRow).join(''));
+   else openLista(contTitle, (state._mdCont || []).map(contRow).join(''));
+ }));
  out.querySelectorAll('.md-tile').forEach(b => b.addEventListener('click', () => { const item = document.querySelector(`.nav__item[data-view="${b.dataset.goto}"]`); if (item) item.click(); }));
  const nt = $('#mdNewTask'); if (nt) nt.onclick = openTarea;
  const nc = $('#mdNewContent'); if (nc) nc.onclick = () => openPieza(null);
  renderAgenda();
+}
+function bindDashRows(scope) {
+ scope.querySelectorAll('.md-stpill').forEach(b => b.addEventListener('click', async e => { e.stopPropagation(); const id = b.dataset.st, next = b.dataset.next; b.disabled = true; await api('/api/team/task-status', { method: 'POST', body: { id, status: next } }); loadInicio(); }));
+ scope.querySelectorAll('[data-pieza]').forEach(el => el.addEventListener('click', e => { if (e.target.closest('.md-wa')) return; openPieza(el.dataset.pieza); }));
+ scope.querySelectorAll('.md-wa').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); window.open('https://wa.me/?text=' + b.dataset.wa, '_blank'); }));
+ scope.querySelectorAll('.md-brow').forEach(b => b.addEventListener('click', () => { const marca = b.dataset.marca; const nav = document.querySelector('.nav__item[data-view="archivos"]'); if (nav) nav.click(); setTimeout(() => openMarca(marca, ''), 400); }));
+}
+function openLista(title, rowsHtml) {
+ const html = `<div class="g-modal" id="listaModal"><div class="g-modal__box glass" style="max-width:560px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.7rem"><h3>${esc(title)}</h3><button class="btn btn--ghost btn--sm" id="listaClose">Cerrar</button></div><div class="md-list">${rowsHtml}</div></div></div>`;
+ document.body.insertAdjacentHTML('beforeend', html);
+ const m = $('#listaModal'); const close = () => m.remove();
+ $('#listaClose').onclick = close; m.onclick = e => { if (e.target.id === 'listaModal') close(); };
+ bindDashRows(m);
 }
 function openTarea() {
   const people = (state.teamPeople || []); const me = state.me || {};
