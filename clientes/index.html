@@ -2482,14 +2482,15 @@ function vgRenderCal(){
  var sinF=Object.keys(_vgPiezas).map(function(id){return _vgPiezas[id];}).filter(function(p){return !(p.fecha||p.fechaEntrega);});
  var offset=(new Date(y,m-1,1).getDay()+6)%7, dias=new Date(y,m,0).getDate(), hoy=(new Date()).toISOString().slice(0,10);
  var nav='<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><button class="cpill" onclick="vgCalNav(-1)">Anterior</button><div style="font-size:15px;font-weight:800;text-transform:capitalize">'+VG_MESES[m-1]+" "+y+'</div><button class="cpill" onclick="vgCalNav(1)">Siguiente</button></div>';
- var cells=''; VG_DOW.forEach(function(d){ cells+='<div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;text-align:center;padding:4px 0">'+d+'</div>'; });
- for(var i=0;i<offset;i++) cells+='<div style="min-height:84px;border-radius:10px;background:transparent"></div>';
+ var cells=''; VG_DOW.forEach(function(d){ cells+='<div class="vg-dow">'+d+'</div>'; });
+ for(var i=0;i<offset;i++) cells+='<div class="vg-cell vg-cell--empty"></div>';
  for(var d=1;d<=dias;d++){
  var iso=y+"-"+String(m).padStart(2,"0")+"-"+String(d).padStart(2,"0"); var arr=porDia[iso]||[]; var esHoy=iso===hoy;
- var chips=arr.map(function(p){ var e=VG_EST[p.etapa]||VG_EST.editada; return '<div onclick="vgOpenPieza(\''+p.id+'\')" style="cursor:pointer;background:'+e.c+';color:#fff;border-radius:6px;padding:3px 6px;margin-bottom:3px;font-size:10px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+vgEsc(p.idea||"")+'">'+vgEsc(p.tipo||"")+' · '+vgEsc(p.idea||"")+'</div>'; }).join("");
- cells+='<div style="min-height:84px;border:1px solid var(--bd);border-radius:10px;padding:5px 6px;background:'+(esHoy?"rgba(249,0,0,.05)":"var(--bg2)")+';border-color:'+(esHoy?"rgba(249,0,0,.35)":"var(--bd)")+'"><div style="font-size:11px;font-weight:700;color:'+(esHoy?"var(--red)":"var(--t2)")+';margin-bottom:4px">'+d+'</div>'+chips+'</div>';
+ var chips=arr.slice(0,2).map(function(p){ var e=VG_EST[p.etapa]||VG_EST.editada; return '<div class="vg-chip" onclick="vgOpenPieza(\''+p.id+'\')" style="background:'+e.c+'" title="'+vgEsc(p.idea||"")+'">'+vgEsc(p.tipo||"")+' · '+vgEsc(p.idea||"")+'</div>'; }).join("");
+ if(arr.length>2) chips+='<div class="vg-more" onclick="vgDay(\''+iso+'\')">+'+(arr.length-2)+' más</div>';
+ cells+='<div class="vg-cell'+(esHoy?' vg-cell--hoy':'')+'"><div class="vg-cell__n">'+d+'</div>'+chips+'</div>';
  }
- var grid='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">'+cells+'</div>';
+ var grid='<style>.vg-dow{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;text-align:center;padding:4px 0}.vg-cell{height:96px;border:1px solid var(--bd);border-radius:10px;padding:5px 6px;overflow:hidden;background:var(--bg2)}.vg-cell--empty{border:0;background:transparent}.vg-cell--hoy{background:rgba(249,0,0,.05);border-color:rgba(249,0,0,.35)}.vg-cell__n{font-size:11px;font-weight:700;color:var(--t2);margin-bottom:4px}.vg-cell--hoy .vg-cell__n{color:var(--red)}.vg-chip{cursor:pointer;color:#fff;border-radius:6px;padding:3px 6px;margin-bottom:3px;font-size:10px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.vg-more{cursor:pointer;font-size:10px;font-weight:700;color:var(--t2)}@media(max-width:640px){.vg-cell{height:60px;padding:3px}.vg-cell__n{font-size:10px;margin-bottom:2px}.vg-chip{font-size:0;padding:0;height:7px;margin-bottom:2px;border-radius:3px}.vg-more{font-size:9px}.vg-dow{font-size:8px}}</style><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">'+cells+'</div>';
  var leyenda='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--t2)">'+Object.keys(VG_EST).map(function(k){return '<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:3px;background:'+VG_EST[k].c+';display:inline-block"></span>'+VG_EST[k].l+'</span>';}).join("")+'</div>';
  var help='<p class="tip" style="margin-top:6px">Toca una publicación para ver el detalle y <b>dejar tus comentarios</b> sobre el guion o el texto.</p>';
  var body=nav+grid+leyenda+help+'</div>';
@@ -2530,6 +2531,13 @@ function vgAprobar(id,val){
  FBDB.ref("vsportal/gestor/piezas/"+vgKey(id)+"/comentarios").push(c);
  if(!p.comentarios||Array.isArray(p.comentarios)) p.comentarios=Array.isArray(p.comentarios)?arrToObj(p.comentarios):{}; p.comentarios["c"+Date.now()]=c;
  vgOpenPieza(id);
+}
+function vgDay(iso){
+ var arr=Object.keys(_vgPiezas).map(function(k){return _vgPiezas[k];}).filter(function(p){return (p.fecha||p.fechaEntrega)===iso;});
+ var ov=gi("vgModal"); if(!ov){ov=document.createElement("div");ov.id="vgModal";document.body.appendChild(ov);}
+ ov.style.cssText="position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px";
+ ov.onclick=function(ev){if(ev.target===ov)vgCloseModal();};
+ ov.innerHTML='<div style="background:var(--card);border-radius:18px;max-width:440px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)" onclick="event.stopPropagation()"><div style="padding:18px 20px;border-bottom:1px solid var(--bd);font-weight:800;font-size:16px">'+iso+'</div><div style="padding:10px">'+arr.map(function(p){var e=VG_EST[p.etapa]||VG_EST.editada;return '<div onclick="vgOpenPieza(\''+p.id+'\')" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:12px;cursor:pointer"><span style="width:8px;height:8px;border-radius:50%;background:'+e.c+';flex-shrink:0"></span><div><div style="font-weight:700;font-size:14px">'+vgEsc(p.tipo||"")+' · '+vgEsc(p.idea||"")+'</div><div style="font-size:11px;color:var(--t3)">'+e.l+'</div></div></div>';}).join("")+'</div><div style="padding:0 20px 16px;text-align:right"><button class="btn btn-ghost" onclick="vgCloseModal()">Cerrar</button></div></div>';
 }
 function vgOpenPieza(id){
  var p=_vgPiezas[id]; if(!p) return;
