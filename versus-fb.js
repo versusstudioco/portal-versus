@@ -346,6 +346,14 @@
         return { ok: true, data: { ok: true, pieza: p2 } };
       }
       if (p === '/api/piezas/remove' && method === 'POST') { await fbDelete('gestor/piezas/' + body.id); return { ok: true, data: { ok: true } }; }
+      if (p === '/api/piezas/limpiar-placeholder' && method === 'POST') {
+        const s = await sesionActual();
+        if (!s || s.role !== 'admin') return { ok: false, status: 403, data: { error: 'Solo el administrador' } };
+        const obj = (await fbGet('gestor/piezas').catch(() => null)) || {};
+        let n = 0;
+        for (const id of Object.keys(obj)) { const pz = obj[id]; if (pz && typeof pz.idea === 'string' && /^Contenido de /.test(pz.idea)) { await fbDelete('gestor/piezas/' + id); n++; } }
+        return { ok: true, data: { ok: true, eliminadas: n } };
+      }
 
       // ---- Marcas ----
       if (p === '/api/marca/lista' || p === '/api/archivos') {

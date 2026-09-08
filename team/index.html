@@ -8,7 +8,7 @@
  <link rel="preconnect" href="https://fonts.googleapis.com">
  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&display=swap" rel="stylesheet">
- <link rel="stylesheet" href="/styles.css?v=20260907q" />
+ <link rel="stylesheet" href="/styles.css?v=20260907r" />
  <style>
  /* Login del Team — misma línea del portal cliente */
  #login.tl-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
@@ -75,6 +75,8 @@
  <button class="nav__item" data-view="calendario"><span>Calendario</span>
  </button>
  <button class="nav__item" data-view="gestion"><span>Gestión</span>
+ </button>
+ <button class="nav__item" data-view="flujo"><span>Flujo</span>
  </button>
  <button class="nav__item" data-view="archivos"><span>Marcas</span>
  </button>
@@ -154,6 +156,9 @@
  <!-- ---------- Vista: Configuración (admin) ---------- -->
  <section class="view hidden" id="view-config">
  <div id="configOut"></div>
+ </section>
+ <section class="view hidden" id="view-flujo">
+ <div id="flujoOut"></div>
  </section>
 
  <!-- ---------- Vista: Métricas (Firebase real) ---------- -->
@@ -310,7 +315,7 @@
 
  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
- <script src="/versus-fb.js?v=20260907q"></script>
- <script src="/app.js?v=20260907q"></script>
+ <script src="/versus-fb.js?v=20260907r"></script>
+ <script src="/app.js?v=20260907r"></script>
 </body>
 </html>

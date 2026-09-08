@@ -134,6 +134,7 @@ const VIEW_META = {
  inicio: ['Mi día', 'Tu guía de hoy'],
  calendario: ['Calendario', 'Qué sale cada día por marca — el cronograma del ciclo'],
  gestion: ['Gestión de marcas', 'Producción por marca, ciclo mensual y flujo por área'],
+ flujo: ['Flujo de producción', 'Arrastra las piezas entre etapas; arriba, lo que está pendiente'],
  metricas: [' Métricas', 'Rendimiento real por marca — leído del Portal de clientes (Firebase)'],
  archivos: ['Marcas', 'Cada marca es su universo: calendario, métricas, estrategia y archivos'],
  mistareas: [' Mis tareas', 'Tu día: tareas asignadas, por cliente y por estado'],
@@ -162,6 +163,7 @@ $$('.nav__item').forEach(btn => {
  if (view === 'calendario') loadCalendario();
  if (view === 'pauta') loadPauta();
  if (view === 'gestion' && !state.gestionLoaded) loadGestion();
+ if (view === 'flujo') loadFlujo();
  if (view === 'metricas' && !state.metricasLoaded) loadMetricas();
  if (view === 'archivos') loadArchivos();
  if (view === 'mistareas') loadMisTareas();
@@ -308,37 +310,97 @@ function renderMarcas(d) {
 
 /* ---------------- Flujo de piezas (tablero por etapa) ---------------- */
 const ETAPA_CLS = { idea: '', aprobada: 'st-blue', grabada: 'st-blue', editada: 'st-blue', publicada: 'st-green' };
+function flPieceCard(p) {
+  const hoy = new Date().toISOString().slice(0, 10);
+  const cambios = p.aprobadoCliente === 'no';
+  const late = !cambios && p.fechaEntrega && p.etapa !== 'publicada' && p.fechaEntrega < hoy;
+  const cls = cambios ? ' fl-piece--cambios' : late ? ' fl-piece--late' : '';
+  return `<div class="fl-piece${cls}" draggable="true" data-id="${p.id}">
+    <div class="fl-piece__marca">${esc(p.marca)}</div>
+    <div class="fl-piece__idea">${esc(p.idea)}</div>
+    <div class="fl-piece__foot"><span class="tag">${esc(p.tipo)}</span>${p.fechaEntrega ? `<span class="fl-piece__d">entrega ${esc(p.fechaEntrega.slice(5))}</span>` : ''}${p.responsable ? `<span class="fl-piece__resp">${esc(p.responsable)}</span>` : ''}</div>
+    ${cambios ? '<div class="fl-piece__flag">Cambios del cliente</div>' : ''}
+  </div>`;
+}
+function boardHTML(data) {
+  return `<div class="fl-top">
+      <span class="topbar__sub">${data.total || 0} piezas · <b>arrastra</b> una tarjeta a otra columna para cambiar su etapa</span>
+      <button class="btn btn--primary btn--sm" id="flNueva">+ Nueva pieza</button>
+    </div>
+    <div class="fl-board">` + data.etapas.map(e => {
+    const items = data.columnas[e.slug] || [];
+    return `<div class="fl-col">
+        <div class="fl-col__head"><span class="fl-col__name">${esc(e.label)}</span><span class="fl-col__n">${items.length}</span></div>
+        <div class="fl-col__area">${esc(e.area)}</div>
+        <div class="fl-col__body" data-etapa="${e.slug}">${items.map(flPieceCard).join('') || '<div class="fl-empty">—</div>'}</div>
+      </div>`;
+  }).join('') + '</div>';
+}
+function bindBoard(scope, reload) {
+  scope.querySelectorAll('.fl-piece').forEach(el => {
+    el.addEventListener('click', () => { if (!el._drag) openPieza(el.dataset.id); });
+    el.addEventListener('dragstart', e => { el._drag = true; e.dataTransfer.setData('text/plain', el.dataset.id); e.dataTransfer.effectAllowed = 'move'; setTimeout(() => el.classList.add('dragging'), 0); });
+    el.addEventListener('dragend', () => { el.classList.remove('dragging'); setTimeout(() => el._drag = false, 60); });
+  });
+  scope.querySelectorAll('.fl-col__body').forEach(body => {
+    body.addEventListener('dragover', e => { e.preventDefault(); body.classList.add('fl-over'); });
+    body.addEventListener('dragleave', () => body.classList.remove('fl-over'));
+    body.addEventListener('drop', async e => {
+      e.preventDefault(); body.classList.remove('fl-over');
+      const id = e.dataTransfer.getData('text/plain'), etapa = body.dataset.etapa;
+      if (!id || !etapa) return;
+      const p = state.piezas[id]; if (p && p.etapa === etapa) return;
+      if (p) p.etapa = etapa;
+      await api('/api/piezas/etapa', { method: 'POST', body: { id, etapa } });
+      reload && reload();
+    });
+  });
+  const nueva = scope.querySelector('#flNueva'); if (nueva) nueva.addEventListener('click', () => openPieza(null));
+}
 async function renderFlujo() {
- const cont = $('#gFlujo');
- cont.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando flujo…</div>';
- const { data } = await api('/api/piezas');
- state.piezas = {}; // índice para el modal
- (Object.values(data.columnas || {}).flat()).forEach(p => state.piezas[p.id] = p);
- const head = `<div class="fl-top">
- <span class="topbar__sub">${data.total || 0} piezas en el flujo · arrastra… o abre una para ver guion, características y mover de etapa</span>
- <button class="btn btn--primary btn--sm" id="flNueva">+ Nueva pieza</button>
- </div>`;
- cont.innerHTML = head + '<div class="fl-board">' + data.etapas.map(e => {
- const items = data.columnas[e.slug] || [];
- return `<div class="fl-col">
- <div class="fl-col__head"><span class="fl-col__name">${esc(e.label)}</span><span class="fl-col__n">${items.length}</span></div>
- <div class="fl-col__area">${esc(e.area)}</div>
- <div class="fl-col__body">
- ${items.map(p => `
- <div class="fl-piece" data-id="${p.id}">
- <div class="fl-piece__marca">${esc(p.marca)}</div>
- <div class="fl-piece__idea">${esc(p.idea)}</div>
- <div class="fl-piece__foot"><span class="tag">${esc(p.tipo)}</span>${p.responsable ? `<span class="fl-piece__resp">${esc(p.responsable)}</span>` : ''}</div>
- </div>`).join('') || '<div class="fl-empty">—</div>'}
- </div>
- </div>`;
- }).join('') + '</div>';
- $$('.fl-piece').forEach(el => el.addEventListener('click', () => openPieza(el.dataset.id)));
- $('#flNueva').addEventListener('click', () => openPieza(null));
+  const cont = $('#gFlujo');
+  cont.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando flujo…</div>';
+  const { data } = await api('/api/piezas');
+  state.piezas = {}; (Object.values(data.columnas || {}).flat()).forEach(p => state.piezas[p.id] = p);
+  cont.innerHTML = boardHTML(data);
+  bindBoard(cont, renderFlujo);
 }
 
+function pendientesHTML(all) {
+  const hoy = new Date().toISOString().slice(0, 10);
+  const porAprobar = all.filter(p => p.fechaEntrega && p.etapa !== 'publicada' && p.aprobadoCliente !== 'si' && p.fechaEntrega <= hoy);
+  const cambios = all.filter(p => p.aprobadoCliente === 'no');
+  const atrasadas = all.filter(p => p.fecha && p.etapa !== 'publicada' && p.fecha < hoy);
+  if (!porAprobar.length && !cambios.length && !atrasadas.length) return '<div class="pend pend--ok">Todo al día. No hay pendientes.</div>';
+  const row = (p, wa) => `<div class="pend-row" data-open="${p.id}">
+      <div class="pend-row__main"><b>${esc(p.marca)}</b> · ${esc(p.idea || '')}</div>
+      <div class="pend-row__meta">${p.fechaEntrega ? 'entrega ' + esc(p.fechaEntrega.slice(5)) : (p.fecha ? 'publica ' + esc(p.fecha.slice(5)) : '')}${wa ? `<button class="pend-wa" data-wa="${encodeURIComponent('Hola, el contenido "' + (p.idea || 'nuevo') + '" de ' + p.marca + ' está listo para tu aprobación. Revísalo en tu portal: https://portal.versusstudio.co/clientes/')}">WhatsApp</button>` : ''}</div>
+    </div>`;
+  const grupo = (titulo, arr, cls, wa) => arr.length ? `<div class="pend-group ${cls}"><div class="pend-group__h">${titulo} <span>${arr.length}</span></div>${arr.map(p => row(p, wa)).join('')}</div>` : '';
+  return `<div class="pend">
+    ${grupo('Cambios pedidos por el cliente', cambios, 'pend-group--red', false)}
+    ${grupo('Por aprobar (avísale al cliente)', porAprobar, 'pend-group--amber', true)}
+    ${grupo('Atrasadas (pasó la publicación)', atrasadas, 'pend-group--red', false)}
+  </div>`;
+}
+function bindPendientes(scope) {
+  scope.querySelectorAll('.pend-row').forEach(r => r.addEventListener('click', e => { if (e.target.closest('.pend-wa')) return; openPieza(r.dataset.open); }));
+  scope.querySelectorAll('.pend-wa').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); window.open('https://wa.me/?text=' + b.dataset.wa, '_blank'); }));
+}
+async function loadFlujo() {
+  const out = $('#flujoOut');
+  out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando flujo…</div>';
+  const { data } = await api('/api/piezas');
+  const all = Object.values(data.columnas || {}).flat();
+  state.piezas = {}; all.forEach(p => state.piezas[p.id] = p);
+  out.innerHTML = pendientesHTML(all) + '<div id="flBoard"></div>';
+  const bd = $('#flBoard'); bd.innerHTML = boardHTML(data); bindBoard(bd, loadFlujo);
+  bindPendientes(out);
+}
 function refreshPiezaView() {
+ const flujoVisible = document.getElementById('view-flujo') && !document.getElementById('view-flujo').classList.contains('hidden');
  if (state.marcaActiva) { marcaCalendario(state.marcaActiva.marca); }
+ else if (flujoVisible) { loadFlujo(); }
  else if (typeof renderFlujo === 'function') { try { renderFlujo(); } catch (_) {} }
 }
 function metricsFromMet(met) {
@@ -433,6 +495,7 @@ function openPieza(id) {
  $$('.pz-plattab').forEach(x => x.classList.toggle('active', x === t));
  $$('.pz-platpanel__p').forEach(pp => { pp.hidden = pp.dataset.panel !== pk; });
  }));
+ (function(){ const pzF = $('#pzFecha'), pzE = $('#pzFechaEntrega'); if (pzF && pzE) pzF.addEventListener('change', () => { if (pzF.value && !pzE.value) { const d = new Date(pzF.value + 'T00:00:00'); d.setDate(d.getDate() - 2); pzE.value = d.toISOString().slice(0, 10); } }); })();
  $('#pzSave').addEventListener('click', async () => {
  const body = { id, marca: $('#pzMarca').value, idea: $('#pzIdea').value, tipo: $('#pzTipo').value, responsable: $('#pzResp').value, guion: $('#pzGuion').value, caracteristicas: $('#pzCar').value,
  fecha: $('#pzFecha').value || null, fechaEntrega: $('#pzFechaEntrega').value || null,
@@ -818,7 +881,16 @@ async function loadConfig() {
  <li><b>Crear/eliminar marca:</b> en <b>Marcas → + Agregar marca</b>.</li>
  <li><b>¿Un cliente olvidó su contraseña?</b> Que nos escriba y el admin se la restablece desde la consola de Firebase (Authentication → el usuario → restablecer). Es un caso puntual, no vive en el portal por seguridad.</li>
  </ul>
+ <button class="btn btn--ghost btn--sm" id="cfgLimpiar" style="margin-top:.6rem">Limpiar piezas de ejemplo</button>
+ <p class="hub-hint" style="margin-top:.4rem">Elimina las piezas placeholder ("Contenido de…") que quedaron de la carga inicial, para dejar solo el contenido real.</p>
  </div>`;
+ const lp = $('#cfgLimpiar'); if (lp) lp.addEventListener('click', async () => {
+   if (!confirm('¿Eliminar las piezas de ejemplo ("Contenido de…")? No toca las piezas reales ni el histórico.')) return;
+   lp.disabled = true; lp.textContent = 'Limpiando…';
+   const r = await api('/api/piezas/limpiar-placeholder', { method: 'POST' });
+   lp.disabled = false; lp.textContent = 'Limpiar piezas de ejemplo';
+   alert(r.ok ? ('Listo. Eliminadas: ' + (r.data.eliminadas || 0)) : (r.data.error || 'No se pudo'));
+ });
  $('#ccSave').addEventListener('click', async () => {
  const body = { nombre: $('#ccNombre').value.trim(), usuario: $('#ccUser').value.trim(), password: $('#ccPass').value, sector: $('#ccSector').value.trim(), instagram: $('#ccIg').value.trim(), tiktok: $('#ccTk').value.trim() };
  if (!body.nombre || !body.usuario || (body.password || '').length < 6) { alert('Nombre, usuario y contraseña (mín. 6) son obligatorios.'); return; }
@@ -1662,8 +1734,11 @@ const DIAS_SEM = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 async function loadInicio() {
  const out = $('#inicioOut');
  out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando tu día…</div>';
- const { data } = await api('/api/team/mytasks');
+ const [mt, bd] = await Promise.all([api('/api/team/mytasks'), api('/api/piezas')]);
+ const data = mt.data || {};
  const me = data.me || {}, tasks = data.tasks || [];
+ const allP = Object.values((bd.data && bd.data.columnas) || {}).flat();
+ state.piezas = state.piezas || {}; allP.forEach(p => state.piezas[p.id] = p);
  const hoyISO = new Date().toISOString().slice(0, 10);
  const hoy = tasks.filter(t => t.status !== 'hecho' && (t.overdue || t.dueDate === hoyISO || !t.dueDate));
  // Próximas tareas: con fecha dentro de esta semana, después de hoy, sin terminar.
@@ -1707,12 +1782,28 @@ async function loadInicio() {
  </section>`;
  html += '</div>';
 
+ // Te toca (por rol) / Pendientes (admin)
+ const AREA_ETAPA = { estrategia: 'idea', 'producción': 'aprobada', produccion: 'aprobada', creativa: 'grabada', community: 'editada' };
+ const ETAPA_ACCION = { idea: 'Por guionizar', aprobada: 'Por grabar', grabada: 'Por editar', editada: 'Por publicar' };
+ const misAreas = [].concat(me.areas || [], me.area || []).map(a => String(a).toLowerCase());
+ const etapasMias = [...new Set(misAreas.map(a => AREA_ETAPA[a]).filter(Boolean))];
+ if (me.role === 'admin') {
+   html += `<h3 class="live-h3">Pendientes</h3>` + pendientesHTML(allP);
+ } else if (etapasMias.length) {
+   const mias = allP.filter(p => etapasMias.includes(p.etapa)).slice(0, 12);
+   html += `<h3 class="live-h3">Te toca</h3>`;
+   html += mias.length ? '<div class="stack">' + mias.map(p => `<div class="ed-item ti-pieza" data-id="${p.id}"><div class="ed-item__top"><b>${esc(p.marca)} · ${esc(p.idea || '')}</b><span class="tag">${esc(p.tipo)}</span></div><div class="ed-item__date">${ETAPA_ACCION[p.etapa] || ''}${p.fechaEntrega ? ' · entrega ' + esc(p.fechaEntrega.slice(5)) : ''}</div></div>`).join('') + '</div>'
+     : '<div class="mid-empty"><p>Nada en tu etapa por ahora.</p></div>';
+ }
+
  // Accesos rápidos con ícono
  const tools = [['archivos', 'Marcas'], ['gestion', 'Gestión'], ['calendario', 'Calendario'], ['altas', 'Formularios']];
  html += `<h3 class="live-h3">Ir al trabajo</h3>
  <div class="quick-grid">${tools.map(([v, l]) => `<button class="quick-card" data-goto="${v}"><span class="quick-card__l">${esc(l)}</span><span class="quick-card__go">Abrir</span></button>`).join('')}</div>`;
  out.innerHTML = html;
  bindTaskActions(loadInicio);
+ bindPendientes(out);
+ out.querySelectorAll('.ti-pieza').forEach(el => el.addEventListener('click', () => openPieza(el.dataset.id)));
  $$('.quick-card').forEach(b => b.addEventListener('click', () => {
  const item = document.querySelector(`.nav__item[data-view="${b.dataset.goto}"]`);
  if (item) item.click();
