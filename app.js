@@ -1373,9 +1373,9 @@ async function marcaCalendario(marca) {
  </button>`).join('') + `</div>`;
  }
  pane.innerHTML = html;
- $('#addCreativo').addEventListener('click', () => openAgregarCreativo(marca));
- $('#mcPrev').addEventListener('click', () => { let { y, m } = state.marcaCalYM; m--; if (m < 1) { m = 12; y--; } state.marcaCalYM = { y, m }; render(); });
- $('#mcNext').addEventListener('click', () => { let { y, m } = state.marcaCalYM; m++; if (m > 12) { m = 1; y++; } state.marcaCalYM = { y, m }; render(); });
+ const addC = $('#addCreativo'); if (addC) addC.addEventListener('click', () => openAgregarCreativo(marca));
+ const mcPrev = $('#mcPrev'); if (mcPrev) mcPrev.addEventListener('click', () => { let { y, m } = state.marcaCalYM; m--; if (m < 1) { m = 12; y--; } state.marcaCalYM = { y, m }; render(); });
+ const mcNext = $('#mcNext'); if (mcNext) mcNext.addEventListener('click', () => { let { y, m } = state.marcaCalYM; m++; if (m > 12) { m = 1; y++; } state.marcaCalYM = { y, m }; render(); });
  pane.querySelectorAll('.cal-pz, .hub-pieza').forEach(el => el.addEventListener('click', () => openPieza(el.dataset.id)));
  };
  render();
