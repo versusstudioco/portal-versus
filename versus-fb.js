@@ -165,6 +165,14 @@
       const dark = (typeof b.logoDark === 'string' && b.logoDark.startsWith('data:')) ? b.logoDark : null;   // logo claro, para fondo oscuro
       if (light || dark) out.push({ slug, light, dark, dataUri: light || dark });
     }
+    // Logos subidos desde el Team (gestor/marcas/<key>/logo), por nombre de marca
+    try {
+      const gm = (await fbGet('gestor/marcas').catch(() => null)) || {};
+      for (const key of Object.keys(gm)) {
+        const lg = gm[key] && gm[key].logo;
+        if (typeof lg === 'string' && lg.startsWith('data:')) out.push({ slug: key, marca: (gm[key].nombre || key), light: lg, dark: lg, dataUri: lg });
+      }
+    } catch (_) {}
     return out;
   }
 
@@ -547,7 +555,19 @@
         return { ok: true, data: { marca, drive: e.drive || '', files: Object.values(e.files || {}) } };
       }
       if (p === '/api/archivos/drive' && method === 'POST') { await fbPut('gestor/marcas/' + fbKey(body.marca) + '/archivos/drive', String(body.url || '').trim()); return { ok: true, data: { ok: true } }; }
-      if (p === '/api/archivos/upload' && method === 'POST') return { ok: true, data: { ok: false, error: 'La subida de archivos se activa en la siguiente fase (Firebase Storage).' } };
+      if (p === '/api/archivos/upload' && method === 'POST') {
+        const s = await sesionActual();
+        if (!s) return { ok: false, status: 403, data: { error: 'Sin sesión' } };
+        const marca = String(body.marca || '').trim();
+        const data64 = String(body.dataBase64 || '');
+        if (!marca || !data64) return { ok: false, status: 400, data: { error: 'Falta la marca o el archivo' } };
+        if (data64.length > 900000) return { ok: false, status: 400, data: { error: 'Archivo muy pesado (máx ~650KB). Sube una imagen más liviana o usa el link de Drive.' } };
+        const id = uid();
+        const rec = { id, tipo: body.tipo || 'files', name: String(body.name || 'archivo'), mime: body.mime || '', size: data64.length, data: data64, by: s.name || s.username || '', at: new Date().toISOString() };
+        await fbPut('gestor/marcas/' + fbKey(marca) + '/archivos/files/' + id, rec);
+        if ((body.tipo || '') === 'logo') await fbPut('gestor/marcas/' + fbKey(marca) + '/logo', data64);
+        return { ok: true, data: { ok: true, id } };
+      }
       if (p === '/api/archivos/remove' && method === 'POST') { await fbDelete('gestor/marcas/' + fbKey(body.marca || '') + '/archivos/files/' + body.id).catch(() => {}); return { ok: true, data: { ok: true } }; }
 
       // ---- Gestión / IA (fases posteriores) ----

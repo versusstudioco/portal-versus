@@ -997,6 +997,10 @@ async function loadEquipo() {
 /* ---------------- Marcas: cada marca es su universo ---------------- */
 function normKey(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, ''); }
 function fileToBase64(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
+async function refreshLogos() {
+  const lg = await api('/api/marca/logos');
+  if (lg.ok) { const arr = lg.data.logos || []; state.logoSlugs = arr.map(x => x.slug); state.logoData = {}; arr.forEach(x => { state.logoData[x.slug] = { light: x.light || x.dataUri || null, dark: x.dark || x.dataUri || null }; }); }
+}
 
 const LOGO_ALIAS = { perse: 'drinkperse', ml: 'mauriciolinares' };
 function logoSlugFor(marca) {
@@ -1326,9 +1330,9 @@ function hubFileRow(f) {
  const isImg = (f.mime || '').startsWith('image/');
  const kb = f.size >= 1e6 ? (f.size / 1e6).toFixed(1) + ' MB' : Math.max(1, Math.round(f.size / 1024)) + ' KB';
  return `<div class="hub-file">
- ${isImg ? `<img class="hub-file__thumb" src="/api/archivos/file?id=${f.id}" alt="">` : `<div class="hub-file__thumb hub-file__thumb--doc"></div>`}
+ ${isImg && f.data ? `<img class="hub-file__thumb" src="${f.data}" alt="">` : `<div class="hub-file__thumb hub-file__thumb--doc">DOC</div>`}
  <div class="hub-file__meta"><b>${esc(f.name)}</b><span>${kb}${f.by ? ' · ' + esc(f.by.split(' ')[0]) : ''}</span></div>
- <a class="hub-file__act" href="/api/archivos/file?id=${f.id}&dl=1" title="Descargar"></a>
+ ${f.data ? `<a class="hub-file__act" href="${f.data}" download="${esc(f.name)}" title="Descargar">↓</a>` : ''}
  <button class="hub-file__act hub-file__del" data-id="${f.id}" title="Quitar">✕</button>
  </div>`;
 }
@@ -1366,18 +1370,19 @@ async function marcaArchivos(marca) {
  });
  pane.querySelectorAll('.hub-file-input').forEach(inp => inp.addEventListener('change', async () => {
  const file = inp.files[0]; if (!file) return;
- if (file.size > 20 * 1024 * 1024) { alert('El archivo supera 20 MB.'); inp.value = ''; return; }
+ if (file.size > 650 * 1024) { alert('Máximo ~650KB por archivo. Comprime la imagen (o usa el link de Drive para archivos grandes).'); inp.value = ''; return; }
  const lab = inp.closest('.hub-up'); const orig = lab.innerHTML; lab.textContent = 'Subiendo…';
  try {
  const dataBase64 = await fileToBase64(file);
  const r = await api('/api/archivos/upload', { method: 'POST', body: { marca, tipo: inp.dataset.tipo, name: file.name, mime: file.type, dataBase64 } });
  if (!r.ok || r.data.ok === false) throw new Error((r.data && r.data.error) || 'No se pudo subir');
+ if (inp.dataset.tipo === 'logo') { await refreshLogos(); const h = document.querySelector('.marca-uni-head'); if (h && h.firstElementChild) { h.firstElementChild.outerHTML = marcaLogoHTML(marca, 'marca-uni-logo'); bindLogoFit(document); } }
  marcaArchivos(marca);
  } catch (e) { lab.innerHTML = orig; alert(e.message || 'No se pudo subir'); }
  }));
  pane.querySelectorAll('.hub-file__del').forEach(b => b.addEventListener('click', async () => {
  if (!confirm('¿Quitar este archivo?')) return;
- await api('/api/archivos/remove', { method: 'POST', body: { id: b.dataset.id } });
+ await api('/api/archivos/remove', { method: 'POST', body: { marca, id: b.dataset.id } });
  marcaArchivos(marca);
  }));
 }
@@ -1516,10 +1521,22 @@ async function estGenerar(marca, kind, btn) {
  renderHashtags(out, data);
  } else if (kind === 'ideas') {
  const { data } = await api('/api/ideas', { method: 'POST', body: { topic: tema, platform, country: 'co', category: '', count: 5 } });
- out.innerHTML = (data.ideas || []).map(x => `<div class="result-card">
- <h3> ${esc(x.titulo || '')} ${sourcePill(data.source)}</h3>
+ const ideas = data.ideas || []; state._ideas = ideas;
+ out.innerHTML = ideas.map((x, i) => `<div class="result-card">
+ <h3>${esc(x.titulo || '')} ${sourcePill(data.source)}</h3>
  ${kv('Hook', x.hook)}${kv('Estructura', x.estructura)}${kv('Formato', x.formato)}${kv('Por qué funciona', x.por_que_funciona)}${kv('CTA', x.cta)}
+ <button class="btn btn--primary btn--sm est-crear" data-idea="${i}" style="margin-top:.6rem">Aprobar → crear pieza</button>
  </div>`).join('') || '<div class="empty">No se pudo generar.</div>';
+ out.querySelectorAll('.est-crear').forEach(b => b.addEventListener('click', async () => {
+ const x = (state._ideas || [])[+b.dataset.idea]; if (!x) return;
+ b.disabled = true; b.textContent = 'Creando…';
+ const fmt = String(x.formato || '');
+ const tipo = /carrusel/i.test(fmt) ? 'Carrusel' : /post/i.test(fmt) ? 'Post' : /historia/i.test(fmt) ? 'Historia' : 'Reel';
+ const guion = [x.hook ? 'Hook: ' + x.hook : '', x.estructura ? 'Estructura: ' + x.estructura : '', x.cta ? 'CTA: ' + x.cta : ''].filter(Boolean).join('\n');
+ const r = await api('/api/piezas/crear', { method: 'POST', body: { marca, tipo, idea: x.titulo || 'Idea', guion } });
+ if (r.ok && r.data.ok) { b.textContent = '✓ Creada en el flujo'; b.classList.remove('btn--primary'); b.classList.add('btn--ghost'); }
+ else { b.disabled = false; b.textContent = 'Aprobar → crear pieza'; alert((r.data && r.data.error) || 'No se pudo'); }
+ }));
  } else {
  const { data } = await api('/api/captions', { method: 'POST', body: { topic: tema, platform, country: 'co', category: '', marca, contexto: ctx } });
  const caps = data.captions || [];
