@@ -9,64 +9,64 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&display=swap" rel="stylesheet">
 <style>
-  :root{ --fn:"Bricolage Grotesque",sans-serif; --red:#F90000; --pur:#6C00FF; --tx:#111; --t2:#666; --t3:#aaa;
-    --bg:#f5f5f5; --card:#fff; --bd:rgba(0,0,0,.08); --bd2:rgba(0,0,0,.14); --r:16px; --rs:12px; --sh:0 4px 20px rgba(0,0,0,.08);
-    --accent:#F90000; }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{ font-family:var(--fn); color:var(--tx); min-height:100vh; display:flex; flex-direction:column;
-    background: radial-gradient(ellipse 60% 50% at 82% 6%, rgba(249,0,0,.07), transparent), radial-gradient(ellipse 55% 60% at 8% 94%, rgba(108,0,255,.06), transparent), var(--bg); }
-  .bar{ height:4px; background:rgba(0,0,0,.06); }
-  .bar__fill{ height:100%; background:linear-gradient(90deg,var(--accent),var(--pur)); width:0; transition:width .35s cubic-bezier(.2,.8,.2,1); }
-  .top{ display:flex; align-items:center; justify-content:space-between; padding:16px 22px; }
-  .top img{ height:22px; }
-  .top .paso{ font-size:12px; color:var(--t3); font-weight:700; }
-  main{ flex:1; display:flex; align-items:center; justify-content:center; padding:24px; }
-  .card{ width:100%; max-width:640px; }
-  .banner{ width:100%; border-radius:var(--r); overflow:hidden; margin-bottom:22px; box-shadow:var(--sh); }
-  .banner img{ display:block; width:100%; height:auto; }
-  .q{ animation:rise .4s cubic-bezier(.2,.8,.2,1) both; }
-  @keyframes rise{ from{opacity:0; transform:translateY(14px)} to{opacity:1; transform:none} }
-  .q__n{ font-size:12px; font-weight:800; color:var(--accent); letter-spacing:.08em; text-transform:uppercase; margin-bottom:8px; }
-  .q__t{ font-size:26px; font-weight:800; letter-spacing:-.02em; line-height:1.15; margin-bottom:6px; }
-  .q__h{ font-size:14px; color:var(--t2); margin-bottom:18px; }
-  input[type=text], textarea{ width:100%; font-family:inherit; font-size:18px; padding:14px 16px; border:1.5px solid var(--bd2); border-radius:var(--rs); background:var(--card); outline:none; transition:border-color .2s, box-shadow .2s; }
-  input[type=text]:focus, textarea:focus{ border-color:var(--accent); box-shadow:0 0 0 4px rgba(249,0,0,.08); }
-  textarea{ resize:vertical; min-height:110px; }
-  .opts{ display:flex; gap:10px; flex-wrap:wrap; }
-  .opt{ flex:1; min-width:120px; text-align:center; padding:14px; border:1.5px solid var(--bd2); border-radius:var(--rs); background:var(--card); font-size:16px; font-weight:700; cursor:pointer; transition:.15s; }
-  .opt:hover{ border-color:var(--accent); }
-  .opt.sel{ border-color:var(--accent); background:rgba(249,0,0,.06); color:var(--accent); }
-  .manual-extra{ margin-top:14px; display:none; }
-  .row{ display:flex; gap:10px; align-items:center; margin-top:26px; }
-  .btn{ font-family:inherit; font-weight:700; font-size:15px; border:none; border-radius:999px; padding:12px 26px; cursor:pointer; transition:.18s; }
-  .btn-red{ background:var(--accent); color:#fff; } .btn-red:hover{ filter:brightness(.92); transform:translateX(2px); }
-  .btn-ghost{ background:transparent; color:var(--t2); }
-  .hint{ font-size:12px; color:var(--t3); }
-  .done{ text-align:center; padding:20px; }
-  .done h1{ font-size:30px; font-weight:800; margin-bottom:10px; }
-  .done p{ color:var(--t2); line-height:1.5; }
-  .filerow{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:10px; }
-  .filebtn{ border:1.5px dashed var(--bd2); border-radius:var(--rs); padding:10px 16px; font-weight:700; font-size:13px; color:var(--t2); cursor:pointer; }
+ :root{ --fn:"Bricolage Grotesque",sans-serif; --red:#F90000; --pur:#6C00FF; --tx:#111; --t2:#666; --t3:#aaa;
+ --bg:#f5f5f5; --card:#fff; --bd:rgba(0,0,0,.08); --bd2:rgba(0,0,0,.14); --r:16px; --rs:12px; --sh:0 4px 20px rgba(0,0,0,.08);
+ --accent:#F90000; }
+ *{box-sizing:border-box;margin:0;padding:0}
+ body{ font-family:var(--fn); color:var(--tx); min-height:100vh; display:flex; flex-direction:column;
+ background: radial-gradient(ellipse 60% 50% at 82% 6%, rgba(249,0,0,.07), transparent), radial-gradient(ellipse 55% 60% at 8% 94%, rgba(108,0,255,.06), transparent), var(--bg); }
+ .bar{ height:4px; background:rgba(0,0,0,.06); }
+ .bar__fill{ height:100%; background:linear-gradient(90deg,var(--accent),var(--pur)); width:0; transition:width .35s cubic-bezier(.2,.8,.2,1); }
+ .top{ display:flex; align-items:center; justify-content:space-between; padding:16px 22px; }
+ .top img{ height:22px; }
+ .top .paso{ font-size:12px; color:var(--t3); font-weight:700; }
+ main{ flex:1; display:flex; align-items:center; justify-content:center; padding:24px; }
+ .card{ width:100%; max-width:640px; }
+ .banner{ width:100%; border-radius:var(--r); overflow:hidden; margin-bottom:22px; box-shadow:var(--sh); }
+ .banner img{ display:block; width:100%; height:auto; }
+ .q{ animation:rise .4s cubic-bezier(.2,.8,.2,1) both; }
+ @keyframes rise{ from{opacity:0; transform:translateY(14px)} to{opacity:1; transform:none} }
+ .q__n{ font-size:12px; font-weight:800; color:var(--accent); letter-spacing:.08em; text-transform:uppercase; margin-bottom:8px; }
+ .q__t{ font-size:26px; font-weight:800; letter-spacing:-.02em; line-height:1.15; margin-bottom:6px; }
+ .q__h{ font-size:14px; color:var(--t2); margin-bottom:18px; }
+ input[type=text], textarea{ width:100%; font-family:inherit; font-size:18px; padding:14px 16px; border:1.5px solid var(--bd2); border-radius:var(--rs); background:var(--card); outline:none; transition:border-color .2s, box-shadow .2s; }
+ input[type=text]:focus, textarea:focus{ border-color:var(--accent); box-shadow:0 0 0 4px rgba(249,0,0,.08); }
+ textarea{ resize:vertical; min-height:110px; }
+ .opts{ display:flex; gap:10px; flex-wrap:wrap; }
+ .opt{ flex:1; min-width:120px; text-align:center; padding:14px; border:1.5px solid var(--bd2); border-radius:var(--rs); background:var(--card); font-size:16px; font-weight:700; cursor:pointer; transition:.15s; }
+ .opt:hover{ border-color:var(--accent); }
+ .opt.sel{ border-color:var(--accent); background:rgba(249,0,0,.06); color:var(--accent); }
+ .manual-extra{ margin-top:14px; display:none; }
+ .row{ display:flex; gap:10px; align-items:center; margin-top:26px; }
+ .btn{ font-family:inherit; font-weight:700; font-size:15px; border:none; border-radius:999px; padding:12px 26px; cursor:pointer; transition:.18s; }
+ .btn-red{ background:var(--accent); color:#fff; } .btn-red:hover{ filter:brightness(.92); transform:translateX(2px); }
+ .btn-ghost{ background:transparent; color:var(--t2); }
+ .hint{ font-size:12px; color:var(--t3); }
+ .done{ text-align:center; padding:20px; }
+ .done h1{ font-size:30px; font-weight:800; margin-bottom:10px; }
+ .done p{ color:var(--t2); line-height:1.5; }
+ .filerow{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:10px; }
+ .filebtn{ border:1.5px dashed var(--bd2); border-radius:var(--rs); padding:10px 16px; font-weight:700; font-size:13px; color:var(--t2); cursor:pointer; }
 </style>
 </head>
 <body>
-  <div class="bar"><div class="bar__fill" id="bar"></div></div>
-  <div class="top"><img src="/logo.png" alt="VERSUS"><span class="paso" id="paso"></span></div>
-  <main><div class="card" id="card"><div class="q"><div class="q__t">Cargando…</div></div></div></main>
+ <div class="bar"><div class="bar__fill" id="bar"></div></div>
+ <div class="top"><img src="/logo.png" alt="VERSUS"><span class="paso" id="paso"></span></div>
+ <main><div class="card" id="card"><div class="q"><div class="q__t">Cargando…</div></div></div></main>
 
 <script>
 const RTDB="https://versus-portal-default-rtdb.firebaseio.com/vsportal";
 const DEFAULT_FORM={ id:"onboarding", name:"Alta de marca", title:"Cuéntanos de tu marca", subtitle:"", banner:"", accent:"#F90000",
-  questions:[
-    {id:"marca", label:"¿Cuál es tu marca?", hint:"El nombre con el que te conocen.", type:"text", required:true, name:true},
-    {id:"hacen", label:"¿Qué hacen?", hint:"En pocas líneas, a qué se dedica tu marca.", type:"area", required:true},
-    {id:"clientes", label:"¿Cuáles son tus clientes?", hint:"A quién le vendes o le hablas.", type:"area"},
-    {id:"tresPalabras", label:"Describe en 3 palabras tu marca.", hint:"Las 3 que mejor la definen.", type:"text"},
-    {id:"inspiran", label:"¿Qué marcas te inspiran y por qué?", hint:"Referentes que admiras.", type:"area"},
-    {id:"redes", label:"Copia tus redes sociales.", hint:"Instagram, TikTok, web… pega los links.", type:"area"},
-    {id:"esperan", label:"¿Qué esperas de Versus como tu equipo?", hint:"Qué te gustaría lograr con nosotros.", type:"area"},
-    {id:"manual", label:"¿Tienes manual de marca?", hint:"Si sí, pega el link o súbelo.", type:"manual"}
-  ]};
+ questions:[
+ {id:"marca", label:"¿Cuál es tu marca?", hint:"El nombre con el que te conocen.", type:"text", required:true, name:true},
+ {id:"hacen", label:"¿Qué hacen?", hint:"En pocas líneas, a qué se dedica tu marca.", type:"area", required:true},
+ {id:"clientes", label:"¿Cuáles son tus clientes?", hint:"A quién le vendes o le hablas.", type:"area"},
+ {id:"tresPalabras", label:"Describe en 3 palabras tu marca.", hint:"Las 3 que mejor la definen.", type:"text"},
+ {id:"inspiran", label:"¿Qué marcas te inspiran y por qué?", hint:"Referentes que admiras.", type:"area"},
+ {id:"redes", label:"Copia tus redes sociales.", hint:"Instagram, TikTok, web… pega los links.", type:"area"},
+ {id:"esperan", label:"¿Qué esperas de Versus como tu equipo?", hint:"Qué te gustaría lograr con nosotros.", type:"area"},
+ {id:"manual", label:"¿Tienes manual de marca?", hint:"Si sí, pega el link o súbelo.", type:"manual"}
+ ]};
 const params=new URLSearchParams(location.search);
 const FORM_ID=params.get("f")||"onboarding";
 let FORM=DEFAULT_FORM;
@@ -74,69 +74,69 @@ let i=0; const R={}; let manualState={};
 const card=document.getElementById("card"), bar=document.getElementById("bar"), paso=document.getElementById("paso");
 
 async function boot(){
-  try{
-    const r=await fetch(RTDB+"/formConfig/"+encodeURIComponent(FORM_ID)+".json");
-    const cfg=await r.json();
-    if(cfg && cfg.questions && cfg.questions.length) FORM=cfg;
-  }catch(e){}
-  if(FORM.accent) document.documentElement.style.setProperty("--accent",FORM.accent);
-  document.title="VERSUS · "+(FORM.name||"Formulario");
-  render();
+ try{
+ const r=await fetch(RTDB+"/formConfig/"+encodeURIComponent(FORM_ID)+".json");
+ const cfg=await r.json();
+ if(cfg && cfg.questions && cfg.questions.length) FORM=cfg;
+ }catch(e){}
+ if(FORM.accent) document.documentElement.style.setProperty("--accent",FORM.accent);
+ document.title="VERSUS · "+(FORM.name||"Formulario");
+ render();
 }
 function bannerHTML(){ return FORM.banner? `<div class="banner"><img src="${FORM.banner}" alt=""></div>`:""; }
 function render(){
-  const q=FORM.questions[i], total=FORM.questions.length;
-  paso.textContent=(i+1)+" / "+total;
-  bar.style.width=(i/total*100)+"%";
-  let field="";
-  const v=(R[q.id]||"");
-  if(q.type==="text") field=`<input type="text" id="f" value="${v.replace(/"/g,'&quot;')}" placeholder="Escribe aquí…">`;
-  else if(q.type==="area") field=`<textarea id="f" placeholder="Escribe aquí…">${v}</textarea>`;
-  else if(q.type==="choice"){ field=`<div class="opts">`+(q.options||[]).map(o=>`<div class="opt${v===o?' sel':''}" data-v="${String(o).replace(/"/g,'&quot;')}">${o}</div>`).join("")+`</div>`; }
-  else if(q.type==="manual") field=`
-    <div class="opts"><div class="opt${manualState.tiene==="si"?" sel":""}" data-m="si">Sí, tengo</div><div class="opt${manualState.tiene==="no"?" sel":""}" data-m="no">No aún</div></div>
-    <div class="manual-extra" id="mx">
-      <input type="text" id="mlink" placeholder="Pega el link del manual (Drive, etc.)" value="${(manualState.link||"").replace(/"/g,'&quot;')}">
-      <div class="filerow"><label class="filebtn">📎 Subir archivo (PDF/imagen, máx 3MB)<input type="file" id="mfile" accept="application/pdf,image/*" hidden></label><span class="hint" id="mfilename">${manualState.nombre?("· "+manualState.nombre):""}</span></div>
-    </div>`;
-  const first=i===0? bannerHTML():"";
-  card.innerHTML=`${first}<div class="q"><div class="q__n">${String(i+1).padStart(2,"0")}</div><div class="q__t">${q.label||""}</div>${q.hint?`<div class="q__h">${q.hint}</div>`:""}${field}
-    <div class="row">${i>0?'<button class="btn btn-ghost" id="back">← Atrás</button>':''}<button class="btn btn-red" id="next">${i===total-1?'Enviar':'Siguiente →'}</button></div></div>`;
-  const f=document.getElementById("f"); if(f) f.focus();
-  if(q.type==="choice"){ card.querySelectorAll(".opt").forEach(o=>o.onclick=()=>{ card.querySelectorAll(".opt").forEach(x=>x.classList.remove("sel")); o.classList.add("sel"); R[q.id]=o.dataset.v; }); }
-  if(q.type==="manual"){
-    const mx=document.getElementById("mx"); if(manualState.tiene==="si") mx.style.display="block";
-    card.querySelectorAll(".opt").forEach(o=>o.onclick=()=>{ card.querySelectorAll(".opt").forEach(x=>x.classList.remove("sel")); o.classList.add("sel"); manualState.tiene=o.dataset.m; mx.style.display=o.dataset.m==="si"?"block":"none"; });
-    const mf=document.getElementById("mfile"); if(mf) mf.onchange=()=>{ const file=mf.files[0]; if(!file)return; if(file.size>3*1024*1024){ alert("Máx 3MB. Mejor pega el link."); mf.value=""; return; } const rd=new FileReader(); rd.onload=()=>{ manualState.data=rd.result; manualState.nombre=file.name; document.getElementById("mfilename").textContent="· "+file.name; }; rd.readAsDataURL(file); };
-  }
-  const bk=document.getElementById("back"); if(bk) bk.onclick=()=>{ save(); i--; render(); };
-  document.getElementById("next").onclick=()=>{ if(!save())return; if(i===total-1) enviar(); else{ i++; render(); } };
-  if(f) f.addEventListener("keydown",e=>{ if(e.key==="Enter"&&q.type!=="area"){ e.preventDefault(); document.getElementById("next").click(); } });
+ const q=FORM.questions[i], total=FORM.questions.length;
+ paso.textContent=(i+1)+" / "+total;
+ bar.style.width=(i/total*100)+"%";
+ let field="";
+ const v=(R[q.id]||"");
+ if(q.type==="text") field=`<input type="text" id="f" value="${v.replace(/"/g,'&quot;')}" placeholder="Escribe aquí…">`;
+ else if(q.type==="area") field=`<textarea id="f" placeholder="Escribe aquí…">${v}</textarea>`;
+ else if(q.type==="choice"){ field=`<div class="opts">`+(q.options||[]).map(o=>`<div class="opt${v===o?' sel':''}" data-v="${String(o).replace(/"/g,'&quot;')}">${o}</div>`).join("")+`</div>`; }
+ else if(q.type==="manual") field=`
+ <div class="opts"><div class="opt${manualState.tiene==="si"?" sel":""}" data-m="si">Sí, tengo</div><div class="opt${manualState.tiene==="no"?" sel":""}" data-m="no">No aún</div></div>
+ <div class="manual-extra" id="mx">
+ <input type="text" id="mlink" placeholder="Pega el link del manual (Drive, etc.)" value="${(manualState.link||"").replace(/"/g,'&quot;')}">
+ <div class="filerow"><label class="filebtn"> Subir archivo (PDF/imagen, máx 3MB)<input type="file" id="mfile" accept="application/pdf,image/*" hidden></label><span class="hint" id="mfilename">${manualState.nombre?("· "+manualState.nombre):""}</span></div>
+ </div>`;
+ const first=i===0? bannerHTML():"";
+ card.innerHTML=`${first}<div class="q"><div class="q__n">${String(i+1).padStart(2,"0")}</div><div class="q__t">${q.label||""}</div>${q.hint?`<div class="q__h">${q.hint}</div>`:""}${field}
+ <div class="row">${i>0?'<button class="btn btn-ghost" id="back">← Atrás</button>':''}<button class="btn btn-red" id="next">${i===total-1?'Enviar':'Siguiente →'}</button></div></div>`;
+ const f=document.getElementById("f"); if(f) f.focus();
+ if(q.type==="choice"){ card.querySelectorAll(".opt").forEach(o=>o.onclick=()=>{ card.querySelectorAll(".opt").forEach(x=>x.classList.remove("sel")); o.classList.add("sel"); R[q.id]=o.dataset.v; }); }
+ if(q.type==="manual"){
+ const mx=document.getElementById("mx"); if(manualState.tiene==="si") mx.style.display="block";
+ card.querySelectorAll(".opt").forEach(o=>o.onclick=()=>{ card.querySelectorAll(".opt").forEach(x=>x.classList.remove("sel")); o.classList.add("sel"); manualState.tiene=o.dataset.m; mx.style.display=o.dataset.m==="si"?"block":"none"; });
+ const mf=document.getElementById("mfile"); if(mf) mf.onchange=()=>{ const file=mf.files[0]; if(!file)return; if(file.size>3*1024*1024){ alert("Máx 3MB. Mejor pega el link."); mf.value=""; return; } const rd=new FileReader(); rd.onload=()=>{ manualState.data=rd.result; manualState.nombre=file.name; document.getElementById("mfilename").textContent="· "+file.name; }; rd.readAsDataURL(file); };
+ }
+ const bk=document.getElementById("back"); if(bk) bk.onclick=()=>{ save(); i--; render(); };
+ document.getElementById("next").onclick=()=>{ if(!save())return; if(i===total-1) enviar(); else{ i++; render(); } };
+ if(f) f.addEventListener("keydown",e=>{ if(e.key==="Enter"&&q.type!=="area"){ e.preventDefault(); document.getElementById("next").click(); } });
 }
 function save(){
-  const q=FORM.questions[i], f=document.getElementById("f");
-  if(f) R[q.id]=f.value.trim();
-  if(q.type==="manual"){ const ml=document.getElementById("mlink"); if(ml) manualState.link=ml.value.trim(); }
-  if(q.required){
-    const missing = q.type==="manual" ? !manualState.tiene : !((R[q.id]||"").trim());
-    if(missing){ if(f){ f.style.borderColor="var(--red)"; f.focus(); } else { const first=card.querySelector(".opt"); if(first) first.style.borderColor="var(--red)"; } return false; }
-  }
-  return true;
+ const q=FORM.questions[i], f=document.getElementById("f");
+ if(f) R[q.id]=f.value.trim();
+ if(q.type==="manual"){ const ml=document.getElementById("mlink"); if(ml) manualState.link=ml.value.trim(); }
+ if(q.required){
+ const missing = q.type==="manual" ? !manualState.tiene : !((R[q.id]||"").trim());
+ if(missing){ if(f){ f.style.borderColor="var(--red)"; f.focus(); } else { const first=card.querySelector(".opt"); if(first) first.style.borderColor="var(--red)"; } return false; }
+ }
+ return true;
 }
 async function enviar(){
-  card.innerHTML='<div class="done"><h1>Enviando…</h1></div>';
-  const nameQ=FORM.questions.find(q=>q.name) || FORM.questions.find(q=>q.type==="text") || FORM.questions[0];
-  const items=FORM.questions.filter(q=>q.type!=="manual").map(q=>({label:q.label, value:R[q.id]||"", type:q.type}));
-  const hasManual=FORM.questions.some(q=>q.type==="manual");
-  const id="ob"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-  const payload={ formId:FORM.id||FORM_ID, formName:FORM.name||"", marca:(R[(nameQ&&nameQ.id)]||"Sin nombre"), items, at:new Date().toISOString() };
-  if(hasManual) payload.manual={ tiene:manualState.tiene||"no", link:manualState.link||"", nombre:manualState.nombre||"", data:manualState.data||"" };
-  try{
-    const r=await fetch(RTDB+"/onboarding/"+id+".json",{method:"PUT",body:JSON.stringify(payload)});
-    if(!r.ok) throw new Error("no");
-    bar.style.width="100%"; paso.textContent="";
-    card.innerHTML='<div class="done"><h1>¡Listo! 🎉</h1><p>Recibimos la info de <b>'+(payload.marca)+'</b>.<br>El equipo de Versus la revisará y te contacta.</p></div>';
-  }catch(e){ card.innerHTML='<div class="done"><h1>Ups</h1><p>No se pudo enviar. Escríbenos y lo revisamos.</p></div>'; }
+ card.innerHTML='<div class="done"><h1>Enviando…</h1></div>';
+ const nameQ=FORM.questions.find(q=>q.name) || FORM.questions.find(q=>q.type==="text") || FORM.questions[0];
+ const items=FORM.questions.filter(q=>q.type!=="manual").map(q=>({label:q.label, value:R[q.id]||"", type:q.type}));
+ const hasManual=FORM.questions.some(q=>q.type==="manual");
+ const id="ob"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+ const payload={ formId:FORM.id||FORM_ID, formName:FORM.name||"", marca:(R[(nameQ&&nameQ.id)]||"Sin nombre"), items, at:new Date().toISOString() };
+ if(hasManual) payload.manual={ tiene:manualState.tiene||"no", link:manualState.link||"", nombre:manualState.nombre||"", data:manualState.data||"" };
+ try{
+ const r=await fetch(RTDB+"/onboarding/"+id+".json",{method:"PUT",body:JSON.stringify(payload)});
+ if(!r.ok) throw new Error("no");
+ bar.style.width="100%"; paso.textContent="";
+ card.innerHTML='<div class="done"><h1>¡Listo! </h1><p>Recibimos la info de <b>'+(payload.marca)+'</b>.<br>El equipo de Versus la revisará y te contacta.</p></div>';
+ }catch(e){ card.innerHTML='<div class="done"><h1>Ups</h1><p>No se pudo enviar. Escríbenos y lo revisamos.</p></div>'; }
 }
 boot();
 </script>
