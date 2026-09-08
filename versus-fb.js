@@ -587,6 +587,54 @@
         } catch (_) {}
         return { ok: true, data: aiDemo('/api/hashtags', body) };
       }
+      if (p === '/api/gestion') {
+        const cache = await portal();
+        const pubs = cache.pubs || [], brandCfg = cache.brandCfg || {};
+        const [cyclesRaw, objsRaw, creds] = await Promise.all([
+          fbGet('db/cycles').catch(() => null), fbGet('db/objectives').catch(() => null), fbGet('db/creds').catch(() => ({}))
+        ]);
+        const cycles = (Array.isArray(cyclesRaw) ? cyclesRaw : Object.values(cyclesRaw || {})).filter(Boolean);
+        const objectives = (Array.isArray(objsRaw) ? objsRaw : Object.values(objsRaw || {})).filter(Boolean);
+        const clientBrands = Object.keys(creds || {}).filter(k => creds[k] && creds[k].type === 'client');
+        const hoy = new Date();
+        const marcas = []; let retrasadas = 0, enProceso = 0, alDia = 0;
+        clientBrands.forEach(slug => {
+          const bcyc = cycles.filter(c => c.brand === slug);
+          if (!bcyc.length) return;
+          const cyc = bcyc.find(c => c.status === 'active') || bcyc.slice().sort((a, b) => String(b.end || '').localeCompare(String(a.end || '')))[0];
+          const goals = { reels: +cyc.reels || 0, carruseles: +cyc.carruseles || 0, posts: +cyc.posts || 0, historias: +cyc.historias || 0, videos: +cyc.videos || 0, shorts: +cyc.shorts || 0 };
+          const cobjs = objectives.filter(o => o.brand === slug && o.cycle === cyc.id);
+          if (cobjs.length) { const s = { reels: 0, carruseles: 0, posts: 0, historias: 0 }; cobjs.forEach(o => { s.reels += +o.reels || 0; s.carruseles += +o.carruseles || 0; s.posts += +o.posts || 0; s.historias += +o.stories || 0; }); if (s.reels) goals.reels = s.reels; if (s.carruseles) goals.carruseles = s.carruseles; if (s.posts) goals.posts = s.posts; if (s.historias) goals.historias = s.historias; }
+          const metaCreativos = goals.reels + goals.carruseles + goals.posts + goals.videos + goals.shorts;
+          const cpubs = pubs.filter(x => x.brand === slug && x.cycle === cyc.id && x.status === 'published');
+          const creativosPub = cpubs.filter(x => x.type !== 'Historia' && x.type !== 'Historias').length;
+          const histPub = cpubs.filter(x => x.type === 'Historia' || x.type === 'Historias').length;
+          const pct = metaCreativos ? creativosPub / metaCreativos : (creativosPub ? 1 : 0);
+          const estado = pct >= 1 ? 'al_dia' : pct >= 0.5 ? 'en_proceso' : 'retrasado';
+          if (estado === 'retrasado') retrasadas++; else if (estado === 'en_proceso') enProceso++; else alDia++;
+          let dia = '', dias = '';
+          if (cyc.start && cyc.end) { const s = new Date(cyc.start), e = new Date(cyc.end); dias = Math.round((e - s) / 86400000) + 1; dia = Math.min(dias, Math.max(0, Math.round((hoy - s) / 86400000) + 1)); }
+          marcas.push({
+            marca: (creds[slug] && creds[slug].name) || brandName(slug, brandCfg) || slug, slug,
+            sector: (brandCfg[slug] && (brandCfg[slug].sector || brandCfg[slug].industria)) || '',
+            compromiso: {
+              estado,
+              creativos: { programados: creativosPub, meta: metaCreativos, faltanProgramar: Math.max(0, metaCreativos - creativosPub) },
+              historias: { hechas: histPub, meta: goals.historias, faltanProgramar: Math.max(0, goals.historias - histPub) }
+            },
+            ciclo: cyc.name || '', cicloDia: dia, cicloDias: dias
+          });
+        });
+        marcas.sort((a, b) => a.marca.localeCompare(b.marca));
+        return { ok: true, data: { marcasDetectadas: marcas.length, resumen: { retrasadas, enProceso, alDia }, ciclo: { label: 'Ciclo activo por marca', dia: '', dias: '' }, marcas } };
+      }
+      if (p === '/api/gestion/calendario') {
+        const cache = await portal();
+        const pubs = (cache.pubs || []).filter(x => x && x.status === 'published' && x.date);
+        const creds = (await fbGet('db/creds').catch(() => ({}))) || {};
+        const items = pubs.map(x => ({ marca: (creds[x.brand] && creds[x.brand].name) || x.brand, fecha: x.date, tipo: x.type || 'Post' }));
+        return { ok: true, data: { items } };
+      }
       if (p.startsWith('/api/gestion')) return { ok: true, data: { marcas: [], area: null, porGrabar: [], grabado: [], items: [] } };
       if (p === '/api/radar') return { ok: true, data: { items: [] } };
 

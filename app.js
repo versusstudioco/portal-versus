@@ -293,14 +293,16 @@ function renderMarcas(d) {
           </div>`).join('') : '<div class="gw-none">Sin tareas asignadas para este cliente</div>'}
       </div>
       <div class="gw-card__foot">
-        <button class="btn btn--ghost btn--sm" data-goto2="calendario">Ver calendario</button>
-        <button class="btn btn--ghost btn--sm g-edit" data-marca="${esc(m.marca)}">Metas</button>
+        <button class="btn btn--ghost btn--sm g-open" data-marca="${esc(m.marca)}" data-sector="${esc(m.sector || '')}">Abrir marca</button>
       </div>
     </div>`;
   }).join('');
 
   $('#gMarcas').innerHTML = contexto + '<div class="gw-grid">' + cards + '</div>';
-  $$('.g-edit').forEach(b => b.addEventListener('click', () => openMetas(b.dataset.marca)));
+  $$('.g-open').forEach(b => b.addEventListener('click', () => {
+    document.querySelector('.nav__item[data-view="archivos"]')?.click();
+    setTimeout(() => openMarca(b.dataset.marca, b.dataset.sector), 350);
+  }));
   $$('[data-goto2]').forEach(b => b.addEventListener('click', () => document.querySelector(`.nav__item[data-view="${b.dataset.goto2}"]`)?.click()));
 }
 
