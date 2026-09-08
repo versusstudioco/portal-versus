@@ -237,9 +237,19 @@
     let perfil = null;
     try { perfil = await fbGet('db/profiles/' + username); } catch (_) {}
     perfil = perfil || {};
+    const tieneProfile = Object.keys(perfil).length > 0;
     const esAdmin = perfil.type === 'admin' || perfil.role === 'admin';
+    // Determinar el tipo de cuenta SIN bloquear al equipo por error:
+    // - con perfil de equipo (o admin) => nunca es 'client'
+    // - sin perfil => solo es 'client' si db/creds lo confirma; si no, 'miembro'
+    let tipo = perfil.type;
+    if (!tipo) {
+      if (esAdmin) tipo = 'admin';
+      else if (tieneProfile) tipo = 'team';
+      else { let cred = null; try { cred = await fbGet('db/creds/' + username); } catch (_) {} tipo = (cred && cred.type) ? cred.type : 'miembro'; }
+    }
     const area = perfil.area || (perfil.areas && perfil.areas[0]) || (esAdmin ? 'Administrativa' : (perfil.brand || ''));
-    return { username, name: perfil.name || username, area, areas: perfil.areas || (area ? [area] : []), role: esAdmin ? 'admin' : (perfil.role || 'miembro'), type: perfil.type || 'client' };
+    return { username, name: perfil.name || username, area, areas: perfil.areas || (area ? [area] : []), role: esAdmin ? 'admin' : (perfil.role || 'miembro'), type: tipo };
   }
   function esEstrategiaOAdmin(s) {
     if (!s) return false;
