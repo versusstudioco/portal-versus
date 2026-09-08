@@ -1700,7 +1700,7 @@ async function loadInicio() {
     <div class="quick-grid">${tools.map(([v, l, i]) => `<button class="quick-card" data-goto="${v}"><span class="quick-card__i">${i}</span><span class="quick-card__l">${esc(l)}</span></button>`).join('')}</div>`;
   out.innerHTML = html;
   bindTaskActions(loadInicio);
-  $$('.quick__btn').forEach(b => b.addEventListener('click', () => {
+  $$('.quick-card').forEach(b => b.addEventListener('click', () => {
     const item = document.querySelector(`.nav__item[data-view="${b.dataset.goto}"]`);
     if (item) item.click();
   }));

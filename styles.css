@@ -270,7 +270,7 @@ input, select, textarea { max-width: 100%; }
 
 /* Modal metas */
 .g-modal { position: fixed; inset: 0; background: rgba(29,29,29,.35); backdrop-filter: blur(6px); display: grid; place-items: center; z-index: 100; padding: 1rem; }
-.g-modal__box { padding: 1.8rem; width: 100%; max-width: 420px; }
+.g-modal__box { padding: 1.8rem; width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto; }
 .g-modal__box h3 { font-size: 1.2rem; font-weight: 800; }
 .g-modal__grid { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; margin: 1.2rem 0; }
 .g-modal__actions { display: flex; justify-content: flex-end; gap: .6rem; }
@@ -960,8 +960,10 @@ textarea.fe-in { min-height:70px; resize:vertical; }
 .pz-metplat { border: 1px solid var(--line); border-radius: 10px; padding: .55rem .7rem; }
 .pz-metplat__h { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-60); margin-bottom: .4rem; }
 .pz-metgrid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: .4rem; }
-.pz-metgrid .select span { font-size: .66rem; }
-.pz-metgrid input { width: 100%; min-width: 0; padding: .4rem .5rem; }
+.pz-metgrid .select { min-width: 0; gap: .2rem; }
+.pz-metgrid .select span { font-size: .62rem; }
+.pz-metgrid input { width: 100%; min-width: 0; padding: .4rem .3rem; }
+@media(max-width:600px){ .pz-metgrid { grid-template-columns: repeat(3, minmax(0,1fr)); } }
 @media(max-width:600px){ .pz-metgrid { grid-template-columns: repeat(2, 1fr); } }
 
 /* Navegación de mes en el calendario de la marca (Team) */
