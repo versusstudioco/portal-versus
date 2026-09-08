@@ -500,7 +500,8 @@
         const marca = q.get('marca') || body.marca || '';
         const CAMPOS = ['industria', 'pais', 'tipoClientes', 'comunicacion', 'servicios', 'tono', 'publico', 'notas', 'igUser', 'igPauta', 'igLink', 'tiktokUser', 'tiktokPauta', 'tiktokLink', 'linkedinUser', 'linkedinPauta', 'linkedinLink'];
         if (method === 'POST') {
-          const c = {}; CAMPOS.forEach(k => c[k] = String(body[k] || '').trim());
+          const prev = (await fbGet('gestor/marcas/' + fbKey(marca) + '/contexto').catch(() => null)) || {};
+          const c = {}; CAMPOS.forEach(k => c[k] = (k in body) ? String(body[k] || '').trim() : (prev[k] || ''));
           await fbPut('gestor/marcas/' + fbKey(marca) + '/contexto', c);
           return { ok: true, data: { ok: true } };
         }

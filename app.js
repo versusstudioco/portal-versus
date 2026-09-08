@@ -35,6 +35,17 @@ const gcal = {
           try { sessionStorage.setItem('gcal_t', this.token); sessionStorage.setItem('gcal_e', this.expiry); } catch (e) {}
           const cb = this._cb; this._cb = null; if (cb) cb();
         }
+      },
+      error_callback: (err) => {
+        this._cb = null;
+        const t = (err && (err.type || err.message)) || '';
+        if (String(t).indexOf('access_denied') >= 0 || String(t).indexOf('denied') >= 0) {
+          alert('Esa cuenta de Google todavía no está autorizada para el portal.\n\nPara habilitarla: el admin debe entrar a Google Cloud → APIs y servicios → Pantalla de consentimiento OAuth → Usuarios de prueba, y agregar ese correo. Después vuelve a conectar aquí.');
+        } else if (String(t).indexOf('popup') >= 0) {
+          alert('Se cerró la ventana de Google antes de terminar. Inténtalo de nuevo y no cierres la ventana.');
+        } else if (t) {
+          alert('No se pudo conectar Google Calendar: ' + t);
+        }
       }
     });
   },
@@ -43,7 +54,8 @@ const gcal = {
     try { const t = sessionStorage.getItem('gcal_t'), e = +sessionStorage.getItem('gcal_e'); if (t && e && Date.now() < e - 60000) { this.token = t; this.expiry = e; return true; } } catch (_) {}
     return false;
   },
-  connect(cb) { this.init(); if (!this.tokenClient) { alert('Google aún no cargó. Recarga la página e inténtalo de nuevo.'); return; } this._cb = cb || null; this.tokenClient.requestAccessToken({ prompt: this.connected() ? '' : 'consent' }); },
+  connect(cb, force) { this.init(); if (!this.tokenClient) { alert('Google aún no cargó. Recarga la página e inténtalo de nuevo.'); return; } this._cb = cb || null; if (force) { this.token = null; this.expiry = 0; try { sessionStorage.removeItem('gcal_t'); sessionStorage.removeItem('gcal_e'); } catch (_) {} } this.tokenClient.requestAccessToken({ prompt: force ? 'select_account consent' : (this.connected() ? '' : 'consent') }); },
+  disconnect() { this.token = null; this.expiry = 0; try { sessionStorage.removeItem('gcal_t'); sessionStorage.removeItem('gcal_e'); } catch (_) {} },
   ensure(cb) { if (this.connected()) cb(); else this.connect(cb); },
   async apiCall(path, opts = {}) {
     const r = await fetch('https://www.googleapis.com/calendar/v3' + path, { ...opts, headers: { 'Authorization': 'Bearer ' + this.token, 'Content-Type': 'application/json', ...(opts.headers || {}) } });
@@ -63,9 +75,10 @@ function renderAgenda() {
   el.innerHTML = '<div class="md-empty">Cargando tu agenda…</div>';
   gcal.today().then(d => {
     const items = (d.items || []);
-    el.innerHTML = `<div style="display:flex;justify-content:flex-end;margin-bottom:.5rem"><button class="btn btn--primary btn--sm" id="gcalNew">Nueva reunión / bloque</button></div>` +
+    el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.5rem"><button class="md-gcal" id="gcalSwitch" title="Conectar o cambiar a otra cuenta de Google">Cambiar cuenta</button><button class="btn btn--primary btn--sm" id="gcalNew">Nueva reunión / bloque</button></div>` +
       (items.length ? `<div class="md-list">${items.map(ev => { const hora = (ev.start && ev.start.dateTime) ? new Date(ev.start.dateTime).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) : 'Todo el día'; return `<div class="md-row"><div class="md-row__t">${esc(ev.summary || '(sin título)')}<small>${hora}</small></div><div class="md-row__r">${ev.htmlLink ? `<a class="md-gcal" href="${ev.htmlLink}" target="_blank" rel="noopener">Abrir</a>` : ''}</div></div>`; }).join('')}</div>` : '<div class="md-empty">Sin eventos en tu calendario hoy.</div>');
     const n = $('#gcalNew'); if (n) n.onclick = openNuevaReunion;
+    const sw = $('#gcalSwitch'); if (sw) sw.onclick = () => gcal.connect(() => renderAgenda(), true);
   }).catch(e => {
     el.innerHTML = `<div class="md-empty">${esc(e.message || 'No se pudo leer el calendario')} <button class="md-gcal" id="gcalRe">Reconectar</button></div>`;
     const b = $('#gcalRe'); if (b) b.onclick = () => gcal.connect(() => renderAgenda());
@@ -391,14 +404,12 @@ function renderMarcas(d) {
 const ETAPA_CLS = { idea: '', aprobada: 'st-blue', grabada: 'st-blue', editada: 'st-blue', publicada: 'st-green' };
 function flPieceCard(p) {
   const hoy = new Date().toISOString().slice(0, 10);
-  const cambios = p.aprobadoCliente === 'no';
-  const late = !cambios && p.fechaEntrega && p.etapa !== 'publicada' && p.fechaEntrega < hoy;
-  const cls = cambios ? ' fl-piece--cambios' : late ? ' fl-piece--late' : '';
+  const late = p.fechaEntrega && p.etapa !== 'publicada' && p.fechaEntrega < hoy;
+  const cls = late ? ' fl-piece--late' : '';
   return `<div class="fl-piece${cls}" draggable="true" data-id="${p.id}">
     <div class="fl-piece__marca">${esc(p.marca)}</div>
     <div class="fl-piece__idea">${esc(p.idea)}</div>
     <div class="fl-piece__foot"><span class="tag">${esc(p.tipo)}</span>${p.fechaEntrega ? `<span class="fl-piece__d">entrega ${esc(p.fechaEntrega.slice(5))}</span>` : ''}${p.responsable ? `<span class="fl-piece__resp">${esc(p.responsable)}</span>` : ''}</div>
-    ${cambios ? '<div class="fl-piece__flag">Cambios del cliente</div>' : ''}
   </div>`;
 }
 function boardHTML(data) {
@@ -447,24 +458,21 @@ async function renderFlujo() {
 
 function pendientesHTML(all) {
   const hoy = new Date().toISOString().slice(0, 10);
-  const porAprobar = all.filter(p => p.fechaEntrega && p.etapa !== 'publicada' && p.aprobadoCliente !== 'si' && p.fechaEntrega <= hoy);
-  const cambios = all.filter(p => p.aprobadoCliente === 'no');
+  const porEntregar = all.filter(p => p.fechaEntrega && p.etapa !== 'publicada' && p.fechaEntrega < hoy);
   const atrasadas = all.filter(p => p.fecha && p.etapa !== 'publicada' && p.fecha < hoy);
-  if (!porAprobar.length && !cambios.length && !atrasadas.length) return '<div class="pend pend--ok">Todo al día. No hay pendientes.</div>';
-  const row = (p, wa) => `<div class="pend-row" data-open="${p.id}">
+  if (!porEntregar.length && !atrasadas.length) return '<div class="pend pend--ok">Todo al día. No hay pendientes.</div>';
+  const row = (p) => `<div class="pend-row" data-open="${p.id}">
       <div class="pend-row__main"><b>${esc(p.marca)}</b> · ${esc(p.idea || '')}</div>
-      <div class="pend-row__meta">${p.fechaEntrega ? 'entrega ' + esc(p.fechaEntrega.slice(5)) : (p.fecha ? 'publica ' + esc(p.fecha.slice(5)) : '')}${wa ? `<button class="pend-wa" data-wa="${encodeURIComponent('Hola, el contenido "' + (p.idea || 'nuevo') + '" de ' + p.marca + ' está listo para tu aprobación. Revísalo en tu portal: https://portal.versusstudio.co/clientes/')}">WhatsApp</button>` : ''}</div>
+      <div class="pend-row__meta">${p.fechaEntrega ? 'entrega ' + esc(p.fechaEntrega.slice(5)) : (p.fecha ? 'publica ' + esc(p.fecha.slice(5)) : '')}</div>
     </div>`;
-  const grupo = (titulo, arr, cls, wa) => arr.length ? `<div class="pend-group ${cls}"><div class="pend-group__h">${titulo} <span>${arr.length}</span></div>${arr.map(p => row(p, wa)).join('')}</div>` : '';
+  const grupo = (titulo, arr, cls) => arr.length ? `<div class="pend-group ${cls}"><div class="pend-group__h">${titulo} <span>${arr.length}</span></div>${arr.map(row).join('')}</div>` : '';
   return `<div class="pend">
-    ${grupo('Cambios pedidos por el cliente', cambios, 'pend-group--red', false)}
-    ${grupo('Por aprobar (avísale al cliente)', porAprobar, 'pend-group--amber', true)}
-    ${grupo('Atrasadas (pasó la publicación)', atrasadas, 'pend-group--red', false)}
+    ${grupo('Entrega vencida (falta terminar la pieza)', porEntregar, 'pend-group--amber')}
+    ${grupo('Atrasadas (pasó la publicación)', atrasadas, 'pend-group--red')}
   </div>`;
 }
 function bindPendientes(scope) {
-  scope.querySelectorAll('.pend-row').forEach(r => r.addEventListener('click', e => { if (e.target.closest('.pend-wa')) return; openPieza(r.dataset.open); }));
-  scope.querySelectorAll('.pend-wa').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); window.open('https://wa.me/?text=' + b.dataset.wa, '_blank'); }));
+  scope.querySelectorAll('.pend-row').forEach(r => r.addEventListener('click', () => openPieza(r.dataset.open)));
 }
 async function loadFlujo() {
   const out = $('#flujoOut');
@@ -1229,6 +1237,7 @@ function openMarca(marca, sector) {
  <button class="hub-tab" data-tab="metricas"> Métricas</button>
  <button class="hub-tab" data-tab="estrategia"> Estrategia</button>
  <button class="hub-tab" data-tab="archivos"> Archivos</button>
+ <button class="hub-tab" data-tab="config"> Configuración</button>
  </div>
  <div class="hub-pane" id="marcaPane"></div>`;
  bindLogoFit(out);
@@ -1244,6 +1253,7 @@ function marcaTab(tab) {
  if (tab === 'metricas') return marcaMetricas(marca);
  if (tab === 'estrategia') return marcaEstrategia(marca);
  if (tab === 'archivos') return marcaArchivos(marca);
+ if (tab === 'config') return marcaConfig(marca);
 }
 
 /* --- Ciclo: configuración (pactado) + Pactado vs. Realizado (automático) --- */
@@ -1511,6 +1521,66 @@ async function marcaArchivos(marca) {
  }));
 }
 
+/* --- Configuración de la marca: logo + usuarios de redes (cualquiera del equipo puede editar) --- */
+async function marcaConfig(marca) {
+ const pane = $('#marcaPane');
+ pane.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando configuración…</div>';
+ const { data: ctx } = await api('/api/marca/contexto?marca=' + encodeURIComponent(marca));
+ pane.innerHTML = `
+ <div class="est-ctx">
+ <h4> Logo de la marca <span class="hub-hint" style="display:inline;margin:0">— aparece en su tarjeta y en el portal</span></h4>
+ <div class="cfg-logo">
+ ${marcaLogoHTML(marca, 'cfg-logo__img')}
+ <label class="hub-up cfg-logo__up">
+ <input type="file" class="hub-file-input" accept="image/*" style="display:none">
+ <span> Cambiar logo</span>
+ </label>
+ </div>
+ <div class="hub-hint" style="margin:.2rem 0 0">PNG, SVG o JPG. Máximo ~650KB.</div>
+ </div>
+
+ <div class="est-ctx" style="margin-top:1rem">
+ <h4> Usuarios de las redes <span class="hub-hint" style="display:inline;margin:0">— el @ y el link de cada perfil, y si lleva pauta</span></h4>
+ <div class="est-plats">
+ ${[['ig', 'Instagram'], ['tiktok', 'TikTok'], ['linkedin', 'LinkedIn']].map(([k, l]) => `
+ <div class="plat-row">
+ <span class="plat-row__name">${l}</span>
+ <input class="plat-row__user" id="cf${k}User" value="${esc(ctx[k + 'User'] || '')}" placeholder="@usuario">
+ <input class="plat-row__user" id="cf${k}Link" value="${esc(ctx[k + 'Link'] || '')}" placeholder="Link del perfil (opcional)">
+ <label class="np-chk"><input type="checkbox" id="cf${k}Pauta" ${ctx[k + 'Pauta'] === 'si' ? 'checked' : ''}> Con pauta</label>
+ </div>`).join('')}
+ </div>
+ <button class="btn btn--primary btn--sm" id="cfSave" style="margin-top:.7rem">Guardar</button>
+ </div>`;
+
+ const inp = pane.querySelector('.hub-file-input');
+ if (inp) inp.addEventListener('change', async () => {
+ const file = inp.files[0]; if (!file) return;
+ if (file.size > 650 * 1024) { alert('Máximo ~650KB. Comprime la imagen.'); inp.value = ''; return; }
+ const lab = inp.closest('.hub-up'); const orig = lab.innerHTML; lab.textContent = 'Subiendo…';
+ try {
+ const dataBase64 = await fileToBase64(file);
+ const r = await api('/api/archivos/upload', { method: 'POST', body: { marca, tipo: 'logo', name: file.name, mime: file.type, dataBase64 } });
+ if (!r.ok || r.data.ok === false) throw new Error((r.data && r.data.error) || 'No se pudo subir');
+ await refreshLogos();
+ const h = document.querySelector('.marca-uni-head'); if (h && h.firstElementChild) { h.firstElementChild.outerHTML = marcaLogoHTML(marca, 'marca-uni-logo'); bindLogoFit(document); }
+ marcaConfig(marca);
+ } catch (e) { lab.innerHTML = orig; alert(e.message || 'No se pudo subir'); }
+ });
+ const save = $('#cfSave');
+ if (save) save.addEventListener('click', async () => {
+ save.disabled = true; save.textContent = 'Guardando…';
+ await api('/api/marca/contexto', { method: 'POST', body: {
+ marca,
+ igUser: $('#cfigUser').value, igLink: $('#cfigLink').value, igPauta: $('#cfigPauta').checked ? 'si' : '',
+ tiktokUser: $('#cftiktokUser').value, tiktokLink: $('#cftiktokLink').value, tiktokPauta: $('#cftiktokPauta').checked ? 'si' : '',
+ linkedinUser: $('#cflinkedinUser').value, linkedinLink: $('#cflinkedinLink').value, linkedinPauta: $('#cflinkedinPauta').checked ? 'si' : ''
+ } });
+ save.disabled = false; save.textContent = 'Guardado ✓';
+ setTimeout(() => { if (save) save.textContent = 'Guardar'; }, 1500);
+ });
+}
+
 /* --- Estrategia de la marca: contexto + generadores (hashtags, ideas, captions) --- */
 const APRENDE_KIND = { nota: ' Nota de marca', info: ' Información', insight: ' Aprendizaje', ganador: ' Ya funcionó' };
 async function marcaEstrategia(marca) {
@@ -1535,16 +1605,7 @@ async function marcaEstrategia(marca) {
  </div>
  <label class="select" style="margin-top:.6rem"><span>Servicios / productos</span><textarea id="esServicios" rows="2" placeholder="qué vende u ofrece la marca">${esc(ctx.servicios || '')}</textarea></label>
  <label class="select" style="margin-top:.6rem"><span>Notas / do's & don'ts</span><textarea id="esNotas" rows="2" placeholder="qué mencionar, qué evitar…">${esc(ctx.notas || '')}</textarea></label>
- <div class="est-plats">
- <h4 style="font-size:.92rem;margin:.9rem 0 .5rem"> Plataformas, usuarios y pauta</h4>
- ${[['ig', 'Instagram'], ['tiktok', 'TikTok'], ['linkedin', 'LinkedIn']].map(([k, l]) => `
- <div class="plat-row">
- <span class="plat-row__name">${l}</span>
- <input class="plat-row__user" id="es${k}User" value="${esc(ctx[k + 'User'] || '')}" placeholder="@usuario">
- <input class="plat-row__user" id="es${k}Link" value="${esc(ctx[k + 'Link'] || '')}" placeholder="Link del perfil (opcional)">
- <label class="np-chk"><input type="checkbox" id="es${k}Pauta" ${ctx[k + 'Pauta'] === 'si' ? 'checked' : ''}> Con pauta</label>
- </div>`).join('')}
- </div>
+ <p class="hub-hint" style="margin:.5rem 0 0">El logo y los @ de las redes ahora se editan en la pestaña <b>Configuración</b>.</p>
  <button class="btn btn--ghost btn--sm" id="esCtxSave" style="margin-top:.6rem">Guardar contexto</button>
  </div>
 
@@ -1579,8 +1640,7 @@ async function marcaEstrategia(marca) {
  await api('/api/marca/contexto', { method: 'POST', body: {
  marca, industria: $('#esIndustria').value, pais: $('#esPais').value, tipoClientes: $('#esTipoClientes').value,
  publico: $('#esPublico').value, tono: $('#esTono').value, comunicacion: $('#esComunicacion').value,
- servicios: $('#esServicios').value, notas: $('#esNotas').value,
- igUser: $('#esigUser').value, igPauta: $('#esigPauta').checked ? 'si' : '', igLink: $('#esigLink').value, tiktokUser: $('#estiktokUser').value, tiktokPauta: $('#estiktokPauta').checked ? 'si' : '', tiktokLink: $('#estiktokLink').value, linkedinUser: $('#eslinkedinUser').value, linkedinPauta: $('#eslinkedinPauta').checked ? 'si' : '', linkedinLink: $('#eslinkedinLink').value
+ servicios: $('#esServicios').value, notas: $('#esNotas').value
  } });
  $('#esCtxSave').textContent = 'Guardado ✓';
  const alert = $('.est-ctx-alert'); if (alert && $('#esIndustria').value && $('#esServicios').value && $('#esTono').value) alert.remove();
@@ -1909,17 +1969,16 @@ async function loadInicio() {
  const TASK_NEXT = { pendiente: 'en_curso', en_curso: 'hecho', hecho: 'pendiente' };
  const PRIO_DOT = { alta: '#F90000', media: '#f59e0b', baja: '#9aa0a6' };
  const tRow = t => `<div class="md-row"><div class="md-row__t"><span class="md-pd" style="background:${PRIO_DOT[t.priority] || '#ccc'}"></span>${esc(t.title)}<small>${[t.categoria && t.categoria !== 'General' ? t.categoria : '', t.cliente || '', horaTxt(t)].filter(Boolean).join(' · ')}${t.dueDate ? ' · ' + esc(t.dueDate.slice(5)) : ''}${t.overdue ? ' · atrasada' : ''}</small></div><div class="md-row__r">${t.dueDate ? `<a class="md-gcal" href="${gcalUrl(t)}" target="_blank" rel="noopener">Cal</a>` : ''}<button class="md-stpill st-${t.status}" data-st="${t.id}" data-next="${TASK_NEXT[t.status] || 'pendiente'}">${TASK_ST[t.status] || 'Pendiente'}</button></div></div>`;
- const pRow = (p, dot, wa) => `<div class="md-row" data-pieza="${p.id}"><div class="md-row__t"><span class="md-dotc md-dotc--${dot}"></span>${esc(p.marca)} · ${esc(p.idea || '')}<small>${p.fechaEntrega ? 'entrega ' + esc(p.fechaEntrega.slice(5)) : (p.fecha ? 'publica ' + esc(p.fecha.slice(5)) : '')}</small></div><div class="md-row__r">${wa ? `<button class="md-wa" data-wa="${encodeURIComponent('Hola, el contenido "' + (p.idea || 'nuevo') + '" de ' + p.marca + ' está listo para tu aprobación: https://portal.versusstudio.co/clientes/')}">WhatsApp</button>` : ''}</div></div>`;
+ const pRow = (p, dot) => `<div class="md-row" data-pieza="${p.id}"><div class="md-row__t"><span class="md-dotc md-dotc--${dot}"></span>${esc(p.marca)} · ${esc(p.idea || '')}<small>${p.fechaEntrega ? 'entrega ' + esc(p.fechaEntrega.slice(5)) : (p.fecha ? 'publica ' + esc(p.fecha.slice(5)) : '')}${ETAPA_ACCION[p.etapa] ? ' · ' + ETAPA_ACCION[p.etapa] : ''}</small></div></div>`;
  const CAP = 6;
  const capBlock = (arr, rowFn, key) => `<div class="md-rows">${arr.slice(0, CAP).map(rowFn).join('')}</div>${arr.length > CAP ? `<button class="md-more" data-lista="${key}">Ver todas (${arr.length})</button>` : ''}`;
 
  // Contenido: pendientes (admin) o "te toca" (rol)
  let contArr = [], contTitle = 'Contenido', contRow = pRow;
  if (me.role === 'admin') {
-   const cambios = allP.filter(p => p.aprobadoCliente === 'no').map(p => ({ p, dot: 'red', wa: false }));
-   const porAprobar = allP.filter(p => p.fechaEntrega && p.etapa !== 'publicada' && p.aprobadoCliente !== 'si' && p.fechaEntrega <= hoyISO).map(p => ({ p, dot: 'amber', wa: true }));
-   const atrasadas = allP.filter(p => p.fecha && p.etapa !== 'publicada' && p.fecha < hoyISO).map(p => ({ p, dot: 'red', wa: false }));
-   contArr = cambios.concat(porAprobar, atrasadas); contTitle = 'Contenido · pendientes'; contRow = o => pRow(o.p, o.dot, o.wa);
+   const porEntregar = allP.filter(p => p.fechaEntrega && p.etapa !== 'publicada' && p.fechaEntrega <= hoyISO).map(p => ({ p, dot: 'amber' }));
+   const atrasadas = allP.filter(p => p.fecha && p.etapa !== 'publicada' && p.fecha < hoyISO).map(p => ({ p, dot: 'red' }));
+   contArr = atrasadas.concat(porEntregar); contTitle = 'Contenido · en producción'; contRow = o => pRow(o.p, o.dot);
  } else if (etapasMias.length) {
    contArr = allP.filter(p => etapasMias.includes(p.etapa)); contTitle = 'Contenido · te toca'; contRow = piezaRow;
  }
