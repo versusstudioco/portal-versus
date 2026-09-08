@@ -20,6 +20,84 @@ async function api(path, opts = {}) {
  return { ok: res.ok, status: res.status, data };
 }
 
+/* ---------------- Google Calendar (por persona, client-side) ---------------- */
+const GCAL_CLIENT_ID = '90547953290-q0gafiktth5olu716budbg54iferfji3.apps.googleusercontent.com';
+const GCAL_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
+const gcal = {
+  token: null, expiry: 0, tokenClient: null, _cb: null,
+  init() {
+    if (this.tokenClient || !(window.google && google.accounts && google.accounts.oauth2)) return;
+    this.tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GCAL_CLIENT_ID, scope: GCAL_SCOPE,
+      callback: (resp) => {
+        if (resp && resp.access_token) {
+          this.token = resp.access_token; this.expiry = Date.now() + ((resp.expires_in || 3500) * 1000);
+          try { sessionStorage.setItem('gcal_t', this.token); sessionStorage.setItem('gcal_e', this.expiry); } catch (e) {}
+          const cb = this._cb; this._cb = null; if (cb) cb();
+        }
+      }
+    });
+  },
+  connected() {
+    if (this.token && Date.now() < this.expiry - 60000) return true;
+    try { const t = sessionStorage.getItem('gcal_t'), e = +sessionStorage.getItem('gcal_e'); if (t && e && Date.now() < e - 60000) { this.token = t; this.expiry = e; return true; } } catch (_) {}
+    return false;
+  },
+  connect(cb) { this.init(); if (!this.tokenClient) { alert('Google aún no cargó. Recarga la página e inténtalo de nuevo.'); return; } this._cb = cb || null; this.tokenClient.requestAccessToken({ prompt: this.connected() ? '' : 'consent' }); },
+  ensure(cb) { if (this.connected()) cb(); else this.connect(cb); },
+  async apiCall(path, opts = {}) {
+    const r = await fetch('https://www.googleapis.com/calendar/v3' + path, { ...opts, headers: { 'Authorization': 'Bearer ' + this.token, 'Content-Type': 'application/json', ...(opts.headers || {}) } });
+    if (r.status === 401) { this.token = null; try { sessionStorage.removeItem('gcal_t'); } catch (_) {} throw new Error('Tu sesión de Google expiró, reconéctate.'); }
+    return r.json();
+  },
+  today() { const s = new Date(); s.setHours(0, 0, 0, 0); const e = new Date(); e.setHours(23, 59, 59, 999); return this.apiCall('/calendars/primary/events?timeMin=' + s.toISOString() + '&timeMax=' + e.toISOString() + '&singleEvents=true&orderBy=startTime'); },
+  crear(ev) { return this.apiCall('/calendars/primary/events?sendUpdates=all', { method: 'POST', body: JSON.stringify(ev) }); }
+};
+function renderAgenda() {
+  const el = $('#mdAgenda'); if (!el) return;
+  if (!gcal.connected()) {
+    el.innerHTML = `<div class="md-list"><div class="md-row"><div class="md-row__t">Conecta tu Google Calendar<small>Para ver tu agenda, crear reuniones y bloquear tiempo</small></div><div class="md-row__r"><button class="md-gcal" id="gcalConnect">Conectar</button></div></div></div>`;
+    const c = $('#gcalConnect'); if (c) c.onclick = () => gcal.connect(() => renderAgenda());
+    return;
+  }
+  el.innerHTML = '<div class="md-empty">Cargando tu agenda…</div>';
+  gcal.today().then(d => {
+    const items = (d.items || []);
+    el.innerHTML = `<div style="display:flex;justify-content:flex-end;margin-bottom:.5rem"><button class="btn btn--primary btn--sm" id="gcalNew">Nueva reunión / bloque</button></div>` +
+      (items.length ? `<div class="md-list">${items.map(ev => { const hora = (ev.start && ev.start.dateTime) ? new Date(ev.start.dateTime).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) : 'Todo el día'; return `<div class="md-row"><div class="md-row__t">${esc(ev.summary || '(sin título)')}<small>${hora}</small></div><div class="md-row__r">${ev.htmlLink ? `<a class="md-gcal" href="${ev.htmlLink}" target="_blank" rel="noopener">Abrir</a>` : ''}</div></div>`; }).join('')}</div>` : '<div class="md-empty">Sin eventos en tu calendario hoy.</div>');
+    const n = $('#gcalNew'); if (n) n.onclick = openNuevaReunion;
+  }).catch(e => {
+    el.innerHTML = `<div class="md-empty">${esc(e.message || 'No se pudo leer el calendario')} <button class="md-gcal" id="gcalRe">Reconectar</button></div>`;
+    const b = $('#gcalRe'); if (b) b.onclick = () => gcal.connect(() => renderAgenda());
+  });
+}
+function openNuevaReunion() {
+  const hoy = new Date().toISOString().slice(0, 10);
+  const html = `<div class="g-modal" id="nrModal"><div class="g-modal__box glass">
+    <h3>Nueva reunión / bloque</h3>
+    <div class="form-grid" style="margin:.6rem 0">
+      <label class="select select--grow"><span>Título</span><input id="nrTitle" placeholder="Editar Reel Persé / Reunión cliente"></label>
+      <label class="select"><span>Fecha</span><input id="nrDate" type="date" value="${hoy}"></label>
+      <label class="select"><span>Inicio</span><input id="nrHi" type="time" value="08:00"></label>
+      <label class="select"><span>Fin</span><input id="nrHf" type="time" value="08:30"></label>
+    </div>
+    <label class="select" style="display:block;margin-bottom:.6rem"><span>Invitar (correos separados por coma, opcional)</span><input id="nrInv" placeholder="veronica@gmail.com, michelle@gmail.com"></label>
+    <div class="g-modal__actions"><button class="btn btn--ghost btn--sm" id="nrCancel">Cancelar</button><button class="btn btn--primary btn--sm" id="nrSave">Crear en mi Calendar</button></div>
+  </div></div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+  const close = () => $('#nrModal').remove();
+  $('#nrCancel').onclick = close; $('#nrModal').onclick = e => { if (e.target.id === 'nrModal') close(); };
+  $('#nrSave').onclick = () => {
+    const title = $('#nrTitle').value.trim(); if (!title) { $('#nrTitle').focus(); return; }
+    const d = $('#nrDate').value, hi = $('#nrHi').value, hf = $('#nrHf').value;
+    const tz = (Intl.DateTimeFormat().resolvedOptions().timeZone) || 'America/Bogota';
+    const ev = { summary: title, description: 'Creado desde Versus Portal', start: { dateTime: d + 'T' + hi + ':00', timeZone: tz }, end: { dateTime: d + 'T' + (hf || hi) + ':00', timeZone: tz } };
+    const inv = $('#nrInv').value.split(',').map(s => s.trim()).filter(Boolean); if (inv.length) ev.attendees = inv.map(email => ({ email }));
+    const btn = $('#nrSave'); btn.disabled = true; btn.textContent = 'Creando…';
+    gcal.ensure(async () => { try { await gcal.crear(ev); close(); renderAgenda(); } catch (e) { btn.disabled = false; btn.textContent = 'Crear en mi Calendar'; alert(e.message || 'No se pudo crear'); } });
+  };
+}
+
 /* ---------------- Tema (claro / oscuro) ---------------- */
 function applyTheme(dark) {
  document.documentElement.classList.toggle('dark', dark);
@@ -1838,6 +1916,8 @@ async function loadInicio() {
 
  if (proximas.length) html += `<section class="md-sec"><div class="md-sec__h">Próximas esta semana</div><div class="md-list">${proximas.map(taskRow).join('')}</div></section>`;
 
+ html += `<section class="md-sec"><div class="md-sec__h">Mi agenda</div><div id="mdAgenda"></div></section>`;
+
  const tools = [['archivos', 'Marcas'], ['flujo', 'Flujo'], ['gestion', 'Gestión'], ['calendario', 'Calendario'], ['altas', 'Formularios']];
  html += `<section class="md-sec"><div class="md-sec__h">Ir al trabajo</div><div class="md-quick">${tools.map(([v, l]) => `<button class="md-tile" data-goto="${v}">${esc(l)}</button>`).join('')}</div></section>`;
 
@@ -1846,6 +1926,7 @@ async function loadInicio() {
  out.querySelectorAll('.md-wa').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); window.open('https://wa.me/?text=' + b.dataset.wa, '_blank'); }));
  out.querySelectorAll('.md-done').forEach(b => b.addEventListener('click', async e => { e.stopPropagation(); b.disabled = true; await api('/api/team/task-status', { method: 'POST', body: { id: b.dataset.done, status: 'hecho' } }); loadInicio(); }));
  out.querySelectorAll('.md-tile').forEach(b => b.addEventListener('click', () => { const item = document.querySelector(`.nav__item[data-view="${b.dataset.goto}"]`); if (item) item.click(); }));
+ renderAgenda();
 }
 
 /* ---------------- Calendario compartido ---------------- */
