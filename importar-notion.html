@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Importar de Notion · VERSUS</title>
+<link rel="icon" href="/logo.png" />
+<style>
+  body{font-family:"Bricolage Grotesque",system-ui,sans-serif;background:#f5f5f5;color:#111;max-width:720px;margin:0 auto;padding:40px 24px;line-height:1.5}
+  h1{font-size:22px;font-weight:800;margin-bottom:4px}
+  p{color:#666;font-size:14px}
+  .btn{font-family:inherit;font-weight:700;font-size:15px;border:none;border-radius:10px;padding:12px 22px;cursor:pointer;background:#F90000;color:#fff;margin-top:16px}
+  .btn:disabled{opacity:.5;cursor:default}
+  .box{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:20px;margin-top:20px;box-shadow:0 4px 20px rgba(0,0,0,.06)}
+  .row{display:flex;justify-content:space-between;border-bottom:1px solid #eee;padding:6px 0;font-size:13px}
+  .ok{color:#1e8e3e;font-weight:700}.err{color:#F90000;font-weight:700}
+  code{background:#eee;padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+  <h1>Importar programación de Notion → Gestor</h1>
+  <p>Trae lo programado en <b>septiembre</b> (Calendario de Contenido de Notion) al gestor del Team, para que no se pierda. Debes tener <b>sesión de Team iniciada</b> en este navegador.</p>
+  <div class="box" id="status">Verificando sesión…</div>
+  <button class="btn" id="go" disabled>Importar septiembre</button>
+  <div id="out"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script>
+const cfg={apiKey:"AIzaSyAKgL0la08wjXBL4VhlcqRlE8Ory1KKC80",authDomain:"versus-portal.firebaseapp.com",databaseURL:"https://versus-portal-default-rtdb.firebaseio.com",projectId:"versus-portal",storageBucket:"versus-portal.firebasestorage.app",messagingSenderId:"689127935637",appId:"1:689127935637:web:0d42a61192c4e1440b559c"};
+firebase.initializeApp(cfg);
+const RTDB="https://versus-portal-default-rtdb.firebaseio.com/vsportal";
+// Programación de septiembre 2026 leída de Notion (VERSUS - CALENDARIO DE CONTENIDO), por Fecha de grabación:
+const RAW=[
+["carrusel referencia legal","2026-09-02"],["check Compro casa","2026-09-07"],["check ML: imagenes","2026-09-07"],["check referencia legal","2026-09-07"],
+["Compro casa","2026-09-01"],["Compro casa","2026-09-03"],["compro casa","2026-09-11"],["compro casa","2026-09-13"],["compro casa","2026-09-15"],["compro casa","2026-09-18"],
+["con tacto","2026-09-07"],
+["Logybox","2026-09-02"],["Logybox","2026-09-08"],["Logybox","2026-09-10"],["Logybox","2026-09-14"],["Logybox","2026-09-18"],["logybox","2026-09-22"],["logybox","2026-09-24"],["logybox","2026-09-28"],
+["ML","2026-09-03"],["ML","2026-09-10"],["ML","2026-09-14"],["ML","2026-09-18"],["ML","2026-09-23"],["ML","2026-09-29"],
+["Persé","2026-09-06"],["Persé","2026-09-09"],["Persé","2026-09-13"],["Persé","2026-09-17"],["Persé","2026-09-21"],["Persé","2026-09-25"],
+["referencia legal","2026-09-04"],["referencia legal","2026-09-09"],
+["UNLULO","2026-09-01"],["Unlulo","2026-09-02"],["Unlulo","2026-09-04"],["Unlulo","2026-09-09"],["Unlulo","2026-09-13"]
+];
+function marcaDe(t){ const s=t.toLowerCase();
+  if(s.indexOf('logybox')>=0) return 'Logybox';
+  if(s.indexOf('compro casa')>=0) return 'Compro Casa';
+  if(s.indexOf('referencia legal')>=0) return 'Referencia Legal';
+  if(s.indexOf('unlulo')>=0) return 'Unlulo';
+  if(s.indexOf('pers')>=0) return 'Persé';
+  if(s.indexOf('con tacto')>=0) return 'Con Tacto';
+  if(s==='ml'||s.indexOf('ml:')>=0||s.indexOf('ml ')===0) return 'ML';
+  return t.trim();
+}
+function tipoDe(t){ const s=t.toLowerCase(); if(s.indexOf('carrusel')>=0)return 'Carrusel'; if(s.indexOf('post')>=0)return 'Post'; return 'Reel'; }
+function ideaDe(t,marca){ const n=t.trim(); if(n.toLowerCase()===marca.toLowerCase()) return 'Contenido programado'; return n.charAt(0).toUpperCase()+n.slice(1); }
+function slug(s){ return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,''); }
+
+let TOKEN=null;
+firebase.auth().onAuthStateChanged(async function(u){
+  const st=document.getElementById('status'), go=document.getElementById('go');
+  if(u){ TOKEN=await u.getIdToken(); st.innerHTML='Sesión activa como <b>'+(u.email||'').split('@')[0]+'</b>. Se importarán <b>'+RAW.length+'</b> piezas de septiembre.'; go.disabled=false; }
+  else { st.innerHTML='<span class="err">No hay sesión.</span> Abre primero <code>/team/</code>, inicia sesión, y vuelve a esta página.'; go.disabled=true; }
+});
+
+document.getElementById('go').addEventListener('click', async function(){
+  const go=document.getElementById('go'), out=document.getElementById('out'); go.disabled=true; go.textContent='Importando…';
+  out.innerHTML='<div class="box"><b>Resultado</b>';
+  let ok=0, err=0;
+  for(let i=0;i<RAW.length;i++){
+    const [titulo,fecha]=RAW[i];
+    const marca=marcaDe(titulo), tipo=tipoDe(titulo), idea=ideaDe(titulo,marca);
+    const id='nt_'+slug(marca)+'_'+fecha.replace(/-/g,'')+'_'+i;
+    const pieza={ id, marca, tipo, idea, guion:'', caracteristicas:'', etapa:'idea', responsable:'', fecha:null, fechaEntrega:fecha, origen:'notion', comentarios:{}, createdAt:new Date().toISOString() };
+    try{
+      const r=await fetch(RTDB+'/gestor/piezas/'+id+'.json?auth='+TOKEN,{method:'PUT',body:JSON.stringify(pieza)});
+      if(!r.ok) throw new Error(await r.text());
+      ok++; out.innerHTML+='<div class="row"><span>'+marca+' · '+tipo+' · '+fecha+'</span><span class="ok">✓</span></div>';
+    }catch(e){ err++; out.innerHTML+='<div class="row"><span>'+marca+' · '+fecha+'</span><span class="err">'+String(e).slice(0,40)+'</span></div>'; }
+  }
+  out.innerHTML+='<div class="row" style="border:0;margin-top:8px"><b>Total</b><b>'+ok+' importadas'+(err?(' · '+err+' con error'):'')+'</b></div></div>';
+  out.innerHTML+='<p style="margin-top:14px">Listo. Entra al Team → Marcas → una marca → Calendario (septiembre) para verlas. Ya puedes cerrar esta página.</p>';
+  go.textContent='Importar septiembre';
+});
+</script>
+</body>
+</html>
