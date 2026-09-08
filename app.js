@@ -664,7 +664,7 @@ async function loadMisTareas() {
 function taskCard(t, withActions) {
  return `<div class="ed-item ${t.overdue ? 'ed-item--late' : ''}">
  <div class="ed-item__top"><b>${esc(t.title)}</b><span class="g-status ${PRIO_CLS[t.priority] || ''}">${esc(t.priority)}</span></div>
- <div class="ed-item__date">${t.cliente ? ' ' + esc(t.cliente) + ' · ' : ''}${esc(t.area)}${t.dueDate ? ' · ' + esc(t.dueDate) : ''}${t.overdue ? ' · ⏰ atrasada' : ''}</div>
+ <div class="ed-item__date">${t.categoria && t.categoria !== 'General' ? '<span class="tag tag--cat">' + esc(t.categoria) + '</span> ' : ''}${t.cliente ? esc(t.cliente) + ' · ' : ''}${esc(t.area || '')}${t.dueDate ? ' · ' + esc(t.dueDate) : ''}${t.overdue ? ' · atrasada' : ''}</div>
  ${t.desc ? `<div class="ed-item__date">${esc(t.desc)}</div>` : ''}
  ${withActions ? `<div class="arch-folder__actions" style="margin-top:.5rem">
  ${t.status !== 'en_curso' ? `<button class="btn btn--ghost btn--sm t-st" data-id="${t.id}" data-st="en_curso">▶ En curso</button>` : ''}
@@ -942,14 +942,26 @@ async function loadEquipo() {
  <div class="eq-av">${esc((p.name || '?').trim().charAt(0).toUpperCase())}</div>
  <div class="eq-person__id"><div class="eq-person__name">${esc(p.name)}</div><div class="eq-person__user">@${esc(p.username)}</div></div>
  <div class="eq-person__tags">${((p.areas && p.areas.length) ? p.areas : [p.area]).filter(Boolean).map(a => `<span class="tag">${esc(a)}</span>`).join('')}<span class="tag ${p.role === 'admin' ? 'tag--red' : ''}">${esc(p.role)}</span></div>
- ${p.username !== 'versus_admin' ? `<button class="eq-del p-del" data-id="${p.id}" title="Quitar">✕</button>` : ''}
+ <div class="eq-person__actions"><button class="eq-mini p-edit" data-id="${p.id}">Editar</button>${p.username !== 'versus_admin' ? `<button class="eq-del p-del" data-id="${p.id}" title="Quitar">✕</button>` : ''}</div>
  </div>`).join('')}</div>`;
+ let editando = null;
+ const resetForm = () => { editando = null; $('#npName').value = ''; $('#npUser').value = ''; $('#npUser').readOnly = false; $('#npPass').value = ''; $('#npRole').value = 'miembro'; $$('.npAreaChk').forEach(c => c.checked = false); $('#npSave').textContent = 'Guardar persona'; };
  $('#npSave').addEventListener('click', async () => {
  const chk = $$('.npAreaChk').filter(c => c.checked).map(c => c.value);
  const body = { name: $('#npName').value, username: $('#npUser').value, password: $('#npPass').value, areas: chk, area: chk[0] || '', role: $('#npRole').value };
  const { data } = await api('/api/team/admin/person', { method: 'POST', body });
  if (data.ok) loadEquipo(); else alert(data.error || 'Error');
  });
+ $$('.p-edit').forEach(b => b.addEventListener('click', () => {
+ const p = (state.equipoPeople || []).find(x => x.id === b.dataset.id || x.username === b.dataset.id); if (!p) return;
+ editando = p.username;
+ $('#npName').value = p.name || ''; $('#npUser').value = p.username || ''; $('#npUser').readOnly = true; $('#npPass').value = '';
+ $('#npRole').value = p.role === 'admin' ? 'admin' : 'miembro';
+ const set = new Set(((p.areas && p.areas.length) ? p.areas : [p.area]).filter(Boolean));
+ $$('.npAreaChk').forEach(c => c.checked = set.has(c.value));
+ $('#npSave').textContent = 'Actualizar persona';
+ $('#npName').scrollIntoView({ behavior: 'smooth', block: 'center' }); $('#npName').focus();
+ }));
  $$('.p-del').forEach(b => b.addEventListener('click', async () => { if (confirm('¿Quitar persona?')) { await api('/api/team/admin/person-remove', { method: 'POST', body: { id: b.dataset.id } }); loadEquipo(); } }));
 
  // Tareas (crear + lista)
@@ -959,7 +971,8 @@ async function loadEquipo() {
  <label class="select select--grow"><span>Tarea</span><input id="ntTitle" placeholder="Guionizar 8 creativos de Persé"></label>
  <label class="select"><span>Asignar a</span><select id="ntWho">${people.map(p => `<option value="${esc(p.username)}">${esc(p.name)}</option>`).join('')}</select></label>
  <label class="select"><span>Área</span><select id="ntArea">${areas.map(a => `<option>${esc(a)}</option>`).join('')}</select></label>
- <label class="select"><span>Cliente</span><input id="ntCli" placeholder="Persé"></label>
+ <label class="select"><span>Categoría</span><select id="ntCat"><option>General</option><option>Contenido</option><option>Administrativa</option><option>Reunión</option><option>Pauta</option></select></label>
+ <label class="select"><span>Cliente (opcional)</span><input id="ntCli" placeholder="Persé"></label>
  <label class="select"><span>Fecha</span><input id="ntDue" type="date"></label>
  <label class="select"><span>Prioridad</span><select id="ntPrio"><option value="media">Media</option><option value="alta">Alta</option><option value="baja">Baja</option></select></label>
  </div>
@@ -967,7 +980,7 @@ async function loadEquipo() {
  </div>
  <div class="stack">${d.tasks.map(t => `<div class="result-card">${taskCard(t, false)}<div class="ed-item__date">${esc((people.find(p => p.username === t.assignedTo) || {}).name || t.assignedTo)} · <span class="tag">${TASK_STATE[t.status]}</span><button class="btn btn--ghost btn--sm t-del" data-id="${t.id}">✕</button></div></div>`).join('') || '<div class="empty">Sin tareas aún.</div>'}</div>`;
  $('#ntSave').addEventListener('click', async () => {
- const body = { title: $('#ntTitle').value, assignedTo: $('#ntWho').value, area: $('#ntArea').value, cliente: $('#ntCli').value, dueDate: $('#ntDue').value, priority: $('#ntPrio').value };
+ const body = { title: $('#ntTitle').value, assignedTo: $('#ntWho').value, area: $('#ntArea').value, categoria: $('#ntCat').value, cliente: $('#ntCli').value, dueDate: $('#ntDue').value, priority: $('#ntPrio').value };
  const { data } = await api('/api/team/admin/task', { method: 'POST', body });
  if (data.ok) loadEquipo(); else alert(data.error || 'Error');
  });
@@ -1772,59 +1785,48 @@ async function loadInicio() {
 
  const primer = esc((me.name || '').split(' ')[0] || 'Versus');
  const fechaLarga = new Date().toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' });
- let html = `<div class="hero-hello">
- <div class="hero-hello__main">
- <div class="hero-hello__eyebrow">${esc(fechaLarga)}</div>
- <h2 class="hero-hello__title">${saludo}, ${primer} </h2>
- <p class="hero-hello__frase">${esc(frase)}</p>
- </div>
- <div class="hero-hello__stats">
- <div class="hh-stat"><b>${hoy.length}</b><span>hoy</span></div>
- <div class="hh-stat"><b>${proximas.length}</b><span>esta semana</span></div>
- ${me.area ? `<div class="hh-stat hh-stat--wide"><b>${esc(me.area)}</b><span>tu área</span></div>` : ''}
- </div>
- </div>`;
-
- // Dos cuadros: Tareas de hoy · Próximas de la semana
- html += '<div class="mid-grid">';
- html += `<section class="mid-box">
- <div class="mid-box__head"><h3> Tareas de hoy</h3><span class="g-card__meta">${hoy.length} pendiente${hoy.length === 1 ? '' : 's'}</span></div>
- ${hoy.length ? '<div class="stack">' + hoy.map(t => taskCard(t, true)).join('') + '</div>'
- : '<div class="mid-empty"><div class="mid-empty__ico"></div><p>Nada urgente para hoy.</p></div>'}
- </section>`;
- html += `<section class="mid-box">
- <div class="mid-box__head"><h3> Próximas esta semana</h3><span class="g-card__meta">${proximas.length}</span></div>
- ${proximas.length ? '<div class="stack">' + proximas.map(t => taskCard(t, true)).join('') + '</div>'
- : '<div class="mid-empty"><div class="mid-empty__ico"></div><p>Sin tareas para el resto de la semana.</p></div>'}
- </section>`;
- html += '</div>';
-
- // Te toca (por rol) / Pendientes (admin)
  const AREA_ETAPA = { estrategia: 'idea', 'producción': 'aprobada', produccion: 'aprobada', creativa: 'grabada', community: 'editada' };
  const ETAPA_ACCION = { idea: 'Por guionizar', aprobada: 'Por grabar', grabada: 'Por editar', editada: 'Por publicar' };
  const misAreas = [].concat(me.areas || [], me.area || []).map(a => String(a).toLowerCase());
  const etapasMias = [...new Set(misAreas.map(a => AREA_ETAPA[a]).filter(Boolean))];
+
+ const taskRow = t => `<div class="md-row" data-task="${t.id}"><div class="md-row__t">${esc(t.title)}<small>${[t.categoria && t.categoria !== 'General' ? t.categoria : '', t.cliente || '', t.area || ''].filter(Boolean).join(' · ')}${t.dueDate ? ' · ' + esc(t.dueDate) : ''}</small></div><div class="md-row__r">${t.overdue ? '<span class="md-flag">atrasada</span>' : ''}<button class="md-done" data-done="${t.id}">Hecho</button></div></div>`;
+ const piezaRow = p => `<div class="md-row" data-pieza="${p.id}"><div class="md-row__t">${esc(p.marca)} · ${esc(p.idea || '')}<small>${ETAPA_ACCION[p.etapa] || ''}${p.fechaEntrega ? ' · entrega ' + esc(p.fechaEntrega.slice(5)) : ''}</small></div><div class="md-row__r"><span class="tag">${esc(p.tipo)}</span></div></div>`;
+
+ let html = `<header class="md-head">
+   <div class="md-date">${esc(fechaLarga)}</div>
+   <h1 class="md-hello">${saludo}, ${primer}</h1>
+   <p class="md-sub">${esc(frase)}</p>
+ </header>
+ <div class="md-metrics"><span><b>${hoy.length}</b> hoy</span><span class="md-dot"></span><span><b>${proximas.length}</b> esta semana</span>${me.area ? `<span class="md-dot"></span><span>${esc(me.area)}</span>` : ''}</div>`;
+
+ html += `<section class="md-sec"><div class="md-sec__h">Hoy</div>${hoy.length ? `<div class="md-list">${hoy.map(taskRow).join('')}</div>` : '<div class="md-empty">Nada urgente para hoy.</div>'}</section>`;
+
  if (me.role === 'admin') {
-   html += `<h3 class="live-h3">Pendientes</h3>` + pendientesHTML(allP);
+   const cambios = allP.filter(p => p.aprobadoCliente === 'no');
+   const porAprobar = allP.filter(p => p.fechaEntrega && p.etapa !== 'publicada' && p.aprobadoCliente !== 'si' && p.fechaEntrega <= hoyISO);
+   const atrasadas = allP.filter(p => p.fecha && p.etapa !== 'publicada' && p.fecha < hoyISO);
+   const pRow = (p, dot, wa) => `<div class="md-row" data-pieza="${p.id}"><div class="md-row__t"><span class="md-dotc md-dotc--${dot}"></span>${esc(p.marca)} · ${esc(p.idea || '')}<small>${p.fechaEntrega ? 'entrega ' + esc(p.fechaEntrega.slice(5)) : (p.fecha ? 'publica ' + esc(p.fecha.slice(5)) : '')}</small></div><div class="md-row__r">${wa ? `<button class="md-wa" data-wa="${encodeURIComponent('Hola, el contenido "' + (p.idea || 'nuevo') + '" de ' + p.marca + ' está listo para tu aprobación: https://portal.versusstudio.co/clientes/')}">WhatsApp</button>` : ''}</div></div>`;
+   let grupos = '';
+   if (cambios.length) grupos += `<div class="md-sec__sub">Cambios del cliente</div><div class="md-list">${cambios.map(p => pRow(p, 'red', false)).join('')}</div>`;
+   if (porAprobar.length) grupos += `<div class="md-sec__sub">Por aprobar</div><div class="md-list">${porAprobar.map(p => pRow(p, 'amber', true)).join('')}</div>`;
+   if (atrasadas.length) grupos += `<div class="md-sec__sub">Atrasadas</div><div class="md-list">${atrasadas.map(p => pRow(p, 'red', false)).join('')}</div>`;
+   html += `<section class="md-sec"><div class="md-sec__h">Pendientes</div>${grupos || '<div class="md-empty">Todo al día.</div>'}</section>`;
  } else if (etapasMias.length) {
    const mias = allP.filter(p => etapasMias.includes(p.etapa)).slice(0, 12);
-   html += `<h3 class="live-h3">Te toca</h3>`;
-   html += mias.length ? '<div class="stack">' + mias.map(p => `<div class="ed-item ti-pieza" data-id="${p.id}"><div class="ed-item__top"><b>${esc(p.marca)} · ${esc(p.idea || '')}</b><span class="tag">${esc(p.tipo)}</span></div><div class="ed-item__date">${ETAPA_ACCION[p.etapa] || ''}${p.fechaEntrega ? ' · entrega ' + esc(p.fechaEntrega.slice(5)) : ''}</div></div>`).join('') + '</div>'
-     : '<div class="mid-empty"><p>Nada en tu etapa por ahora.</p></div>';
+   html += `<section class="md-sec"><div class="md-sec__h">Te toca</div>${mias.length ? `<div class="md-list">${mias.map(piezaRow).join('')}</div>` : '<div class="md-empty">Nada en tu etapa por ahora.</div>'}</section>`;
  }
 
- // Accesos rápidos con ícono
- const tools = [['archivos', 'Marcas'], ['gestion', 'Gestión'], ['calendario', 'Calendario'], ['altas', 'Formularios']];
- html += `<h3 class="live-h3">Ir al trabajo</h3>
- <div class="quick-grid">${tools.map(([v, l]) => `<button class="quick-card" data-goto="${v}"><span class="quick-card__l">${esc(l)}</span><span class="quick-card__go">Abrir</span></button>`).join('')}</div>`;
+ if (proximas.length) html += `<section class="md-sec"><div class="md-sec__h">Próximas esta semana</div><div class="md-list">${proximas.map(taskRow).join('')}</div></section>`;
+
+ const tools = [['archivos', 'Marcas'], ['flujo', 'Flujo'], ['gestion', 'Gestión'], ['calendario', 'Calendario'], ['altas', 'Formularios']];
+ html += `<section class="md-sec"><div class="md-sec__h">Ir al trabajo</div><div class="md-quick">${tools.map(([v, l]) => `<button class="md-tile" data-goto="${v}">${esc(l)}</button>`).join('')}</div></section>`;
+
  out.innerHTML = html;
- bindTaskActions(loadInicio);
- bindPendientes(out);
- out.querySelectorAll('.ti-pieza').forEach(el => el.addEventListener('click', () => openPieza(el.dataset.id)));
- $$('.quick-card').forEach(b => b.addEventListener('click', () => {
- const item = document.querySelector(`.nav__item[data-view="${b.dataset.goto}"]`);
- if (item) item.click();
- }));
+ out.querySelectorAll('[data-pieza]').forEach(el => el.addEventListener('click', e => { if (e.target.closest('.md-wa')) return; openPieza(el.dataset.pieza); }));
+ out.querySelectorAll('.md-wa').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); window.open('https://wa.me/?text=' + b.dataset.wa, '_blank'); }));
+ out.querySelectorAll('.md-done').forEach(b => b.addEventListener('click', async e => { e.stopPropagation(); b.disabled = true; await api('/api/team/task-status', { method: 'POST', body: { id: b.dataset.done, status: 'hecho' } }); loadInicio(); }));
+ out.querySelectorAll('.md-tile').forEach(b => b.addEventListener('click', () => { const item = document.querySelector(`.nav__item[data-view="${b.dataset.goto}"]`); if (item) item.click(); }));
 }
 
 /* ---------------- Calendario compartido ---------------- */
