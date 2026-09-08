@@ -383,7 +383,20 @@ function openPieza(id) {
     if (plat === 'ig') { const legacy = { views: p.mViews, likes: p.mLikes, saved: p.mSaved, shared: p.mShared }; return legacy[k] || ''; }
     return '';
   };
-  const metricsHTML = PLATS.map(([pk, pl]) => `<div class="pz-metplat"><div class="pz-metplat__h">${pl}</div><div class="pz-metgrid">${MET_KEYS.map(([k, l]) => `<label class="select"><span>${l}</span><input class="pzm" data-plat="${pk}" data-k="${k}" type="number" min="0" value="${esc(metVal(pk, k))}"></label>`).join('')}</div></div>`).join('');
+  const platLink = { ig: p.linkIg || p.link || '', tiktok: p.linkTiktok || '', linkedin: p.linkLinkedin || '' };
+  const linkId = { ig: 'pzLinkIg', tiktok: 'pzLinkTiktok', linkedin: 'pzLinkLinkedin' };
+  const linkPh = { ig: 'Pega el link de Instagram', tiktok: 'Pega el link de TikTok', linkedin: 'Pega el link de LinkedIn' };
+  const platHasData = pk => {
+    const m = (p.met && p.met[pk]) || {};
+    const legacy = pk === 'ig' && (p.mViews || p.mLikes || p.mSaved || p.mShared);
+    return !!(platLink[pk] || Object.values(m).some(v => v) || legacy);
+  };
+  const platPanel = pk => `<div class="pz-platpanel__p" data-panel="${pk}"${pk !== 'ig' ? ' hidden' : ''}>
+      <label class="select" style="margin-bottom:.6rem"><span>Link de la publicación</span><input id="${linkId[pk]}" placeholder="${linkPh[pk]}" value="${esc(platLink[pk])}"></label>
+      <div class="pz-metgrid">${MET_KEYS.map(([k, l]) => `<label class="select"><span>${l}</span><input class="pzm" data-plat="${pk}" data-k="${k}" type="number" min="0" value="${esc(metVal(pk, k))}"></label>`).join('')}</div>
+    </div>`;
+  const pubSection = `<div class="pz-plattabs">${PLATS.map(([pk, pl], i) => `<button type="button" class="pz-plattab${i === 0 ? ' active' : ''}${platHasData(pk) ? ' has' : ''}" data-plattab="${pk}">${pl}</button>`).join('')}</div>
+    <div class="pz-platpanel">${PLATS.map(([pk]) => platPanel(pk)).join('')}</div>`;
   const html = `<div class="g-modal" id="pzModal"><div class="g-modal__box glass pz-box">
       <div class="pz-head">
         <input id="pzMarca" class="pz-marca" placeholder="Marca" value="${esc(p.marca)}">
@@ -400,12 +413,7 @@ function openPieza(id) {
       <label class="pz-field"><span>Guion</span><textarea id="pzGuion" rows="4" placeholder="El guion del contenido…">${esc(p.guion || '')}</textarea></label>
       <label class="pz-field"><span>Características</span><textarea id="pzCar" rows="2" placeholder="Formato, duración, música, referencias…">${esc(p.caracteristicas || '')}</textarea></label>
       <div class="pz-field pz-pub"><span>📢 Publicación y métricas <em>(aparece en el portal del cliente al llegar a Editada/Publicada)</em></span>
-        <div class="pz-links">
-          <label class="select"><span>Instagram</span><input id="pzLinkIg" placeholder="Link de Instagram" value="${esc(p.linkIg || p.link || '')}"></label>
-          <label class="select"><span>TikTok</span><input id="pzLinkTiktok" placeholder="Link de TikTok" value="${esc(p.linkTiktok || '')}"></label>
-          <label class="select"><span>LinkedIn</span><input id="pzLinkLinkedin" placeholder="Link de LinkedIn" value="${esc(p.linkLinkedin || '')}"></label>
-        </div>
-        <div class="pz-metplats">${metricsHTML}</div>
+        ${pubSection}
       </div>
       ${id ? `<div class="pz-field"><span>Comentarios</span>
         <div class="pz-comments">${(p.comentarios || []).map(c => `<div class="pz-comment ${c.sistema ? 'pz-comment--sys' : ''}"><b>${esc(c.autor)}</b> ${esc(c.texto)}</div>`).join('') || '<div class="gw-none">Sin comentarios</div>'}</div>
@@ -420,6 +428,11 @@ function openPieza(id) {
   const close = () => $('#pzModal').remove();
   $('#pzCancel').addEventListener('click', close);
   $('#pzModal').addEventListener('click', e => { if (e.target.id === 'pzModal') close(); });
+  $$('.pz-plattab').forEach(t => t.addEventListener('click', () => {
+    const pk = t.dataset.plattab;
+    $$('.pz-plattab').forEach(x => x.classList.toggle('active', x === t));
+    $$('.pz-platpanel__p').forEach(pp => { pp.hidden = pp.dataset.panel !== pk; });
+  }));
   $('#pzSave').addEventListener('click', async () => {
     const body = { id, marca: $('#pzMarca').value, idea: $('#pzIdea').value, tipo: $('#pzTipo').value, responsable: $('#pzResp').value, guion: $('#pzGuion').value, caracteristicas: $('#pzCar').value,
       fecha: $('#pzFecha').value || null, fechaEntrega: $('#pzFechaEntrega').value || null,

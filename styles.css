@@ -977,3 +977,13 @@ textarea.fe-in { min-height:70px; resize:vertical; }
 .pz-hist__guion { font-size:.92rem; line-height:1.55; white-space:pre-wrap; background:var(--bg3); border-radius:12px; padding:12px 14px; margin-bottom:.8rem; }
 .pz-hist__met { font-size:.88rem; color:var(--ink-60); margin-bottom:.35rem; }
 .pz-hist__met b { color:var(--ink); }
+
+/* Métricas por plataforma como pestañas (ficha de pieza) */
+.pz-plattabs { display: flex; gap: .4rem; margin-bottom: .7rem; }
+.pz-plattab { flex: 1; font-family: var(--font); font-weight: 700; font-size: .82rem; color: var(--ink-60); background: var(--bg3); border: 1px solid var(--line); border-radius: 999px; padding: .55rem .6rem; cursor: pointer; position: relative; transition: .15s; }
+.pz-plattab:hover { color: var(--ink); }
+.pz-plattab.active { background: var(--red); border-color: var(--red); color: #fff; }
+.pz-plattab.has::after { content: ""; position: absolute; top: 7px; right: 11px; width: 6px; height: 6px; border-radius: 50%; background: var(--grn, #22c55e); }
+.pz-plattab.active.has::after { background: #fff; }
+.pz-platpanel__p { border: 1px solid var(--line); border-radius: 12px; padding: .85rem; background: rgba(0,0,0,.015); }
+.dark .pz-platpanel__p { background: rgba(255,255,255,.03); }
