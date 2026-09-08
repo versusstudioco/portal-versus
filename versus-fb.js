@@ -491,7 +491,7 @@
       }
       if (p === '/api/marca/contexto') {
         const marca = q.get('marca') || body.marca || '';
-        const CAMPOS = ['industria', 'pais', 'tipoClientes', 'comunicacion', 'servicios', 'tono', 'publico', 'notas', 'igUser', 'igPauta', 'tiktokUser', 'tiktokPauta', 'linkedinUser', 'linkedinPauta'];
+        const CAMPOS = ['industria', 'pais', 'tipoClientes', 'comunicacion', 'servicios', 'tono', 'publico', 'notas', 'igUser', 'igPauta', 'igLink', 'tiktokUser', 'tiktokPauta', 'tiktokLink', 'linkedinUser', 'linkedinPauta', 'linkedinLink'];
         if (method === 'POST') {
           const c = {}; CAMPOS.forEach(k => c[k] = String(body[k] || '').trim());
           await fbPut('gestor/marcas/' + fbKey(marca) + '/contexto', c);

@@ -1526,7 +1526,8 @@ async function marcaEstrategia(marca) {
  ${[['ig', 'Instagram'], ['tiktok', 'TikTok'], ['linkedin', 'LinkedIn']].map(([k, l]) => `
  <div class="plat-row">
  <span class="plat-row__name">${l}</span>
- <input class="plat-row__user" id="es${k}User" value="${esc(ctx[k + 'User'] || '')}" placeholder="@usuario (vacío = no se maneja)">
+ <input class="plat-row__user" id="es${k}User" value="${esc(ctx[k + 'User'] || '')}" placeholder="@usuario">
+ <input class="plat-row__user" id="es${k}Link" value="${esc(ctx[k + 'Link'] || '')}" placeholder="Link del perfil (opcional)">
  <label class="np-chk"><input type="checkbox" id="es${k}Pauta" ${ctx[k + 'Pauta'] === 'si' ? 'checked' : ''}> Con pauta</label>
  </div>`).join('')}
  </div>
@@ -1565,7 +1566,7 @@ async function marcaEstrategia(marca) {
  marca, industria: $('#esIndustria').value, pais: $('#esPais').value, tipoClientes: $('#esTipoClientes').value,
  publico: $('#esPublico').value, tono: $('#esTono').value, comunicacion: $('#esComunicacion').value,
  servicios: $('#esServicios').value, notas: $('#esNotas').value,
- igUser: $('#esigUser').value, igPauta: $('#esigPauta').checked ? 'si' : '', tiktokUser: $('#estiktokUser').value, tiktokPauta: $('#estiktokPauta').checked ? 'si' : '', linkedinUser: $('#eslinkedinUser').value, linkedinPauta: $('#eslinkedinPauta').checked ? 'si' : ''
+ igUser: $('#esigUser').value, igPauta: $('#esigPauta').checked ? 'si' : '', igLink: $('#esigLink').value, tiktokUser: $('#estiktokUser').value, tiktokPauta: $('#estiktokPauta').checked ? 'si' : '', tiktokLink: $('#estiktokLink').value, linkedinUser: $('#eslinkedinUser').value, linkedinPauta: $('#eslinkedinPauta').checked ? 'si' : '', linkedinLink: $('#eslinkedinLink').value
  } });
  $('#esCtxSave').textContent = 'Guardado ✓';
  const alert = $('.est-ctx-alert'); if (alert && $('#esIndustria').value && $('#esServicios').value && $('#esTono').value) alert.remove();
@@ -1895,9 +1896,10 @@ async function loadInicio() {
    <h1 class="md-hello">${saludo}, ${primer}</h1>
    <p class="md-sub">${esc(frase)}</p>
  </header>
- <div class="md-metrics"><span><b>${hoy.length}</b> hoy</span><span class="md-dot"></span><span><b>${proximas.length}</b> esta semana</span>${me.area ? `<span class="md-dot"></span><span>${esc(me.area)}</span>` : ''}</div>`;
+ <div class="md-chips"><span class="md-chip"><b>${hoy.length}</b> hoy</span><span class="md-chip"><b>${proximas.length}</b> esta semana</span>${me.area ? `<span class="md-chip">${esc(me.area)}</span>` : ''}</div>
+ <div class="md-grid">`;
 
- html += `<section class="md-sec"><div class="md-sec__h">Hoy</div>${hoy.length ? `<div class="md-list">${hoy.map(taskRow).join('')}</div>` : '<div class="md-empty">Nada urgente para hoy.</div>'}</section>`;
+ html += `<section class="md-card"><div class="md-card__h">Hoy</div>${hoy.length ? `<div class="md-rows">${hoy.map(taskRow).join('')}</div>` : '<div class="md-none">Nada urgente para hoy.</div>'}</section>`;
 
  if (me.role === 'admin') {
    const cambios = allP.filter(p => p.aprobadoCliente === 'no');
@@ -1905,18 +1907,22 @@ async function loadInicio() {
    const atrasadas = allP.filter(p => p.fecha && p.etapa !== 'publicada' && p.fecha < hoyISO);
    const pRow = (p, dot, wa) => `<div class="md-row" data-pieza="${p.id}"><div class="md-row__t"><span class="md-dotc md-dotc--${dot}"></span>${esc(p.marca)} · ${esc(p.idea || '')}<small>${p.fechaEntrega ? 'entrega ' + esc(p.fechaEntrega.slice(5)) : (p.fecha ? 'publica ' + esc(p.fecha.slice(5)) : '')}</small></div><div class="md-row__r">${wa ? `<button class="md-wa" data-wa="${encodeURIComponent('Hola, el contenido "' + (p.idea || 'nuevo') + '" de ' + p.marca + ' está listo para tu aprobación: https://portal.versusstudio.co/clientes/')}">WhatsApp</button>` : ''}</div></div>`;
    let grupos = '';
-   if (cambios.length) grupos += `<div class="md-sec__sub">Cambios del cliente</div><div class="md-list">${cambios.map(p => pRow(p, 'red', false)).join('')}</div>`;
-   if (porAprobar.length) grupos += `<div class="md-sec__sub">Por aprobar</div><div class="md-list">${porAprobar.map(p => pRow(p, 'amber', true)).join('')}</div>`;
-   if (atrasadas.length) grupos += `<div class="md-sec__sub">Atrasadas</div><div class="md-list">${atrasadas.map(p => pRow(p, 'red', false)).join('')}</div>`;
-   html += `<section class="md-sec"><div class="md-sec__h">Pendientes</div>${grupos || '<div class="md-empty">Todo al día.</div>'}</section>`;
+   if (cambios.length) grupos += `<div class="md-card__sub">Cambios del cliente</div><div class="md-rows">${cambios.map(p => pRow(p, 'red', false)).join('')}</div>`;
+   if (porAprobar.length) grupos += `<div class="md-card__sub">Por aprobar</div><div class="md-rows">${porAprobar.map(p => pRow(p, 'amber', true)).join('')}</div>`;
+   if (atrasadas.length) grupos += `<div class="md-card__sub">Atrasadas</div><div class="md-rows">${atrasadas.map(p => pRow(p, 'red', false)).join('')}</div>`;
+   html += `<section class="md-card"><div class="md-card__h">Pendientes</div>${grupos || '<div class="md-none">Todo al día.</div>'}</section>`;
  } else if (etapasMias.length) {
-   const mias = allP.filter(p => etapasMias.includes(p.etapa)).slice(0, 12);
-   html += `<section class="md-sec"><div class="md-sec__h">Te toca</div>${mias.length ? `<div class="md-list">${mias.map(piezaRow).join('')}</div>` : '<div class="md-empty">Nada en tu etapa por ahora.</div>'}</section>`;
+   const mias = allP.filter(p => etapasMias.includes(p.etapa)).slice(0, 10);
+   html += `<section class="md-card"><div class="md-card__h">Te toca</div>${mias.length ? `<div class="md-rows">${mias.map(piezaRow).join('')}</div>` : '<div class="md-none">Nada en tu etapa por ahora.</div>'}</section>`;
  }
 
- if (proximas.length) html += `<section class="md-sec"><div class="md-sec__h">Próximas esta semana</div><div class="md-list">${proximas.map(taskRow).join('')}</div></section>`;
+ html += `<section class="md-card"><div class="md-card__h">Mi agenda</div><div id="mdAgenda"></div></section>`;
 
- html += `<section class="md-sec"><div class="md-sec__h">Mi agenda</div><div id="mdAgenda"></div></section>`;
+ const porMarca = {}; allP.forEach(p => { if (p.etapa !== 'publicada') porMarca[p.marca] = (porMarca[p.marca] || 0) + 1; });
+ const marcasArr = Object.entries(porMarca).map(([m, n]) => ({ m, n })).sort((a, b) => b.n - a.n).slice(0, 8);
+ html += `<section class="md-card"><div class="md-card__h">Por marca · piezas activas</div>${marcasArr.length ? `<div class="md-rows">${marcasArr.map(x => `<button class="md-brow" data-marca="${esc(x.m)}"><span>${esc(x.m)}</span><span class="md-badge">${x.n}</span></button>`).join('')}</div>` : '<div class="md-none">Sin piezas activas.</div>'}</section>`;
+
+ html += `</div>`;
 
  const tools = [['archivos', 'Marcas'], ['flujo', 'Flujo'], ['gestion', 'Gestión'], ['calendario', 'Calendario'], ['altas', 'Formularios']];
  html += `<section class="md-sec"><div class="md-sec__h">Ir al trabajo</div><div class="md-quick">${tools.map(([v, l]) => `<button class="md-tile" data-goto="${v}">${esc(l)}</button>`).join('')}</div></section>`;
@@ -1925,6 +1931,7 @@ async function loadInicio() {
  out.querySelectorAll('[data-pieza]').forEach(el => el.addEventListener('click', e => { if (e.target.closest('.md-wa')) return; openPieza(el.dataset.pieza); }));
  out.querySelectorAll('.md-wa').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); window.open('https://wa.me/?text=' + b.dataset.wa, '_blank'); }));
  out.querySelectorAll('.md-done').forEach(b => b.addEventListener('click', async e => { e.stopPropagation(); b.disabled = true; await api('/api/team/task-status', { method: 'POST', body: { id: b.dataset.done, status: 'hecho' } }); loadInicio(); }));
+ out.querySelectorAll('.md-brow').forEach(b => b.addEventListener('click', () => { const marca = b.dataset.marca; const nav = document.querySelector('.nav__item[data-view="archivos"]'); if (nav) nav.click(); setTimeout(() => openMarca(marca, ''), 400); }));
  out.querySelectorAll('.md-tile').forEach(b => b.addEventListener('click', () => { const item = document.querySelector(`.nav__item[data-view="${b.dataset.goto}"]`); if (item) item.click(); }));
  renderAgenda();
 }
