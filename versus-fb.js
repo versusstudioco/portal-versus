@@ -287,6 +287,13 @@
         await fbPatch('gestor/tasks/' + body.id, { status: body.status });
         return { ok: true, data: { ok: true } };
       }
+      if (p === '/api/team/task-crear' && method === 'POST') {
+        const s = await sesionActual();
+        if (!s) return { ok: false, status: 403, data: { error: 'Sin sesión' } };
+        const id = uid();
+        await fbPut('gestor/tasks/' + id, { id, title: String(body.title || '').trim(), assignedTo: body.assignedTo || s.username, area: body.area || s.area || '', categoria: body.categoria || 'General', cliente: body.cliente || '', dueDate: body.dueDate || null, horaInicio: body.horaInicio || '', horaFin: body.horaFin || '', priority: body.priority || 'media', status: 'pendiente', createdAt: new Date().toISOString(), creadaPor: s.username });
+        return { ok: true, data: { ok: true, id } };
+      }
       if (p.startsWith('/api/team/admin/')) {
         const s = await sesionActual();
         if (!s || s.role !== 'admin') return { ok: false, status: 403, data: { error: 'Solo el administrador' } };

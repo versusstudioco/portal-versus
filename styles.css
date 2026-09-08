@@ -1088,3 +1088,16 @@ textarea.fe-in { min-height:70px; resize:vertical; }
   .md-row__t { min-width: 0; flex: 1 1 auto; }
   .md-row__r { flex-shrink: 0; }
 }
+
+/* Mi día: acciones rápidas */
+.md-actions { display: flex; gap: .6rem; margin: 0 0 1.4rem; flex-wrap: wrap; }
+
+/* Editor de texto enriquecido (guion) */
+.rte-bar { display: flex; gap: .3rem; align-items: center; flex-wrap: wrap; margin-bottom: .4rem; }
+.rte-b { font-family: var(--font); font-size: .85rem; min-width: 30px; height: 30px; border: 1px solid var(--line); background: var(--card); border-radius: 8px; cursor: pointer; color: var(--ink); padding: 0 .5rem; }
+.rte-b:hover { border-color: var(--red); }
+.rte-sel { height: 30px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink); font-family: var(--font); font-size: .8rem; }
+.rte-color { width: 34px; height: 30px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); cursor: pointer; padding: 2px; }
+.rte { min-height: 110px; border: 1.5px solid var(--bd2); border-radius: 12px; padding: 12px 14px; background: var(--card); color: var(--ink); font-size: .95rem; line-height: 1.5; outline: none; overflow-y: auto; max-height: 260px; }
+.rte:focus { border-color: var(--red); }
+.rte:empty:before { content: attr(data-ph); color: var(--ink-40); }

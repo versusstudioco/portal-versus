@@ -550,7 +550,17 @@ function openPieza(id) {
  <label class="select"><span> Fecha de entrega <em style="font-weight:400;color:var(--ink-40)">(para aprobación)</em></span><input id="pzFechaEntrega" type="date" value="${esc(p.fechaEntrega || '')}"></label>
  <label class="select"><span> Fecha de publicación</span><input id="pzFecha" type="date" value="${esc(p.fecha || '')}"></label>
  </div>
- <label class="pz-field"><span>Guion</span><textarea id="pzGuion" rows="4" placeholder="El guion del contenido…">${esc(p.guion || '')}</textarea></label>
+ <div class="pz-field"><span>Guion</span>
+        <div class="rte-bar">
+          <button type="button" class="rte-b" data-cmd="bold" title="Negrita"><b>B</b></button>
+          <button type="button" class="rte-b" data-cmd="italic" title="Cursiva"><i>I</i></button>
+          <button type="button" class="rte-b" data-cmd="underline" title="Subrayado" style="text-decoration:underline">U</button>
+          <select class="rte-sel" id="rteSize" title="Tamaño"><option value="">Tamaño</option><option value="2">Pequeño</option><option value="3">Normal</option><option value="5">Grande</option><option value="6">Título</option></select>
+          <input type="color" class="rte-color" id="rteColor" value="#111111" title="Color">
+          <button type="button" class="rte-b" data-cmd="insertUnorderedList" title="Lista">• Lista</button>
+        </div>
+        <div id="pzGuion" class="rte" contenteditable="true" data-ph="El guion del contenido…">${p.guion || ''}</div>
+      </div>
  <label class="pz-field"><span>Características</span><textarea id="pzCar" rows="2" placeholder="Formato, duración, música, referencias…">${esc(p.caracteristicas || '')}</textarea></label>
  <div class="pz-field pz-pub"><span> Publicación y métricas <em>(aparece en el portal del cliente al llegar a Editada/Publicada)</em></span>
  ${pubSection}
@@ -568,6 +578,9 @@ function openPieza(id) {
  const close = () => $('#pzModal').remove();
  $('#pzCancel').addEventListener('click', close);
  $('#pzModal').addEventListener('click', e => { if (e.target.id === 'pzModal') close(); });
+ $$('#pzModal .rte-b').forEach(b => b.addEventListener('mousedown', e => { e.preventDefault(); document.execCommand(b.dataset.cmd, false, null); }));
+ const rteSize = $('#rteSize'); if (rteSize) rteSize.addEventListener('change', () => { if (rteSize.value) { $('#pzGuion').focus(); document.execCommand('fontSize', false, rteSize.value); rteSize.value = ''; } });
+ const rteColor = $('#rteColor'); if (rteColor) rteColor.addEventListener('input', () => { $('#pzGuion').focus(); document.execCommand('foreColor', false, rteColor.value); });
  $$('.pz-plattab').forEach(t => t.addEventListener('click', () => {
  const pk = t.dataset.plattab;
  $$('.pz-plattab').forEach(x => x.classList.toggle('active', x === t));
@@ -575,7 +588,7 @@ function openPieza(id) {
  }));
  (function(){ const pzF = $('#pzFecha'), pzE = $('#pzFechaEntrega'); if (pzF && pzE) pzF.addEventListener('change', () => { if (pzF.value && !pzE.value) { const d = new Date(pzF.value + 'T00:00:00'); d.setDate(d.getDate() - 2); pzE.value = d.toISOString().slice(0, 10); } }); })();
  $('#pzSave').addEventListener('click', async () => {
- const body = { id, marca: $('#pzMarca').value, idea: $('#pzIdea').value, tipo: $('#pzTipo').value, responsable: $('#pzResp').value, guion: $('#pzGuion').value, caracteristicas: $('#pzCar').value,
+ const body = { id, marca: $('#pzMarca').value, idea: $('#pzIdea').value, tipo: $('#pzTipo').value, responsable: $('#pzResp').value, guion: ($('#pzGuion').innerHTML || '').trim(), caracteristicas: $('#pzCar').value,
  fecha: $('#pzFecha').value || null, fechaEntrega: $('#pzFechaEntrega').value || null,
  linkIg: $('#pzLinkIg').value, linkTiktok: $('#pzLinkTiktok').value, linkLinkedin: $('#pzLinkLinkedin').value };
  const met = {}; $$('.pzm').forEach(inp => { if (inp.value !== '') { const pl = inp.dataset.plat, k = inp.dataset.k; (met[pl] || (met[pl] = {}))[k] = +inp.value || 0; } });
@@ -1897,6 +1910,7 @@ async function loadInicio() {
    <p class="md-sub">${esc(frase)}</p>
  </header>
  <div class="md-chips"><span class="md-chip"><b>${hoy.length}</b> hoy</span><span class="md-chip"><b>${proximas.length}</b> esta semana</span>${me.area ? `<span class="md-chip">${esc(me.area)}</span>` : ''}</div>
+ <div class="md-actions"><button class="btn btn--primary btn--sm" id="mdNewTask">+ Nueva tarea</button><button class="btn btn--ghost btn--sm" id="mdNewContent">+ Nuevo contenido</button></div>
  <div class="md-grid">`;
 
  html += `<section class="md-card"><div class="md-card__h">Hoy</div>${hoy.length ? `<div class="md-rows">${hoy.map(taskRow).join('')}</div>` : '<div class="md-none">Nada urgente para hoy.</div>'}</section>`;
@@ -1933,7 +1947,36 @@ async function loadInicio() {
  out.querySelectorAll('.md-done').forEach(b => b.addEventListener('click', async e => { e.stopPropagation(); b.disabled = true; await api('/api/team/task-status', { method: 'POST', body: { id: b.dataset.done, status: 'hecho' } }); loadInicio(); }));
  out.querySelectorAll('.md-brow').forEach(b => b.addEventListener('click', () => { const marca = b.dataset.marca; const nav = document.querySelector('.nav__item[data-view="archivos"]'); if (nav) nav.click(); setTimeout(() => openMarca(marca, ''), 400); }));
  out.querySelectorAll('.md-tile').forEach(b => b.addEventListener('click', () => { const item = document.querySelector(`.nav__item[data-view="${b.dataset.goto}"]`); if (item) item.click(); }));
+ const nt = $('#mdNewTask'); if (nt) nt.onclick = openTarea;
+ const nc = $('#mdNewContent'); if (nc) nc.onclick = () => openPieza(null);
  renderAgenda();
+}
+function openTarea() {
+  const people = (state.teamPeople || []); const me = state.me || {};
+  const hoy = new Date().toISOString().slice(0, 10);
+  const html = `<div class="g-modal" id="tkModal"><div class="g-modal__box glass">
+    <h3>Nueva tarea</h3>
+    <div class="form-grid" style="margin:.6rem 0">
+      <label class="select select--grow"><span>Tarea</span><input id="tkTitle" placeholder="Enviar cuentas de cobro / Reunión con cliente"></label>
+      <label class="select"><span>Asignar a</span><select id="tkWho"><option value="${esc(me.username || '')}">Yo</option>${people.filter(p => p.username !== me.username).map(p => `<option value="${esc(p.username)}">${esc(p.name)}</option>`).join('')}</select></label>
+      <label class="select"><span>Categoría</span><select id="tkCat"><option>General</option><option>Contenido</option><option>Administrativa</option><option>Reunión</option><option>Pauta</option></select></label>
+      <label class="select"><span>Fecha</span><input id="tkDue" type="date" value="${hoy}"></label>
+      <label class="select"><span>Inicio</span><input id="tkHi" type="time"></label>
+      <label class="select"><span>Fin</span><input id="tkHf" type="time"></label>
+      <label class="select"><span>Prioridad</span><select id="tkPrio"><option value="media">Media</option><option value="alta">Alta</option><option value="baja">Baja</option></select></label>
+    </div>
+    <div class="g-modal__actions"><button class="btn btn--ghost btn--sm" id="tkCancel">Cancelar</button><button class="btn btn--primary btn--sm" id="tkSave">Crear tarea</button></div>
+  </div></div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+  const close = () => $('#tkModal').remove();
+  $('#tkCancel').onclick = close; $('#tkModal').onclick = e => { if (e.target.id === 'tkModal') close(); };
+  $('#tkSave').onclick = async () => {
+    const title = $('#tkTitle').value.trim(); if (!title) { $('#tkTitle').focus(); return; }
+    const body = { title, assignedTo: $('#tkWho').value, categoria: $('#tkCat').value, dueDate: $('#tkDue').value, horaInicio: $('#tkHi').value, horaFin: $('#tkHf').value, priority: $('#tkPrio').value };
+    const btn = $('#tkSave'); btn.disabled = true; btn.textContent = 'Creando…';
+    const r = await api('/api/team/task-crear', { method: 'POST', body });
+    if (r.ok) { close(); loadInicio(); } else { btn.disabled = false; btn.textContent = 'Crear tarea'; alert(r.data.error || 'No se pudo'); }
+  };
 }
 
 /* ---------------- Calendario compartido ---------------- */
