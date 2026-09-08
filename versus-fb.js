@@ -320,7 +320,7 @@
         if (p === '/api/team/admin/person-remove' && method === 'POST') { await fbDelete('db/profiles/' + body.id); return { ok: true, data: { ok: true } }; }
         if (p === '/api/team/admin/task' && method === 'POST') {
           const id = uid();
-          await fbPut('gestor/tasks/' + id, { id, title: body.title || '', assignedTo: body.assignedTo || '', area: body.area || '', categoria: body.categoria || 'General', cliente: body.cliente || '', dueDate: body.dueDate || null, priority: body.priority || 'media', status: 'pendiente', createdAt: new Date().toISOString() });
+          await fbPut('gestor/tasks/' + id, { id, title: body.title || '', assignedTo: body.assignedTo || '', area: body.area || '', categoria: body.categoria || 'General', cliente: body.cliente || '', dueDate: body.dueDate || null, horaInicio: body.horaInicio || '', horaFin: body.horaFin || '', priority: body.priority || 'media', status: 'pendiente', createdAt: new Date().toISOString() });
           return { ok: true, data: { ok: true } };
         }
         if (p === '/api/team/admin/task-remove' && method === 'POST') { await fbDelete('gestor/tasks/' + body.id); return { ok: true, data: { ok: true } }; }

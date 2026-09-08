@@ -661,6 +661,23 @@ async function loadMisTareas() {
  out.innerHTML = html;
  bindTaskActions();
 }
+function gcalUrl(t) {
+  if (!t.dueDate) return '';
+  const d = t.dueDate.replace(/-/g, '');
+  let dates;
+  if (t.horaInicio) {
+    const hi = t.horaInicio.replace(':', '') + '00';
+    const hf = (t.horaFin || t.horaInicio).replace(':', '') + '00';
+    dates = d + 'T' + hi + '/' + d + 'T' + hf;
+  } else {
+    const nd = new Date(t.dueDate + 'T00:00:00'); nd.setDate(nd.getDate() + 1);
+    dates = d + '/' + nd.toISOString().slice(0, 10).replace(/-/g, '');
+  }
+  const text = encodeURIComponent(t.title || 'Tarea');
+  const det = encodeURIComponent([t.categoria, t.cliente, t.area].filter(Boolean).join(' · ') + ' — Versus');
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + text + '&dates=' + dates + '&details=' + det;
+}
+function horaTxt(t) { return t.horaInicio ? (t.horaInicio + (t.horaFin ? '–' + t.horaFin : '')) : ''; }
 function taskCard(t, withActions) {
  return `<div class="ed-item ${t.overdue ? 'ed-item--late' : ''}">
  <div class="ed-item__top"><b>${esc(t.title)}</b><span class="g-status ${PRIO_CLS[t.priority] || ''}">${esc(t.priority)}</span></div>
@@ -974,13 +991,15 @@ async function loadEquipo() {
  <label class="select"><span>Categoría</span><select id="ntCat"><option>General</option><option>Contenido</option><option>Administrativa</option><option>Reunión</option><option>Pauta</option></select></label>
  <label class="select"><span>Cliente (opcional)</span><input id="ntCli" placeholder="Persé"></label>
  <label class="select"><span>Fecha</span><input id="ntDue" type="date"></label>
+ <label class="select"><span>Hora inicio</span><input id="ntHi" type="time"></label>
+ <label class="select"><span>Hora fin</span><input id="ntHf" type="time"></label>
  <label class="select"><span>Prioridad</span><select id="ntPrio"><option value="media">Media</option><option value="alta">Alta</option><option value="baja">Baja</option></select></label>
  </div>
  <button class="btn btn--primary" id="ntSave">Crear y asignar</button>
  </div>
- <div class="stack">${d.tasks.map(t => `<div class="result-card">${taskCard(t, false)}<div class="ed-item__date">${esc((people.find(p => p.username === t.assignedTo) || {}).name || t.assignedTo)} · <span class="tag">${TASK_STATE[t.status]}</span><button class="btn btn--ghost btn--sm t-del" data-id="${t.id}">✕</button></div></div>`).join('') || '<div class="empty">Sin tareas aún.</div>'}</div>`;
+ <div class="stack">${d.tasks.map(t => `<div class="result-card">${taskCard(t, false)}<div class="ed-item__date">${esc((people.find(p => p.username === t.assignedTo) || {}).name || t.assignedTo)}${horaTxt(t) ? ' · ' + horaTxt(t) : ''} · <span class="tag">${TASK_STATE[t.status]}</span>${t.dueDate ? ` · <a href="${gcalUrl(t)}" target="_blank" rel="noopener" class="md-gcal">Google Calendar</a>` : ''}<button class="btn btn--ghost btn--sm t-del" data-id="${t.id}">✕</button></div></div>`).join('') || '<div class="empty">Sin tareas aún.</div>'}</div>`;
  $('#ntSave').addEventListener('click', async () => {
- const body = { title: $('#ntTitle').value, assignedTo: $('#ntWho').value, area: $('#ntArea').value, categoria: $('#ntCat').value, cliente: $('#ntCli').value, dueDate: $('#ntDue').value, priority: $('#ntPrio').value };
+ const body = { title: $('#ntTitle').value, assignedTo: $('#ntWho').value, area: $('#ntArea').value, categoria: $('#ntCat').value, cliente: $('#ntCli').value, dueDate: $('#ntDue').value, horaInicio: $('#ntHi').value, horaFin: $('#ntHf').value, priority: $('#ntPrio').value };
  const { data } = await api('/api/team/admin/task', { method: 'POST', body });
  if (data.ok) loadEquipo(); else alert(data.error || 'Error');
  });
@@ -1790,7 +1809,7 @@ async function loadInicio() {
  const misAreas = [].concat(me.areas || [], me.area || []).map(a => String(a).toLowerCase());
  const etapasMias = [...new Set(misAreas.map(a => AREA_ETAPA[a]).filter(Boolean))];
 
- const taskRow = t => `<div class="md-row" data-task="${t.id}"><div class="md-row__t">${esc(t.title)}<small>${[t.categoria && t.categoria !== 'General' ? t.categoria : '', t.cliente || '', t.area || ''].filter(Boolean).join(' · ')}${t.dueDate ? ' · ' + esc(t.dueDate) : ''}</small></div><div class="md-row__r">${t.overdue ? '<span class="md-flag">atrasada</span>' : ''}<button class="md-done" data-done="${t.id}">Hecho</button></div></div>`;
+ const taskRow = t => `<div class="md-row" data-task="${t.id}"><div class="md-row__t">${esc(t.title)}<small>${[t.categoria && t.categoria !== 'General' ? t.categoria : '', t.cliente || '', t.area || '', horaTxt(t)].filter(Boolean).join(' · ')}${t.dueDate ? ' · ' + esc(t.dueDate) : ''}</small></div><div class="md-row__r">${t.overdue ? '<span class="md-flag">atrasada</span>' : ''}${t.dueDate ? `<a class="md-gcal" href="${gcalUrl(t)}" target="_blank" rel="noopener">Calendar</a>` : ''}<button class="md-done" data-done="${t.id}">Hecho</button></div></div>`;
  const piezaRow = p => `<div class="md-row" data-pieza="${p.id}"><div class="md-row__t">${esc(p.marca)} · ${esc(p.idea || '')}<small>${ETAPA_ACCION[p.etapa] || ''}${p.fechaEntrega ? ' · entrega ' + esc(p.fechaEntrega.slice(5)) : ''}</small></div><div class="md-row__r"><span class="tag">${esc(p.tipo)}</span></div></div>`;
 
  let html = `<header class="md-head">
