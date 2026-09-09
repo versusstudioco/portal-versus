@@ -1938,10 +1938,12 @@ const FRASES = [
  'Hazlo simple, hazlo claro, hazlo memorable.'
 ];
 // Fecha en lenguaje natural: hoy, mañana, ayer, este mié, en X días, o la fecha corta.
+// Usa componentes LOCALES (sin toISOString) para no correrse un día por zona horaria.
 function relFecha(iso) {
  if (!iso) return '';
- const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
- const d = new Date(iso + 'T00:00:00'); if (isNaN(d)) return iso;
+ const p = String(iso).split('-'); if (p.length < 3) return iso;
+ const d = new Date(+p[0], +p[1] - 1, +p[2]); if (isNaN(d)) return iso;
+ const n = new Date(); const hoy = new Date(n.getFullYear(), n.getMonth(), n.getDate());
  const diff = Math.round((d - hoy) / 86400000);
  if (diff === 0) return 'hoy';
  if (diff === 1) return 'mañana';
