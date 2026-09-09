@@ -286,7 +286,11 @@
       }
       if (p === '/api/team/people') {
         const obj = (await fbGet('db/profiles').catch(() => null)) || {};
-        const people = Object.entries(obj).map(([username, v]) => ({ username, name: (v && v.name) || username, area: (v && v.area) || '' })).sort((a, b) => a.name.localeCompare(b.name));
+        // Solo cuentas del equipo (nunca clientes): un cliente no tiene perfil, pero por si acaso, excluir type 'client'.
+        const people = Object.entries(obj)
+          .filter(([u, v]) => v && v.type !== 'client')
+          .map(([username, v]) => ({ username, name: (v && v.name) || username, area: (v && v.area) || '' }))
+          .sort((a, b) => a.name.localeCompare(b.name));
         return { ok: true, data: { people } };
       }
       if (p === '/api/team/task-status' && method === 'POST') {

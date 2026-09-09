@@ -233,8 +233,8 @@ function fillSelect(sel, items, valKey, labelKey, allLabel) {
 const VIEW_META = {
  inicio: ['Mi día', 'Tu guía de hoy'],
  calendario: ['Calendario', 'Qué sale cada día por marca — el cronograma del ciclo'],
- gestion: ['Gestión de marcas', 'Producción por marca, ciclo mensual y flujo por área'],
- flujo: ['Flujo de producción', 'Arrastra las piezas entre etapas; arriba, lo que está pendiente'],
+ gestion: ['Gestión de marcas', 'Cómo va cada marca en su ciclo: metas, avance y qué falta programar'],
+ flujo: ['Flujo de producción', 'Tablero de esta semana: arrastra cada pieza entre etapas (idea → publicada)'],
  metricas: [' Métricas', 'Rendimiento real por marca — leído del Portal de clientes (Firebase)'],
  archivos: ['Marcas', 'Cada marca es su universo: calendario, métricas, estrategia y archivos'],
  mistareas: [' Mis tareas', 'Tu día: tareas asignadas, por cliente y por estado'],
@@ -285,14 +285,6 @@ $('#navBackdrop')?.addEventListener('click', closeNav);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNav(); });
 
 /* ---------------- Gestión ---------------- */
-$$('#gMode .seg__btn').forEach(b => b.addEventListener('click', () => {
- const m = b.dataset.gmode;
- $$('#gMode .seg__btn').forEach(x => x.classList.toggle('active', x === b));
- $('#gMarcas').classList.toggle('hidden', m !== 'marcas');
- $('#gFlujo').classList.toggle('hidden', m !== 'flujo');
- if (m === 'flujo') renderFlujo();
-}));
-
 async function loadGestion() {
  $('#gMarcas').innerHTML = '<div class="loading"><div class="spinner"></div>Armando tu tablero de trabajo…</div>';
  const [g, cal, mt] = await Promise.all([
@@ -305,7 +297,6 @@ async function loadGestion() {
  state.gestionLoaded = true;
  renderGestionStats(data);
  renderMarcas(data);
- renderFlujo();
 }
 
 function renderGestionStats(d) {
@@ -423,7 +414,7 @@ function flPieceCard(p) {
 }
 function boardHTML(data) {
   return `<div class="fl-top">
-      <span class="topbar__sub">${data.total || 0} piezas · <b>arrastra</b> una tarjeta a otra columna para cambiar su etapa</span>
+      <span class="topbar__sub">${data.total || 0} piezas${data.semana ? ' esta semana' : ''} · <b>arrastra</b> una tarjeta a otra columna para cambiar su etapa</span>
       <button class="btn btn--primary btn--sm" id="flNueva">+ Nueva pieza</button>
     </div>
     <div class="fl-board">` + data.etapas.map(e => {
@@ -458,6 +449,7 @@ function bindBoard(scope, reload) {
 }
 async function renderFlujo() {
   const cont = $('#gFlujo');
+  if (!cont) return; // Flujo ya no vive dentro de Gestión; es su propia vista (loadFlujo).
   cont.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando flujo…</div>';
   const { data } = await api('/api/piezas');
   state.piezas = {}; (Object.values(data.columnas || {}).flat()).forEach(p => state.piezas[p.id] = p);
@@ -483,14 +475,25 @@ function pendientesHTML(all) {
 function bindPendientes(scope) {
   scope.querySelectorAll('.pend-row').forEach(r => r.addEventListener('click', () => openPieza(r.dataset.open)));
 }
+// Piezas de ESTA semana (por fecha de publicación o de entrega). Las sin fecha se muestran (backlog por programar).
+function piezasSemana(columnas) {
+  const ws = startOfWeek(new Date()); const we = new Date(ws); we.setDate(ws.getDate() + 6);
+  const wsISO = ws.toISOString().slice(0, 10), weISO = we.toISOString().slice(0, 10);
+  const dentro = p => { const f = p.fecha || p.fechaEntrega; if (!f) return true; return f >= wsISO && f <= weISO; };
+  const out = {}; let total = 0;
+  Object.keys(columnas || {}).forEach(k => { out[k] = (columnas[k] || []).filter(dentro); total += out[k].length; });
+  return { columnas: out, total };
+}
 async function loadFlujo() {
   const out = $('#flujoOut');
   out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando flujo…</div>';
   const { data } = await api('/api/piezas');
   const all = Object.values(data.columnas || {}).flat();
   state.piezas = {}; all.forEach(p => state.piezas[p.id] = p);
+  const sem = piezasSemana(data.columnas);
+  const dataSemana = { etapas: data.etapas, columnas: sem.columnas, total: sem.total, semana: true };
   out.innerHTML = pendientesHTML(all) + '<div id="flBoard"></div>';
-  const bd = $('#flBoard'); bd.innerHTML = boardHTML(data); bindBoard(bd, loadFlujo);
+  const bd = $('#flBoard'); bd.innerHTML = boardHTML(dataSemana); bindBoard(bd, loadFlujo);
   bindPendientes(out);
 }
 function refreshPiezaView() {
@@ -1934,6 +1937,20 @@ const FRASES = [
  'Las ideas se vuelven marca cuando se ejecutan. ¡Vamos!',
  'Hazlo simple, hazlo claro, hazlo memorable.'
 ];
+// Fecha en lenguaje natural: hoy, mañana, ayer, este mié, en X días, o la fecha corta.
+function relFecha(iso) {
+ if (!iso) return '';
+ const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+ const d = new Date(iso + 'T00:00:00'); if (isNaN(d)) return iso;
+ const diff = Math.round((d - hoy) / 86400000);
+ if (diff === 0) return 'hoy';
+ if (diff === 1) return 'mañana';
+ if (diff === -1) return 'ayer';
+ const dow = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'][d.getDay()];
+ if (diff > 1 && diff <= 6) return dow;
+ if (diff < -1 && diff >= -6) return 'hace ' + (-diff) + ' días';
+ return d.toLocaleDateString('es', { day: 'numeric', month: 'short' });
+}
 function fraseDelDia() {
  const d = new Date();
  const idx = (d.getFullYear() * 366 + (d.getMonth() * 31) + d.getDate()) % FRASES.length;
@@ -1976,9 +1993,10 @@ async function loadInicio() {
  const TASK_ST = { pendiente: 'Pendiente', en_curso: 'En proceso', hecho: 'Terminada' };
  const TASK_NEXT = { pendiente: 'en_curso', en_curso: 'hecho', hecho: 'pendiente' };
  const PRIO_DOT = { alta: '#F90000', media: '#f59e0b', baja: '#9aa0a6' };
- const tRow = t => `<div class="md-row"><div class="md-row__t"><button class="md-check${t.status === 'hecho' ? ' md-check--on' : ''}" data-check="${t.id}" data-status="${t.status}" title="Marcar hecha" aria-label="Marcar hecha"></button><span class="md-pd" style="background:${PRIO_DOT[t.priority] || '#ccc'}"></span>${esc(t.title)}<small>${[t.categoria && t.categoria !== 'General' ? t.categoria : '', t.cliente || '', horaTxt(t)].filter(Boolean).join(' · ')}${t.dueDate ? ' · ' + esc(t.dueDate.slice(5)) : ''}${t.overdue ? ' · atrasada' : ''}${t.compartida ? ' · compartida' : ''}</small></div><div class="md-row__r">${t.dueDate ? `<a class="md-gcal" href="${gcalUrl(t)}" target="_blank" rel="noopener">Cal</a>` : ''}<button class="md-stpill st-${t.status}" data-st="${t.id}" data-next="${TASK_NEXT[t.status] || 'pendiente'}">${TASK_ST[t.status] || 'Pendiente'}</button></div></div>`;
+ const STATE_IC = { pendiente: '○', en_curso: '◐', hecho: '✓' };
+ const tRow = t => `<div class="md-row${t.status === 'hecho' ? ' md-row--done' : ''}"><div class="md-row__t"><span class="md-pd" style="background:${PRIO_DOT[t.priority] || '#ccc'}"></span>${esc(t.title)}<small>${[t.categoria && t.categoria !== 'General' ? t.categoria : '', t.cliente || '', horaTxt(t)].filter(Boolean).join(' · ')}${t.dueDate ? ' · ' + relFecha(t.dueDate) : ''}${t.overdue ? ' · atrasada' : ''}${t.compartida ? ' · compartida' : ''}</small></div><div class="md-row__r"><button class="md-state st-${t.status}" data-st="${t.id}" data-next="${TASK_NEXT[t.status] || 'pendiente'}" title="Clic para cambiar de estado">${STATE_IC[t.status] || '○'} ${TASK_ST[t.status] || 'Pendiente'}</button></div></div>`;
  const accionDe = p => (p.fecha && p.fecha <= hoyISO && p.etapa === 'editada') ? 'Publicar' : (ETAPA_ACCION[p.etapa] || '');
- const pRow = (p, dot) => `<div class="md-row" data-pieza="${p.id}"><div class="md-row__t"><span class="md-dotc md-dotc--${dot}"></span>${esc(p.marca)} · ${esc(p.idea || '')}<small>${p.numero ? '#' + esc(p.numero) + ' · ' : ''}${esc(p.tipo || '')}${p.fecha ? ' · publica ' + esc(p.fecha.slice(5)) : (p.fechaEntrega ? ' · entrega ' + esc(p.fechaEntrega.slice(5)) : '')}</small></div><div class="md-row__r">${accionDe(p) ? `<span class="md-act">${accionDe(p)}</span>` : ''}</div></div>`;
+ const pRow = (p, dot) => `<div class="md-row" data-pieza="${p.id}"><div class="md-row__t"><span class="md-dotc md-dotc--${dot}"></span>${esc(p.marca)} · ${esc(p.idea || '')}<small>${p.numero ? '#' + esc(p.numero) + ' · ' : ''}${esc(p.tipo || '')}${p.fecha ? ' · publica ' + relFecha(p.fecha) : (p.fechaEntrega ? ' · entrega ' + relFecha(p.fechaEntrega) : '')}</small></div><div class="md-row__r">${accionDe(p) ? `<span class="md-act">${accionDe(p)}</span>` : ''}</div></div>`;
  const CAP = 6;
  const capBlock = (arr, rowFn, key) => `<div class="md-rows">${arr.slice(0, CAP).map(rowFn).join('')}</div>${arr.length > CAP ? `<button class="md-more" data-lista="${key}">Ver todas (${arr.length})</button>` : ''}`;
 
@@ -2017,8 +2035,7 @@ async function loadInicio() {
  const nc = $('#mdNewContent'); if (nc) nc.onclick = () => openPieza(null);
 }
 function bindDashRows(scope) {
- scope.querySelectorAll('.md-check').forEach(b => b.addEventListener('click', async e => { e.stopPropagation(); const id = b.dataset.check; const done = b.dataset.status === 'hecho'; b.disabled = true; await api('/api/team/task-status', { method: 'POST', body: { id, status: done ? 'pendiente' : 'hecho' } }); loadInicio(); }));
- scope.querySelectorAll('.md-stpill').forEach(b => b.addEventListener('click', async e => { e.stopPropagation(); const id = b.dataset.st, next = b.dataset.next; b.disabled = true; await api('/api/team/task-status', { method: 'POST', body: { id, status: next } }); loadInicio(); }));
+ scope.querySelectorAll('.md-state').forEach(b => b.addEventListener('click', async e => { e.stopPropagation(); const id = b.dataset.st, next = b.dataset.next; b.disabled = true; await api('/api/team/task-status', { method: 'POST', body: { id, status: next } }); loadInicio(); }));
  scope.querySelectorAll('[data-pieza]').forEach(el => el.addEventListener('click', e => { if (e.target.closest('.md-wa')) return; openPieza(el.dataset.pieza); }));
  scope.querySelectorAll('.md-wa').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); window.open('https://wa.me/?text=' + b.dataset.wa, '_blank'); }));
  scope.querySelectorAll('.md-brow').forEach(b => b.addEventListener('click', () => { const marca = b.dataset.marca; const nav = document.querySelector('.nav__item[data-view="archivos"]'); if (nav) nav.click(); setTimeout(() => openMarca(marca, ''), 400); }));

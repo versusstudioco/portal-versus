@@ -1065,7 +1065,7 @@ textarea.fe-in { min-height:70px; resize:vertical; }
 .md-chips { display: flex; gap: .5rem; flex-wrap: wrap; margin: 1rem 0 1.5rem; }
 .md-chip { font-size: .82rem; color: var(--ink-60); background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: .35rem .8rem; }
 .md-chip b { color: var(--ink); font-weight: 700; }
-.md-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: start; margin-bottom: 1.5rem; max-width: 940px; }
+.md-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: start; margin-bottom: 1.2rem; }
 .md-card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 1rem 1.15rem; box-shadow: var(--glass-shadow); }
 .md-card__h { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-40); margin-bottom: .3rem; }
 .md-card__sub { font-size: .7rem; font-weight: 600; color: var(--ink-40); margin: .7rem 0 0; }
@@ -1153,3 +1153,17 @@ body.dark .pz-count{background:rgba(255,255,255,.05)}
 .tk-chip{display:inline-flex;align-items:center;gap:.35rem;font-size:.82rem;border:1px solid rgba(0,0,0,.12);border-radius:999px;padding:.3rem .6rem;cursor:pointer}
 .tk-chip:hover{border-color:#F90000}
 body.dark .tk-chip{border-color:rgba(255,255,255,.15)}
+
+/* Control de estado de tarea (único, natural, cicla al hacer clic) */
+.md-state { font-family: var(--font); font-size: .74rem; font-weight: 700; border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; transition: all .12s; }
+.md-state:hover { filter: brightness(.97); transform: translateY(-1px); }
+.md-state.st-pendiente { background: rgba(0,0,0,.05); color: var(--ink-60); }
+.md-state.st-en_curso { background: rgba(59,130,246,.14); color: #3b82f6; border-color: transparent; }
+.md-state.st-hecho { background: rgba(34,197,94,.15); color: #1e8e3e; border-color: transparent; }
+.dark .md-state.st-pendiente { background: rgba(255,255,255,.08); }
+.md-row--done .md-row__t { opacity: .5; }
+.md-row--done .md-row__t > *:not(small) { text-decoration: line-through; }
+/* Dashboard más compacto */
+.md-hero { margin: .2rem 0 .9rem !important; }
+.md-actions { margin: 0 0 1rem !important; }
+.md-grid { max-width: 1100px; }
