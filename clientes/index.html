@@ -2489,16 +2489,18 @@ function renderGestorContenido(){
  var barras = VG_TIPOS.map(function(t){ var p=+pac[t[1]]||0, r=pub.filter(function(x){return x.tipo===t[0];}).length; totP+=p; totR+=r; if(!p&&!r) return ""; var pct=p?Math.min(100,Math.round(r/p*100)):(r?100:0); return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><b>'+t[0]+'s</b><span>'+r+" / "+(p||"—")+(p&&r>=p?" ":"")+'</span></div><div style="height:8px;background:var(--bg3);border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+(p&&r>=p?"#1e8e3e":"var(--red)")+';border-radius:99px"></div></div></div>'; }).join("");
  var head='<div class="card"><div class="card-title">'+(ciclo.periodo?vgEsc(ciclo.periodo):"Ciclo actual")+' · Pactado vs. Realizado <span style="font-weight:400;color:var(--t3)">('+totR+"/"+totP+')</span></div>'+(barras||'<div style="color:var(--t3);font-size:13px;margin-top:6px">El equipo aún no ha configurado el ciclo.</div>')+'</div>';
  el._head=head;
- // Límites de navegación = meses que toca el ciclo activo (no se puede salir del ciclo)
- _vgCicloMin=_ini?{y:+_ini.slice(0,4), m:+_ini.slice(5,7)}:null;
- _vgCicloMax=_fin?{y:+_fin.slice(0,4), m:+_fin.slice(5,7)}:null;
- // Mes inicial: hoy si cae dentro del ciclo; si no, el inicio del ciclo; si no hay ciclo, el de las piezas.
+ // Mes inicial: hoy si cae dentro del ciclo; si no, el inicio/fin del ciclo; si no hay ciclo, el mes actual.
  if(!_vgCalYM){
  var hoyISO=(new Date()).toISOString().slice(0,10); var ref;
  if(_ini||_fin){ ref = (_ini&&hoyISO<_ini)?_ini : (_fin&&hoyISO>_fin)?_fin : hoyISO; }
- else { var fechas=Object.keys(_vgPiezas).map(function(id){return _vgPiezas[id].fecha||_vgPiezas[id].fechaEntrega;}).filter(Boolean).sort(); ref = fechas.length ? fechas[fechas.length-1] : hoyISO; }
+ else { ref = hoyISO; } // sin ciclo: el mes actual (no el de piezas viejas)
  var pz=ref.split("-"); _vgCalYM={y:+pz[0], m:+pz[1]};
  }
+ // Límites de navegación:
+ //  - con ciclo: los meses que toca el ciclo activo
+ //  - sin ciclo: SOLO el mes actual (el cliente no navega a otros meses)
+ _vgCicloMin=_ini?{y:+_ini.slice(0,4), m:+_ini.slice(5,7)}:{y:_vgCalYM.y, m:_vgCalYM.m};
+ _vgCicloMax=_fin?{y:+_fin.slice(0,4), m:+_fin.slice(5,7)}:{y:_vgCalYM.y, m:_vgCalYM.m};
  vgRenderCal();
  }).catch(function(){ el.innerHTML='<div class="card" style="padding:20px;color:var(--t2)">No se pudo cargar el calendario.</div>'; });
 }
