@@ -29,6 +29,22 @@
     if (!r.ok || j.error) throw new Error(j.error || ('gemini ' + r.status));
     return j.text || '';
   }
+
+  /* ---- Notificaciones por WhatsApp (Meta Cloud API) vía Worker (token oculto) ---- */
+  // Pega aquí la URL de tu Worker de WhatsApp cuando lo despliegues. Vacío = desactivado.
+  const WA_URL = '';
+  window.VFB_WA = WA_URL;
+  // Envía un aviso si el evento está activado en gestor/config/notif. No rompe nada si no está configurado.
+  async function notifyWA(evento, text) {
+    if (!WA_URL || !text) return;
+    try {
+      const cfg = (await fbGet('gestor/config/notif').catch(() => null)) || {};
+      if (cfg.activo === false) return;
+      if (evento && cfg[evento] === false) return; // por defecto activado salvo que lo apaguen
+      await _fetchT(WA_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: String(text) }) }, 10000);
+    } catch (_) { /* silencioso: una notificación no debe romper el flujo */ }
+  }
+  window.VFB_notify = notifyWA;
   function extractJSON(text) {
     if (!text) return null;
     let t = String(text).trim().replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '');
@@ -312,6 +328,13 @@
         await fbPatch('gestor/tasks/' + body.id, patch);
         return { ok: true, data: { ok: true } };
       }
+      if (p === '/api/notif-config') {
+        const s = await sesionActual();
+        if (!s || !s.esEquipo) return { ok: false, status: 403, data: { error: 'Solo el equipo' } };
+        if (method === 'POST') { await fbPut('gestor/config/notif', body.cfg || {}); return { ok: true, data: { ok: true } }; }
+        const cfg = (await fbGet('gestor/config/notif').catch(() => null)) || {};
+        return { ok: true, data: { cfg, conectado: !!window.VFB_WA } };
+      }
       if (p === '/api/team/metrics') {
         const s = await sesionActual();
         if (!s || !s.esEquipo) return { ok: false, status: 403, data: { error: 'Solo el equipo' } };
@@ -349,7 +372,10 @@
         if (!s) return { ok: false, status: 403, data: { error: 'Sin sesión' } };
         const id = uid();
         const colaboradores = Array.isArray(body.colaboradores) ? body.colaboradores.filter(Boolean) : [];
-        await fbPut('gestor/tasks/' + id, { id, title: String(body.title || '').trim(), assignedTo: body.assignedTo || s.username, colaboradores, area: body.area || s.area || '', categoria: body.categoria || 'General', cliente: body.cliente || '', dueDate: body.dueDate || null, horaInicio: body.horaInicio || '', horaFin: body.horaFin || '', priority: body.priority || 'media', status: 'pendiente', createdAt: new Date().toISOString(), creadaPor: s.username });
+        const asignado = body.assignedTo || s.username;
+        await fbPut('gestor/tasks/' + id, { id, title: String(body.title || '').trim(), assignedTo: asignado, colaboradores, area: body.area || s.area || '', categoria: body.categoria || 'General', cliente: body.cliente || '', dueDate: body.dueDate || null, horaInicio: body.horaInicio || '', horaFin: body.horaFin || '', priority: body.priority || 'media', status: 'pendiente', createdAt: new Date().toISOString(), creadaPor: s.username });
+        // Aviso: tarea asignada a alguien distinto de quien la crea
+        if (asignado && asignado !== s.username) { const prof = (await fbGet('db/profiles/' + asignado).catch(() => null)) || {}; notifyWA('tareaNueva', '📝 Nueva tarea para ' + (prof.name || asignado) + ': ' + String(body.title || '').trim() + (body.dueDate ? ' (para ' + body.dueDate + ')' : '')); }
         return { ok: true, data: { ok: true, id } };
       }
       if (p.startsWith('/api/team/admin/')) {
@@ -410,6 +436,9 @@
         await fbPatch('gestor/piezas/' + body.id, { etapa: body.etapa });
         await fbPost('gestor/piezas/' + body.id + '/comentarios', { autor: 'sistema', texto: 'Movida a ' + body.etapa, fecha: new Date().toISOString(), sistema: true });
         const p2 = normPieza(await fbGet('gestor/piezas/' + body.id));
+        // Aviso: contenido listo para publicar
+        if (body.etapa === 'editada') notifyWA('listoPublicar', '🎬 Listo para publicar: ' + (p2.marca || '') + ' · ' + (p2.idea || 'contenido') + (p2.fecha ? ' (publica ' + p2.fecha + ')' : ''));
+        if (body.etapa === 'publicada') notifyWA('publicado', '✅ Publicado: ' + (p2.marca || '') + ' · ' + (p2.idea || 'contenido'));
         return { ok: true, data: { ok: true, pieza: p2 } };
       }
       if (p === '/api/piezas/comentario' && method === 'POST') {

@@ -1014,7 +1014,8 @@ async function loadConfig() {
  </ul>
  <button class="btn btn--ghost btn--sm" id="cfgLimpiar" style="margin-top:.6rem">Limpiar piezas de ejemplo</button>
  <p class="hub-hint" style="margin-top:.4rem">Elimina las piezas placeholder ("Contenido de…") que quedaron de la carga inicial, para dejar solo el contenido real.</p>
- </div>`;
+ </div>
+ <div class="glass panel form-panel" id="notifPanel" style="margin-top:1.2rem"><div class="loading"><div class="spinner"></div>Cargando notificaciones…</div></div>`;
  const lp = $('#cfgLimpiar'); if (lp) lp.addEventListener('click', async () => {
    if (!confirm('¿Eliminar las piezas de ejemplo ("Contenido de…")? No toca las piezas reales ni el histórico.')) return;
    lp.disabled = true; lp.textContent = 'Limpiando…';
@@ -1031,7 +1032,40 @@ async function loadConfig() {
  if (res.ok) { alert('Cliente creado. Ya puede entrar al Portal de Clientes con su usuario y contraseña.'); loadConfig(); }
  else alert(res.data.error || 'No se pudo crear');
  });
+ renderNotifPanel();
  renderAgenda();
+}
+const NOTIF_EVENTOS = [
+ ['listoPublicar', 'Contenido listo para publicar', 'cuando una pieza pasa a "Editada"'],
+ ['publicado', 'Contenido publicado', 'cuando una pieza pasa a "Publicada"'],
+ ['tareaNueva', 'Tarea asignada', 'cuando le asignas una tarea a alguien']
+];
+async function renderNotifPanel() {
+ const el = $('#notifPanel'); if (!el) return;
+ const { ok, data } = await api('/api/notif-config');
+ if (!ok) { el.innerHTML = '<div class="empty">Solo el administrador.</div>'; return; }
+ const cfg = data.cfg || {};
+ const on = k => cfg[k] !== false; // por defecto activado
+ el.innerHTML = `
+ <h3 class="live-h3" style="margin-top:0">Notificaciones por WhatsApp</h3>
+ <p class="hub-hint" style="margin:.1rem 0 .8rem">${data.conectado
+   ? '<b style="color:#1e8e3e">● Conectado</b> — los avisos se envían al número configurado en el Worker.'
+   : '<b style="color:#F90000">● Sin conectar</b> — falta pegar la URL del Worker de WhatsApp en el código (te guío). Puedes dejar elegidos los avisos desde ya.'}</p>
+ <label class="np-chk" style="margin-bottom:.6rem"><input type="checkbox" id="ntActivo" ${cfg.activo === false ? '' : 'checked'}> <b>Activar notificaciones</b></label>
+ <div class="np-areas__grid" style="margin-top:.3rem">
+ ${NOTIF_EVENTOS.map(([k, l, h]) => `<label class="np-chk" title="${esc(h)}"><input type="checkbox" class="ntEv" value="${k}" ${on(k) ? 'checked' : ''}> ${esc(l)}</label>`).join('')}
+ </div>
+ <p class="hub-hint" style="margin:.7rem 0 0">Los avisos del <b>cliente</b> (aprobó, pidió cambios o comentó) se envían siempre que esté conectado.</p>
+ <button class="btn btn--primary btn--sm" id="ntSave" style="margin-top:.8rem">Guardar</button>`;
+ $('#ntSave').addEventListener('click', async () => {
+ const nuevo = { activo: $('#ntActivo').checked };
+ NOTIF_EVENTOS.forEach(([k]) => { nuevo[k] = false; });
+ $$('.ntEv').forEach(c => { if (c.checked) nuevo[c.value] = true; });
+ const b = $('#ntSave'); b.disabled = true; b.textContent = 'Guardando…';
+ await api('/api/notif-config', { method: 'POST', body: { cfg: nuevo } });
+ b.disabled = false; b.textContent = 'Guardado ✓';
+ setTimeout(() => { if ($('#ntSave')) $('#ntSave').textContent = 'Guardar'; }, 1500);
+ });
 }
 
 function renderTeamMetrics(m) {

@@ -2561,8 +2561,12 @@ function vgAprobar(id,val){
  var c={ autor:_vgBrandName||"Cliente", texto: val==="si"?" Aprobó el contenido.":" Pidió cambios en el contenido.", fecha:new Date().toISOString(), cliente:true, sistema:false };
  FBDB.ref("vsportal/gestor/piezas/"+vgKey(id)+"/comentarios").push(c);
  if(!p.comentarios||Array.isArray(p.comentarios)) p.comentarios=Array.isArray(p.comentarios)?arrToObj(p.comentarios):{}; p.comentarios["c"+Date.now()]=c;
+ waNotify(val==="si" ? ("👍 "+(_vgBrandName||"Cliente")+" APROBÓ: "+(p.idea||"contenido")) : ("✏️ "+(_vgBrandName||"Cliente")+" PIDIÓ CAMBIOS: "+(p.idea||"contenido")));
  vgOpenPieza(id);
 }
+// URL del Worker de WhatsApp (misma que el team). Vacío = desactivado.
+var WA_URL="";
+function waNotify(text){ try{ if(!WA_URL||!text) return; fetch(WA_URL,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({text:String(text)})}).catch(function(){}); }catch(e){} }
 function vgDay(iso){
  var arr=Object.keys(_vgPiezas).map(function(k){return _vgPiezas[k];}).filter(function(p){return (p.fecha||p.fechaEntrega)===iso;});
  var ov=gi("vgModal"); if(!ov){ov=document.createElement("div");ov.id="vgModal";document.body.appendChild(ov);}
@@ -2609,6 +2613,7 @@ function vgSendComment(id){
  FBDB.ref("vsportal/gestor/piezas/"+vgKey(id)+"/comentarios").push(c).then(function(){
  // refrescar en memoria y reabrir
  var p=_vgPiezas[id]; if(p){ if(!p.comentarios||Array.isArray(p.comentarios)) p.comentarios=p.comentarios&&Array.isArray(p.comentarios)?arrToObj(p.comentarios):{}; p.comentarios["c"+Date.now()]=c; }
+ waNotify("💬 Comentario de "+(_vgBrandName||"Cliente")+((p&&p.idea)?(" en "+p.idea):"")+": "+txt.slice(0,140));
  vgOpenPieza(id);
  }).catch(function(){ if(btn){btn.disabled=false;btn.textContent="Enviar comentario";} alert("No se pudo enviar el comentario."); });
 }
