@@ -131,12 +131,14 @@ document.getElementById('themeTgl')?.addEventListener('click', () => { applyThem
 async function checkSession() {
  const { ok, data } = await api('/api/me');
  if (ok && data.authenticated) {
- if (data.type === 'client') {
- // Una cuenta de cliente NO entra al Team (aunque el navegador tenga guardada su contraseña).
+ if (!data.esEquipo) {
+ // Solo cuentas del equipo entran aquí. Cliente o cuenta sin registro => fuera.
  await api('/api/logout', { method: 'POST' });
  show('#login'); hide('#app');
  const err = $('#loginError');
- if (err) err.innerHTML = 'Esa cuenta es de <b>cliente</b>, no entra al panel del equipo. Entra por el <a href="/clientes/" style="color:#F90000;font-weight:700">Portal de Clientes</a>. Si eres del equipo, usa tu usuario del equipo.';
+ if (err) err.innerHTML = data.type === 'client'
+ ? 'Esa cuenta es de <b>cliente</b>, no entra al panel del equipo. Entra por el <a href="/clientes/" style="color:#F90000;font-weight:700">Portal de Clientes</a>.'
+ : 'Esta cuenta no está registrada en el equipo. Pídele al administrador que te cree un usuario de equipo.';
  return;
  }
  enterApp(data);
@@ -1029,14 +1031,43 @@ async function loadConfig() {
  renderAgenda();
 }
 
+function renderTeamMetrics(m) {
+ if (!m) return '';
+ const r = m.resumen || {}, dias = m.dias || [], pers = m.porPersona || [];
+ const cumpl = (r.aTiempo + r.tarde) ? Math.round(r.aTiempo / (r.aTiempo + r.tarde) * 100) : null;
+ const maxDia = Math.max(1, ...dias.map(d => d.n));
+ const DOW = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
+ const barras = dias.map(d => `<div class="tm-bar"><div class="tm-bar__fill" style="height:${Math.round(d.n / maxDia * 100)}%" title="${d.n} completadas"></div><span class="tm-bar__n">${d.n}</span><span class="tm-bar__l">${DOW[d.dow]}</span></div>`).join('');
+ const filas = pers.map(p => {
+ const pc = (p.aTiempo + p.tarde) ? Math.round(p.aTiempo / (p.aTiempo + p.tarde) * 100) : null;
+ return `<tr><td><b>${esc(p.name)}</b></td><td>${p.total}</td><td>${p.hechas}</td><td class="${p.atrasadas ? 'tm-red' : ''}">${p.atrasadas}</td><td>${pc == null ? '—' : pc + '%'}</td></tr>`;
+ }).join('');
+ return `<div class="tm">
+   <div class="tm-cards">
+     <div class="tm-stat"><b>${r.total || 0}</b><span>tareas totales</span></div>
+     <div class="tm-stat"><b>${r.hechas || 0}</b><span>completadas</span></div>
+     <div class="tm-stat tm-stat--red"><b>${r.atrasadas || 0}</b><span>atrasadas hoy</span></div>
+     <div class="tm-stat tm-stat--green"><b>${cumpl == null ? '—' : cumpl + '%'}</b><span>a tiempo</span></div>
+   </div>
+   <div class="tm-grid">
+     <div class="tm-panel"><div class="tm-panel__h">Completadas por día · últimos 7</div><div class="tm-chart">${barras}</div></div>
+     <div class="tm-panel"><div class="tm-panel__h">Por persona</div>
+       <table class="tm-table"><thead><tr><th>Persona</th><th>Total</th><th>Hechas</th><th>Atrasadas</th><th>A tiempo</th></tr></thead><tbody>${filas || '<tr><td colspan="5" class="tm-none">Sin datos aún</td></tr>'}</tbody></table>
+     </div>
+   </div>
+ </div>`;
+}
 async function loadEquipo() {
  const out = $('#equipoOut');
  out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando equipo…</div>';
- const [rep, ppl] = await Promise.all([api('/api/team/admin/report'), api('/api/team/admin/people')]);
+ const [rep, ppl, met] = await Promise.all([api('/api/team/admin/report'), api('/api/team/admin/people'), api('/api/team/metrics')]);
  if (!rep.ok) { out.innerHTML = `<div class="empty">${esc(rep.data.error || 'Sin acceso')}</div>`; return; }
  const d = rep.data, people = ppl.data.people || [], areas = ppl.data.areas || [];
  state.equipoAreas = areas; state.equipoPeople = people;
- let html = `<div class="g-stats">
+ let html = `<h3 class="live-h3" style="margin-top:0">Métricas del equipo</h3>
+ ${met.ok ? renderTeamMetrics(met.data) : ''}
+ <h3 class="live-h3">Personas y tareas</h3>
+ <div class="g-stats">
  <div class="g-stat"><b>${(d.resumen || {}).personas || 0}</b><span>personas</span></div>
  <div class="g-stat"><b>${(d.resumen || {}).tareas || 0}</b><span>tareas</span></div>
  <div class="g-stat g-stat--red"><b>${(d.resumen || {}).atrasadas || 0}</b><span>atrasadas</span></div>
@@ -1930,6 +1961,9 @@ function relFecha(iso) {
  if (diff < -1 && diff >= -6) return 'hace ' + (-diff) + ' días';
  return d.toLocaleDateString('es', { day: 'numeric', month: 'short' });
 }
+function mdEmpty(titulo, sub) {
+ return `<div class="md-empty2"><div class="md-empty2__i" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12h8"/></svg></div><div class="md-empty2__t">${esc(titulo)}</div><div class="md-empty2__s">${esc(sub || '')}</div></div>`;
+}
 function fraseDelDia() {
  const d = new Date();
  const idx = (d.getFullYear() * 366 + (d.getMonth() * 31) + d.getDate()) % FRASES.length;
@@ -1996,16 +2030,18 @@ async function loadInicio() {
    <div class="md-hero__chips"><span><b>${hoy.length}</b> hoy</span><span><b>${contArr.length}</b> en contenido</span>${me.area ? `<span>${esc(me.area)}</span>` : ''}</div>
  </div>
  <div class="md-actions"><button class="btn btn--primary btn--sm" id="mdNewTask">+ Nueva tarea</button><button class="btn btn--ghost btn--sm" id="mdNewContent">+ Nuevo contenido</button></div>
- <div class="md-2col">
-   <section class="md-card md-main">
-     <div class="md-card__h">Contenido de hoy</div>
-     ${contArr.length ? capBlock(contArr, contRow, 'cont') : '<div class="md-none">Nada de contenido para hoy.</div>'}
+ <div class="md-cards">
+   <section class="md-card">
+     <div class="md-card__t">Tareas de hoy${hoy.length ? `<span class="md-count">${hoy.length}</span>` : ''}</div>
+     ${hoy.length ? capBlock(hoy, tRow, 'tareas') : mdEmpty('Sin tareas para hoy', 'Crea una con “+ Nueva tarea”.')}
    </section>
-   <section class="md-card md-side">
-     <div class="md-card__h">Tareas de hoy</div>
-     ${hoy.length ? capBlock(hoy, tRow, 'tareas') : '<div class="md-none">Sin tareas para hoy.</div>'}
-     <div class="md-subh">Esta semana</div>
-     ${proximas.length ? capBlock(proximas, tRow, 'semana') : '<div class="md-none">Nada más programado.</div>'}
+   <section class="md-card">
+     <div class="md-card__t">Esta semana${proximas.length ? `<span class="md-count">${proximas.length}</span>` : ''}</div>
+     ${proximas.length ? capBlock(proximas, tRow, 'semana') : mdEmpty('Nada programado', 'Sin tareas para el resto de la semana.')}
+   </section>
+   <section class="md-card md-card--wide">
+     <div class="md-card__t">Contenido de hoy${contArr.length ? `<span class="md-count">${contArr.length}</span>` : ''}</div>
+     ${contArr.length ? capBlock(contArr, contRow, 'cont') : mdEmpty('Nada de contenido para hoy', 'Agrega uno con “+ Nuevo contenido”.')}
    </section>
  </div>`;
 

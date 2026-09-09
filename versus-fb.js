@@ -238,12 +238,19 @@
     try { perfil = await fbGet('db/profiles/' + username); } catch (_) {}
     perfil = perfil || {};
     const tieneProfile = Object.keys(perfil).length > 0;
-    const esAdmin = perfil.type === 'admin' || perfil.role === 'admin';
-    // Señal confiable de "es equipo": tener perfil en db/profiles (los miembros SIEMPRE lo tienen; los clientes no).
-    // Así el bloqueo del cliente no depende de leer db/creds (que un cliente no puede leer).
-    const tipo = tieneProfile ? (perfil.type || (esAdmin ? 'admin' : 'team')) : 'client';
+    // Si no hay perfil de equipo, miramos db/creds (legible por usuarios autenticados) para saber
+    // si es admin (entra al team) o cliente (no entra). Así:
+    //  - miembro/estrategia/etc. => tienen perfil => equipo
+    //  - admin sin perfil pero en creds => equipo
+    //  - cliente => solo creds type 'client' => NO es equipo
+    //  - cuenta sin perfil ni creds => NO es equipo (no user creado = sin acceso)
+    let cred = null;
+    if (!tieneProfile) { try { cred = await fbGet('db/creds/' + username); } catch (_) {} }
+    const esAdmin = perfil.type === 'admin' || perfil.role === 'admin' || (cred && cred.type === 'admin');
+    const esEquipo = tieneProfile || (cred && cred.type === 'admin');
+    const tipo = tieneProfile ? (perfil.type || (esAdmin ? 'admin' : 'team')) : (cred && cred.type === 'admin' ? 'admin' : (cred && cred.type === 'client' ? 'client' : 'none'));
     const area = perfil.area || (perfil.areas && perfil.areas[0]) || (esAdmin ? 'Administrativa' : (perfil.brand || ''));
-    return { username, name: perfil.name || username, area, areas: perfil.areas || (area ? [area] : []), role: esAdmin ? 'admin' : (perfil.role || 'miembro'), type: tipo };
+    return { username, name: perfil.name || (cred && cred.name) || username, area, areas: perfil.areas || (area ? [area] : []), role: esAdmin ? 'admin' : (perfil.role || 'miembro'), type: tipo, esEquipo: !!esEquipo };
   }
   function esEstrategiaOAdmin(s) {
     if (!s) return false;
@@ -271,7 +278,7 @@
       if (p === '/api/me') {
         const s = await sesionActual();
         if (!s) return { ok: true, data: { authenticated: false } };
-        return { ok: true, data: { authenticated: true, name: s.name, area: s.area, role: s.role, type: s.type, username: s.username, aiEnabled: !!window.VFB_GEMINI, provider: window.VFB_GEMINI ? 'gemini' : null } };
+        return { ok: true, data: { authenticated: true, name: s.name, area: s.area, role: s.role, type: s.type, esEquipo: s.esEquipo, username: s.username, aiEnabled: !!window.VFB_GEMINI, provider: window.VFB_GEMINI ? 'gemini' : null } };
       }
       if (p === '/api/meta') return { ok: true, data: META };
 
@@ -294,8 +301,43 @@
         return { ok: true, data: { people } };
       }
       if (p === '/api/team/task-status' && method === 'POST') {
-        await fbPatch('gestor/tasks/' + body.id, { status: body.status });
+        const patch = { status: body.status };
+        // Registrar cuándo se completa (para saber si fue a tiempo o tarde).
+        patch.completedAt = body.status === 'hecho' ? new Date().toISOString() : '';
+        await fbPatch('gestor/tasks/' + body.id, patch);
         return { ok: true, data: { ok: true } };
+      }
+      if (p === '/api/team/metrics') {
+        const s = await sesionActual();
+        if (!s || !s.esEquipo) return { ok: false, status: 403, data: { error: 'Solo el equipo' } };
+        const all = Object.values((await fbGet('gestor/tasks').catch(() => null)) || {});
+        const hoyISO = new Date().toISOString().slice(0, 10);
+        const profs = (await fbGet('db/profiles').catch(() => null)) || {};
+        const nombre = u => (profs[u] && profs[u].name) || u || '—';
+        const esHecha = t => t.status === 'hecho';
+        const aTiempo = t => esHecha(t) && t.completedAt && t.dueDate && t.completedAt.slice(0, 10) <= t.dueDate;
+        const tarde = t => esHecha(t) && t.completedAt && t.dueDate && t.completedAt.slice(0, 10) > t.dueDate;
+        const atrasadaActiva = t => !esHecha(t) && t.dueDate && t.dueDate < hoyISO;
+        const resumen = {
+          total: all.length,
+          hechas: all.filter(esHecha).length,
+          activas: all.filter(t => !esHecha(t)).length,
+          atrasadas: all.filter(atrasadaActiva).length,
+          aTiempo: all.filter(aTiempo).length,
+          tarde: all.filter(tarde).length
+        };
+        // Por persona (dueño = assignedTo)
+        const byUser = {};
+        all.forEach(t => {
+          const u = t.assignedTo || '—';
+          const o = byUser[u] || (byUser[u] = { username: u, name: nombre(u), total: 0, hechas: 0, atrasadas: 0, aTiempo: 0, tarde: 0 });
+          o.total++; if (esHecha(t)) o.hechas++; if (atrasadaActiva(t)) o.atrasadas++; if (aTiempo(t)) o.aTiempo++; if (tarde(t)) o.tarde++;
+        });
+        const porPersona = Object.values(byUser).sort((a, b) => b.total - a.total);
+        // Completadas por día (últimos 7 días)
+        const dias = [];
+        for (let i = 6; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); const iso = d.toISOString().slice(0, 10); dias.push({ iso, dow: d.getDay(), n: all.filter(t => t.completedAt && t.completedAt.slice(0, 10) === iso).length }); }
+        return { ok: true, data: { resumen, porPersona, dias } };
       }
       if (p === '/api/team/task-crear' && method === 'POST') {
         const s = await sesionActual();
