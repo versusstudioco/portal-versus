@@ -249,18 +249,25 @@
     catch (e) { return { ok: false, data: { error: 'Usuario o contraseña incorrectos' } }; }
     return { ok: true, data: { ok: true } };
   }
+  // Caché de sesión: sesionActual se llama en casi cada acción; sin caché haría 3 lecturas
+  // a Firebase por llamada. Se guarda por uid y se invalida al cambiar de sesión.
+  let _sesCache = null, _sesUid = null;
+  try { firebase.auth().onAuthStateChanged(u => { if (!u || (u && u.uid !== _sesUid)) { _sesCache = null; _sesUid = null; } }); } catch (_) {}
   async function sesionActual() {
     const u = firebase.auth().currentUser || await _authReady;
-    if (!u) return null;
+    if (!u) { _sesCache = null; _sesUid = null; return null; }
+    if (_sesCache && _sesUid === u.uid) return _sesCache;
     const username = (u.email || '').split('@')[0];
-    let perfil = null, readOk = true;
-    try { perfil = await fbGet('db/profiles/' + username); } catch (_) { readOk = false; }
-    perfil = perfil || {};
+    // Las 3 lecturas EN PARALELO (perfil + los dos stores de creds).
+    let readOk = true, cliOk = true;
+    const [perfilR, credTeamR, credCliR] = await Promise.all([
+      fbGet('db/profiles/' + username).catch(() => { readOk = false; return null; }),
+      fbGet('db/creds/' + username).catch(() => null),
+      fbGet('creds/' + username).catch(() => { cliOk = false; return null; })
+    ]);
+    const perfil = perfilR || {};
+    const credTeam = credTeamR, credCli = credCliR;
     const tieneProfile = Object.keys(perfil).length > 0;
-    // Las cuentas de CLIENTE viven en dos stores posibles: db/creds (team) y creds (portal cliente).
-    // Un cliente NUNCA entra al team, aunque tenga un perfil suelto. El equipo NO está en ningún creds.
-    let credTeam = null; try { credTeam = await fbGet('db/creds/' + username); } catch (_) {}
-    let credCli = null, cliOk = true; try { credCli = await fbGet('creds/' + username); } catch (_) { cliOk = false; }
     const anyCred = credTeam || credCli;
     const esAdmin = perfil.type === 'admin' || perfil.role === 'admin' || (anyCred && anyCred.type === 'admin');
     // Marcadores de "es cliente": perfil de cliente (type client, o con brand y sin área) o estar en algún creds sin ser admin.
@@ -274,7 +281,9 @@
     const esEquipo = !esCliente && (perfilEquipo || esAdmin || (confirmadoNoCliente && !readOk));
     const tipo = esCliente ? 'client' : (esAdmin ? 'admin' : (esEquipo ? 'team' : 'none'));
     const area = perfil.area || (perfil.areas && perfil.areas[0]) || (esAdmin ? 'Administrativa' : '');
-    return { username, name: perfil.name || (anyCred && anyCred.name) || username, area, areas: perfil.areas || (area ? [area] : []), role: esAdmin ? 'admin' : (perfil.role || 'miembro'), type: tipo, esEquipo: !!esEquipo };
+    const ses = { username, name: perfil.name || (anyCred && anyCred.name) || username, area, areas: perfil.areas || (area ? [area] : []), role: esAdmin ? 'admin' : (perfil.role || 'miembro'), type: tipo, esEquipo: !!esEquipo };
+    _sesCache = ses; _sesUid = u.uid;
+    return ses;
   }
   function esEstrategiaOAdmin(s) {
     if (!s) return false;
