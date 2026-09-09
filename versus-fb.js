@@ -257,21 +257,24 @@
     try { perfil = await fbGet('db/profiles/' + username); } catch (_) { readOk = false; }
     perfil = perfil || {};
     const tieneProfile = Object.keys(perfil).length > 0;
-    // Si no hay perfil de equipo, miramos db/creds (legible por usuarios autenticados) para saber
-    // si es admin (entra al team) o cliente (no entra). Así:
-    //  - miembro/estrategia/etc. => tienen perfil => equipo
-    //  - admin sin perfil pero en creds => equipo
-    //  - cliente => solo creds type 'client' => NO es equipo
-    //  - cuenta sin perfil ni creds => NO es equipo (no user creado = sin acceso)
-    let cred = null, credOk = true;
-    if (!tieneProfile) { try { cred = await fbGet('db/creds/' + username); } catch (_) { credOk = false; } }
-    // Si NINGUNA lectura funcionó (error de red, p. ej. Safari), no bloqueamos: el usuario ya se autenticó.
-    const lecturaFallo = !tieneProfile && !readOk && !credOk;
-    const esAdmin = perfil.type === 'admin' || perfil.role === 'admin' || (cred && cred.type === 'admin');
-    const esEquipo = tieneProfile || (cred && cred.type === 'admin') || lecturaFallo;
-    const tipo = tieneProfile ? (perfil.type || (esAdmin ? 'admin' : 'team')) : (cred && cred.type === 'admin' ? 'admin' : (cred && cred.type === 'client' ? 'client' : 'none'));
-    const area = perfil.area || (perfil.areas && perfil.areas[0]) || (esAdmin ? 'Administrativa' : (perfil.brand || ''));
-    return { username, name: perfil.name || (cred && cred.name) || username, area, areas: perfil.areas || (area ? [area] : []), role: esAdmin ? 'admin' : (perfil.role || 'miembro'), type: tipo, esEquipo: !!esEquipo };
+    // Las cuentas de CLIENTE viven en dos stores posibles: db/creds (team) y creds (portal cliente).
+    // Un cliente NUNCA entra al team, aunque tenga un perfil suelto. El equipo NO está en ningún creds.
+    let credTeam = null; try { credTeam = await fbGet('db/creds/' + username); } catch (_) {}
+    let credCli = null, cliOk = true; try { credCli = await fbGet('creds/' + username); } catch (_) { cliOk = false; }
+    const anyCred = credTeam || credCli;
+    const esAdmin = perfil.type === 'admin' || perfil.role === 'admin' || (anyCred && anyCred.type === 'admin');
+    // Marcadores de "es cliente": perfil de cliente (type client, o con brand y sin área) o estar en algún creds sin ser admin.
+    const perfilCliente = perfil.type === 'client' || (!!perfil.brand && !perfil.area && !(perfil.areas && perfil.areas.length));
+    const credCliente = (credTeam && credTeam.type === 'client') || (credCli && credCli.type !== 'admin' && Object.keys(credCli || {}).length > 0);
+    const esCliente = !esAdmin && (perfilCliente || credCliente);
+    // Marcador de "es equipo": perfil de equipo (no cliente) o admin.
+    const perfilEquipo = tieneProfile && !perfilCliente && (perfil.type === 'team' || perfil.type === 'admin' || !!perfil.role || !!perfil.area || !!(perfil.areas && perfil.areas.length));
+    // Fail-open SOLO si confirmamos que NO es cliente (store de clientes legible y ausente) pero el perfil no se pudo leer.
+    const confirmadoNoCliente = cliOk && !credCli && !perfilCliente;
+    const esEquipo = !esCliente && (perfilEquipo || esAdmin || (confirmadoNoCliente && !readOk));
+    const tipo = esCliente ? 'client' : (esAdmin ? 'admin' : (esEquipo ? 'team' : 'none'));
+    const area = perfil.area || (perfil.areas && perfil.areas[0]) || (esAdmin ? 'Administrativa' : '');
+    return { username, name: perfil.name || (anyCred && anyCred.name) || username, area, areas: perfil.areas || (area ? [area] : []), role: esAdmin ? 'admin' : (perfil.role || 'miembro'), type: tipo, esEquipo: !!esEquipo };
   }
   function esEstrategiaOAdmin(s) {
     if (!s) return false;
