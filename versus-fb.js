@@ -10,8 +10,11 @@
   const EMAIL_DOM = '@portal.versusstudio.co';
   const FBCFG = { apiKey: 'AIzaSyAKgL0la08wjXBL4VhlcqRlE8Ory1KKC80', authDomain: 'versus-portal.firebaseapp.com', databaseURL: 'https://versus-portal-default-rtdb.firebaseio.com', projectId: 'versus-portal', storageBucket: 'versus-portal.firebasestorage.app', messagingSenderId: '689127935637', appId: '1:689127935637:web:0d42a61192c4e1440b559c' };
   try { if (window.firebase && !firebase.apps.length) firebase.initializeApp(FBCFG); } catch (_) {}
-  const _authReady = new Promise(res => { try { firebase.auth().onAuthStateChanged(u => res(u)); } catch (_) { res(null); } });
-  async function token() { try { const u = firebase.auth().currentUser; return u ? await u.getIdToken() : null; } catch (_) { return null; } }
+  // Resuelve aunque onAuthStateChanged nunca dispare (p. ej. Safari con storage restringido).
+  const _authReady = new Promise(res => { let done = false; const d = u => { if (!done) { done = true; res(u); } }; try { firebase.auth().onAuthStateChanged(d); } catch (_) { d(null); } setTimeout(() => d(null), 6000); });
+  function _withTimeout(promise, ms, fallback) { return Promise.race([promise, new Promise(res => setTimeout(() => res(fallback), ms))]); }
+  async function token() { try { const u = firebase.auth().currentUser; if (!u) return null; return await _withTimeout(u.getIdToken(), 8000, null); } catch (_) { return null; } }
+  async function _fetchT(url, opts, ms) { const c = new AbortController(); const id = setTimeout(() => c.abort(), ms || 12000); try { return await fetch(url, { ...(opts || {}), signal: c.signal }); } finally { clearTimeout(id); } }
   function withAuth(url, t) { return url + (t ? (url.indexOf('?') >= 0 ? '&' : '?') + 'auth=' + t : ''); }
   const AREAS = ['Estrategia', 'Producción', 'Creativa', 'Community', 'Pauta', 'Administrativa'];
   const _secondary = (function () { try { return (firebase.apps || []).find(a => a.name === 'vfbSecondary') || firebase.initializeApp(FBCFG, 'vfbSecondary'); } catch (_) { return null; } })();
@@ -58,7 +61,7 @@
   /* ---- Firebase REST (con token de sesión segura) ---- */
   async function fbGet(path) {
     const t = await token();
-    const r = await fetch(withAuth(`${RTDB}/${path}.json`, t));
+    const r = await _fetchT(withAuth(`${RTDB}/${path}.json`, t));
     if (!r.ok) throw new Error('fb get ' + r.status);
     return r.json();
   }
@@ -234,8 +237,8 @@
     const u = firebase.auth().currentUser || await _authReady;
     if (!u) return null;
     const username = (u.email || '').split('@')[0];
-    let perfil = null;
-    try { perfil = await fbGet('db/profiles/' + username); } catch (_) {}
+    let perfil = null, readOk = true;
+    try { perfil = await fbGet('db/profiles/' + username); } catch (_) { readOk = false; }
     perfil = perfil || {};
     const tieneProfile = Object.keys(perfil).length > 0;
     // Si no hay perfil de equipo, miramos db/creds (legible por usuarios autenticados) para saber
@@ -244,10 +247,12 @@
     //  - admin sin perfil pero en creds => equipo
     //  - cliente => solo creds type 'client' => NO es equipo
     //  - cuenta sin perfil ni creds => NO es equipo (no user creado = sin acceso)
-    let cred = null;
-    if (!tieneProfile) { try { cred = await fbGet('db/creds/' + username); } catch (_) {} }
+    let cred = null, credOk = true;
+    if (!tieneProfile) { try { cred = await fbGet('db/creds/' + username); } catch (_) { credOk = false; } }
+    // Si NINGUNA lectura funcionó (error de red, p. ej. Safari), no bloqueamos: el usuario ya se autenticó.
+    const lecturaFallo = !tieneProfile && !readOk && !credOk;
     const esAdmin = perfil.type === 'admin' || perfil.role === 'admin' || (cred && cred.type === 'admin');
-    const esEquipo = tieneProfile || (cred && cred.type === 'admin');
+    const esEquipo = tieneProfile || (cred && cred.type === 'admin') || lecturaFallo;
     const tipo = tieneProfile ? (perfil.type || (esAdmin ? 'admin' : 'team')) : (cred && cred.type === 'admin' ? 'admin' : (cred && cred.type === 'client' ? 'client' : 'none'));
     const area = perfil.area || (perfil.areas && perfil.areas[0]) || (esAdmin ? 'Administrativa' : (perfil.brand || ''));
     return { username, name: perfil.name || (cred && cred.name) || username, area, areas: perfil.areas || (area ? [area] : []), role: esAdmin ? 'admin' : (perfil.role || 'miembro'), type: tipo, esEquipo: !!esEquipo };

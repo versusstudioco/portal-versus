@@ -397,6 +397,7 @@ function boardHTML(data) {
       <span class="topbar__sub">${data.total || 0} piezas${data.semana ? ' esta semana' : ''} · <b>arrastra</b> una tarjeta a otra columna para cambiar su etapa</span>
       <button class="btn btn--primary btn--sm" id="flNueva">+ Nueva pieza</button>
     </div>
+    <div class="fl-hint-mobile">Desliza de lado para ver las etapas · toca una pieza para abrirla y cambiar su etapa.</div>
     <div class="fl-board">` + data.etapas.map(e => {
     const items = data.columnas[e.slug] || [];
     return `<div class="fl-col">
@@ -545,6 +546,7 @@ function openPieza(id, prefill) {
  const pubSection = `<div class="pz-plattabs">${PLATS.map(([pk, pl], i) => `<button type="button" class="pz-plattab${i === 0 ? ' active' : ''}${platHasData(pk) ? ' has' : ''}" data-plattab="${pk}">${pl}</button>`).join('')}</div>
  <div class="pz-platpanel">${PLATS.map(([pk]) => platPanel(pk)).join('')}</div>`;
  const html = `<div class="g-modal" id="pzModal"><div class="g-modal__box glass pz-box">
+ <button type="button" class="g-close" id="pzX" aria-label="Cerrar">✕</button>
  <div class="pz-head">
  <input id="pzMarca" class="pz-marca" placeholder="Marca" value="${esc(p.marca)}">
  <select id="pzEtapa" class="pz-etapa">${et.map(([v, l]) => `<option value="${v}" ${p.etapa === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
@@ -586,6 +588,7 @@ function openPieza(id, prefill) {
  document.body.insertAdjacentHTML('beforeend', html);
  const close = () => $('#pzModal').remove();
  $('#pzCancel').addEventListener('click', close);
+ $('#pzX').addEventListener('click', close);
  // Cerrar SOLO si el clic empieza y termina en el fondo (no cuando arrastras texto y sueltas fuera).
  let downOnBackdrop = false;
  $('#pzModal').addEventListener('mousedown', e => { downOnBackdrop = (e.target.id === 'pzModal'); });
@@ -2078,6 +2081,7 @@ function openTarea() {
   const people = (state.teamPeople || []); const me = state.me || {};
   const hoy = new Date().toISOString().slice(0, 10);
   const html = `<div class="g-modal" id="tkModal"><div class="g-modal__box glass">
+    <button type="button" class="g-close" id="tkX" aria-label="Cerrar">✕</button>
     <h3>Nueva tarea</h3>
     <div class="form-grid" style="margin:.6rem 0">
       <label class="select select--grow"><span>Tarea</span><input id="tkTitle" placeholder="Enviar cuentas de cobro / Reunión con cliente"></label>
@@ -2093,7 +2097,7 @@ function openTarea() {
   </div></div>`;
   document.body.insertAdjacentHTML('beforeend', html);
   const close = () => $('#tkModal').remove();
-  $('#tkCancel').onclick = close; $('#tkModal').onclick = e => { if (e.target.id === 'tkModal') close(); };
+  $('#tkCancel').onclick = close; $('#tkX').onclick = close; $('#tkModal').onclick = e => { if (e.target.id === 'tkModal') close(); };
   $('#tkSave').onclick = async () => {
     const title = $('#tkTitle').value.trim(); if (!title) { $('#tkTitle').focus(); return; }
     const colaboradores = $$('.tkColab').filter(c => c.checked).map(c => c.value);

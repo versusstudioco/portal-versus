@@ -1262,3 +1262,25 @@ body { overflow-x: hidden; }
 /* Métricas: la tabla hace scroll interno en móvil, no desborda la página */
 .tm-panel { overflow-x: auto; }
 .tm-table { min-width: 340px; }
+
+/* Fila de tarea: check pegado al nombre (no separados) */
+.md-trow { justify-content: flex-start !important; }
+.md-trow .md-row__t { flex: 1 1 auto; }
+
+/* X para cerrar modales (arriba a la derecha) */
+.g-modal__box { position: relative; }
+.g-close { position: absolute; top: 10px; right: 12px; width: 34px; height: 34px; border-radius: 50%; border: none; background: rgba(0,0,0,.06); color: var(--ink-60); font-size: 15px; font-weight: 700; cursor: pointer; z-index: 5; display: flex; align-items: center; justify-content: center; transition: background .12s, color .12s; }
+.g-close:hover { background: rgba(249,0,0,.12); color: #F90000; }
+.dark .g-close { background: rgba(255,255,255,.1); }
+
+/* Flujo usable en móvil: columnas que se deslizan de lado (swipe), toca una pieza para moverla */
+@media (max-width: 860px) {
+  .fl-board { display: flex !important; overflow-x: auto; gap: .7rem; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; padding-bottom: .5rem; }
+  .fl-col { flex: 0 0 82%; min-width: 82%; scroll-snap-align: start; }
+  .fl-top { flex-wrap: wrap; gap: .5rem; }
+  .fl-hint-mobile { display: block; }
+}
+.fl-hint-mobile { display: none; font-size: .8rem; color: var(--ink-60); margin: .2rem 0 .6rem; }
+
+/* Que la X no tape el selector de etapa en el editor de contenido */
+.pz-box .pz-head { padding-right: 42px; }
