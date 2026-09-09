@@ -1474,17 +1474,7 @@ async function marcaMetricas(marca) {
  const key = normKey(marca);
  const m = (state.metricas && state.metricas.marcas || []).find(x => normKey(x.marca) === key || normKey(x.marca).includes(key) || key.includes(normKey(x.marca)));
  const idx = m ? state.metricas.marcas.indexOf(m) : -1;
- const semanalCard = `<div class="est-ctx">
- <h4> Seguidores y visualizaciones por semana</h4>
- <p class="hub-hint" style="margin:.1rem 0 .7rem">Community registra el crecimiento de la cuenta — alimenta las métricas del cliente.</p>
- <div class="est-ctx-grid">
- <label class="select"><span>Semana · fecha de inicio</span><input id="swWeek" type="date"></label>
- <label class="select"><span>Seguidores</span><input id="swFollowers" type="number" min="0" placeholder="12500"></label>
- <label class="select"><span>Visualizaciones</span><input id="swViews" type="number" min="0" placeholder="84000"></label>
- </div>
- <button class="btn btn--ghost btn--sm" id="swSave" style="margin-top:.6rem">Guardar semana</button>
- <div id="swList" style="margin-top:.9rem"></div>
- </div>`;
+ const semanalCard = `<div class="est-ctx" id="wmCard"><div class="loading"><div class="spinner"></div>Cargando métricas por semana…</div></div>`;
  const pubCard = m ? `<div class="hub-metrics-top">
  <div class="g-stat"><b>${m.total || 0}</b><span>publicaciones</span></div>
  <div class="g-stat"><b>${fmtViews(m.medianaViews)}</b><span>mediana views</span></div>
@@ -1495,26 +1485,68 @@ async function marcaMetricas(marca) {
  <div class="m-ia-out" id="mia-${idx}"></div>`
  : '<div class="hub-empty">Aún no hay métricas de publicaciones del Portal de clientes para esta marca.</div>';
  pane.innerHTML = semanalCard + pubCard;
- // Registro semanal
- const swLoad = async () => {
- const r = await api('/api/marca/semanas?marca=' + encodeURIComponent(marca));
- const sem = (r.ok && r.data.semanas) || [];
- $('#swList').innerHTML = sem.length ? `<div class="eq-list">${sem.map(s => `
- <div class="eq-row"><div class="eq-row__id"><div class="eq-person__name">${esc(semanaLabel(s.semana))}</div></div>
- <div class="eq-person__tags"><span class="tag"> ${(+s.seguidores || 0).toLocaleString('es-CO')}</span><span class="tag">Vistas ${(+s.views || 0).toLocaleString('es-CO')}</span></div></div>`).join('')}</div>`
- : '<div class="empty">Sin semanas registradas todavía.</div>';
- };
- swLoad();
- (function(){ const l = startOfWeek(new Date()); const el2 = $('#swWeek'); if (el2 && !el2.value) el2.value = l.getFullYear() + '-' + String(l.getMonth() + 1).padStart(2, '0') + '-' + String(l.getDate()).padStart(2, '0'); })();
- $('#swSave').addEventListener('click', async () => {
- const body = { marca, semana: $('#swWeek').value, seguidores: $('#swFollowers').value, views: $('#swViews').value };
- if (!body.semana) { alert('Elige la semana.'); return; }
- const btn = $('#swSave'); btn.disabled = true; btn.textContent = 'Guardando…';
- const r = await api('/api/marca/semana', { method: 'POST', body });
- btn.disabled = false; btn.textContent = 'Guardar semana';
- if (r.ok) { $('#swFollowers').value = ''; $('#swViews').value = ''; swLoad(); } else alert(r.data.error || 'No se pudo');
- });
+ wmRender(marca);
  if (m) { const b = pane.querySelector('.m-ia'); if (b) b.addEventListener('click', (e) => analizarMarca(idx, e.target)); }
+}
+
+// Semanas de un ciclo (Sem1=d1-7, Sem2=d8-14, Sem3=d15-21, Sem4=resto) — igual que en el portal del cliente.
+function wmWeeks(cyc) {
+ if (!cyc || !cyc.start || !cyc.end) return [];
+ const s = new Date(cyc.start + 'T00:00:00'), e = new Date(cyc.end + 'T00:00:00');
+ if (isNaN(s) || isNaN(e)) return [];
+ const total = Math.round((e - s) / 86400000) + 1;
+ let lengths = [7, 7, 7, Math.max(7, total - 21)];
+ if (total <= 28) { const base = Math.floor(total / 4), rem = total % 4; lengths = [base, base, base, base]; for (let ri = 3; ri > 3 - rem; ri--) lengths[ri]++; }
+ const weeks = []; let cursor = new Date(s);
+ for (let j = 0; j < 4; j++) { const wStart = new Date(cursor); let wEnd = new Date(cursor); wEnd.setDate(wEnd.getDate() + lengths[j] - 1); if (j === 3) wEnd = new Date(e); weeks.push({ num: j + 1, start: wStart, end: wEnd }); cursor = new Date(wEnd); cursor.setDate(cursor.getDate() + 1); }
+ return weeks;
+}
+function wmISO(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function wmFecha(d) { return d.toLocaleDateString('es', { day: 'numeric', month: 'short' }); }
+async function wmRender(marca) {
+ const card = document.getElementById('wmCard'); if (!card) return;
+ const { ok, data } = await api('/api/marca/wm?marca=' + encodeURIComponent(marca));
+ if (!ok || !data.cu) { card.innerHTML = `<h4>Seguidores y visualizaciones por semana</h4><div class="md-none">Esta marca no está enlazada a un cliente del portal, o el cliente no existe. Se registra por <b>ciclo</b> y aparece en el portal del cliente.</div>`; return; }
+ if (!data.cycles.length) { card.innerHTML = `<h4>Seguidores y visualizaciones por semana</h4><div class="md-none">El cliente aún no tiene <b>ciclos</b> creados. Crea el ciclo primero para registrar sus semanas.</div>`; return; }
+ state._wm = data;
+ const cycOpts = data.cycles.slice().reverse().map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+ const platOpts = data.plats.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+ card.innerHTML = `<h4>Seguidores y visualizaciones por semana</h4>
+ <p class="hub-hint" style="margin:.1rem 0 .7rem">Elige el <b>ciclo</b> y registra cada semana (con su rango de fechas). Esto alimenta el "semana a semana" que ve el cliente.</p>
+ <div class="est-ctx-grid">
+ <label class="select"><span>Ciclo</span><select id="wmCyc">${cycOpts}</select></label>
+ <label class="select"><span>Plataforma</span><select id="wmPlat">${platOpts}</select></label>
+ </div>
+ <div id="wmWeeks" style="margin-top:.8rem"></div>`;
+ const draw = () => {
+ const cid = $('#wmCyc').value, plat = $('#wmPlat').value;
+ const cyc = data.cycles.find(c => c.id === cid); if (!cyc) return;
+ const key = (data.cu + '__' + cid + '__' + plat).replace(/[.#$/\[\]]/g, '_');
+ const saved = (data.weekMetrics && data.weekMetrics[key]) || {};
+ const weeks = wmWeeks(cyc);
+ $('#wmWeeks').innerHTML = weeks.map(w => {
+   const sv = saved[w.num] || {};
+   return `<div class="wm-week" data-week="${w.num}" data-date="${wmISO(w.start)}">
+     <div class="wm-week__h">Semana ${w.num} <span>${wmFecha(w.start)} – ${wmFecha(w.end)}</span></div>
+     <div class="wm-week__in">
+       <label class="select"><span>Seguidores</span><input class="wmF" type="number" min="0" value="${sv.followers != null ? sv.followers : ''}" placeholder="12500"></label>
+       <label class="select"><span>Visualizaciones</span><input class="wmV" type="number" min="0" value="${sv.views != null ? sv.views : ''}" placeholder="84000"></label>
+       <button class="btn btn--ghost btn--sm wmSave">Guardar</button>
+     </div></div>`;
+ }).join('');
+ $$('#wmWeeks .wmSave').forEach(btn => btn.addEventListener('click', async () => {
+   const row = btn.closest('.wm-week');
+   const body = { marca, cycle: cid, plat, week: row.dataset.week, weekDate: row.dataset.date, followers: row.querySelector('.wmF').value, views: row.querySelector('.wmV').value };
+   btn.disabled = true; btn.textContent = 'Guardando…';
+   const r = await api('/api/marca/wm', { method: 'POST', body });
+   btn.disabled = false; btn.textContent = r.ok ? 'Guardado ✓' : 'Guardar';
+   if (r.ok) { (data.weekMetrics[key] = data.weekMetrics[key] || {})[row.dataset.week] = { weekDate: body.weekDate, followers: +body.followers || 0, views: +body.views || 0 }; setTimeout(() => { if (btn.isConnected) btn.textContent = 'Guardar'; }, 1500); }
+   else alert(r.data.error || 'No se pudo');
+ }));
+ };
+ $('#wmCyc').addEventListener('change', draw);
+ $('#wmPlat').addEventListener('change', draw);
+ draw();
 }
 
 /* --- Archivos de la marca: Drive + logos + manual --- */

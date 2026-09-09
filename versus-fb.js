@@ -632,6 +632,35 @@
         };
         return { ok: true, data: cfg };
       }
+      if (p === '/api/marca/wm') {
+        // Métricas semanales (seguidores/vistas) conectadas al portal del cliente: db/weekMetrics[CU__ciclo__plat][semana].
+        const s = await sesionActual();
+        if (!s || !s.esEquipo) return { ok: false, status: 403, data: { error: 'Solo el equipo' } };
+        const marca = q.get('marca') || body.marca || '';
+        const norm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+        const creds = (await fbGet('db/creds').catch(() => ({}))) || {};
+        const km = norm(marca);
+        // Encontrar el usuario (CU) del cliente cuyo nombre coincide con la marca.
+        let cu = '';
+        Object.entries(creds).forEach(([u, v]) => { if (!cu && v && v.type === 'client' && (norm(v.name) === km || norm(u) === km || (km && norm(v.name).indexOf(km) >= 0) || (km && km.indexOf(norm(v.name)) >= 0))) cu = u; });
+        if (method === 'POST') {
+          if (!cu || !body.cycle || !body.week) return { ok: false, status: 400, data: { error: 'Falta cliente, ciclo o semana' } };
+          const plat = body.plat || 'Instagram';
+          const key = cu + '__' + body.cycle + '__' + plat;
+          const rec = { weekDate: body.weekDate || '', followers: +body.followers || 0, views: +body.views || 0 };
+          await fbPut('db/weekMetrics/' + fbKey(key) + '/' + (+body.week), rec);
+          return { ok: true, data: { ok: true } };
+        }
+        if (!cu) return { ok: true, data: { cu: '', cycles: [], plats: ['Instagram'], weekMetrics: {} } };
+        const [cyclesRaw, wmRaw, platCfg] = await Promise.all([
+          fbGet('db/cycles').catch(() => null), fbGet('db/weekMetrics').catch(() => null), fbGet('db/platCfg').catch(() => null)
+        ]);
+        const cycles = (Array.isArray(cyclesRaw) ? cyclesRaw : Object.values(cyclesRaw || {})).filter(c => c && c.brand === cu)
+          .map(c => ({ id: c.id, name: c.name, start: c.start, end: c.end, status: c.status })).sort((a, b) => String(a.start || a.id).localeCompare(String(b.start || b.id)));
+        const platsObj = (platCfg && platCfg[cu]) || {};
+        const plats = Object.keys(platsObj).filter(k => platsObj[k]);
+        return { ok: true, data: { cu, cycles, plats: plats.length ? plats : ['Instagram'], weekMetrics: wmRaw || {} } };
+      }
       if (p === '/api/marca/aprendizaje') {
         const marca = q.get('marca') || body.marca || '';
         if (method === 'POST') { const item = { id: uid(), kind: body.kind || 'nota', texto: String(body.texto || '').trim(), fuente: body.fuente || '', at: new Date().toISOString() }; await fbPut('gestor/marcas/' + fbKey(marca) + '/aprendizaje/' + item.id, item); return { ok: true, data: { ok: true, item } }; }

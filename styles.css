@@ -1284,3 +1284,10 @@ body { overflow-x: hidden; }
 
 /* Que la X no tape el selector de etapa en el editor de contenido */
 .pz-box .pz-head { padding-right: 42px; }
+
+/* Métricas semanales por ciclo (Team) */
+.wm-week { border: 1px solid var(--line); border-radius: 12px; padding: .7rem .9rem; margin-bottom: .6rem; }
+.wm-week__h { font-size: .88rem; font-weight: 700; margin-bottom: .5rem; display: flex; gap: .5rem; align-items: baseline; }
+.wm-week__h span { font-weight: 400; color: var(--ink-60); font-size: .78rem; }
+.wm-week__in { display: flex; gap: .6rem; flex-wrap: wrap; align-items: flex-end; }
+.wm-week__in .select { min-width: 120px; flex: 1; }
