@@ -342,62 +342,40 @@ function renderAlertas(d) {
 function renderMarcas(d) {
  renderAlertas(d);
  const me = state.me || {};
- const cal = state.gestionCal || [];
- const tasks = state.gestionTasks || [];
- // Semana actual (lun–dom)
- const ws = startOfWeek(new Date());
- const hoyISO = new Date().toISOString().slice(0, 10);
- const semana = DIAS_SEM.map((lbl, i) => {
- const dd = new Date(ws); dd.setDate(ws.getDate() + i);
- return { lbl, dia: dd.getDate(), iso: dd.toISOString().slice(0, 10), hoy: dd.toISOString().slice(0, 10) === hoyISO };
- });
-
+ const ciclo = d.ciclo || {};
+ const marcas = d.marcas || [];
  const contexto = `<div class="gw-ctx">
+ <div><span class="gw-ctx__k">Ciclo</span><b>${esc(ciclo.label || 'Sin ciclo')}</b>${ciclo.dia ? ` · día ${ciclo.dia}/${ciclo.dias || ''}` : ''}</div>
+ <div><span class="gw-ctx__k">Marcas</span><b>${marcas.length}</b></div>
  <div><span class="gw-ctx__k">Tu área</span><b>${esc(me.area || '—')}</b></div>
- <div><span class="gw-ctx__k">Ciclo</span><b>${esc((d.ciclo || {}).label || 'Sin ciclo')}</b>${(d.ciclo || {}).dia ? ` · día ${(d.ciclo).dia}/${(d.ciclo).dias || ''}` : ''}</div>
- <div><span class="gw-ctx__k">Semana</span><b>${semana[0].dia} – ${semana[6].dia}</b></div>
- </div>`;
+ </div>
+ <p class="hub-hint" style="margin:.2rem 0 .9rem">Cómo va cada marca frente a lo pactado del ciclo. Toca <b>Abrir</b> para ver su calendario, ciclo y estrategia.</p>`;
 
- const cards = d.marcas.map(m => {
+ const bar = (lbl, prog, meta) => {
+ prog = +prog || 0; meta = +meta || 0;
+ const pct = meta ? Math.min(100, Math.round(prog / meta * 100)) : (prog ? 100 : 0);
+ const col = meta && prog >= meta ? '#1e8e3e' : prog ? '#F90000' : '#d0d0d0';
+ return `<div class="gm-bar"><div class="gm-bar__l"><span>${lbl}</span><b>${prog}/${meta || '—'}</b></div><div class="gm-track"><div class="gm-fill" style="width:${pct}%;background:${col}"></div></div></div>`;
+ };
+
+ const cards = marcas.map(m => {
  const c = m.compromiso, st = ESTADO_INFO[c.estado] || ESTADO_INFO.al_dia;
- const nb = normStr(m.marca);
- const misTareas = tasks.filter(t => t.status !== 'hecho' && normStr(t.cliente) && (normStr(t.cliente).includes(nb) || nb.includes(normStr(t.cliente))));
- const dias = semana.map(day => {
- const piezas = cal.filter(it => normStr(it.marca) === nb && it.fecha === day.iso);
- return `<div class="gw-day ${day.hoy ? 'gw-day--hoy' : ''} ${piezas.length ? 'gw-day--has' : ''}">
- <span class="gw-day__l">${day.lbl}</span><span class="gw-day__n">${day.dia}</span>
- ${piezas.length ? `<span class="gw-day__c">${piezas.length}</span>` : ''}
- </div>`;
- }).join('');
- const falta = c.creativos.faltanProgramar;
- return `
- <div class="gw-card">
- <div class="gw-card__head">
- <div><div class="g-card__name">${esc(m.marca)}</div>
- <div class="g-card__sector">${esc(m.sector)} · ${c.creativos.programados}/${c.creativos.meta} en cronograma${falta ? ` · falta ${falta}` : ''}</div></div>
- <span class="g-status ${st.cls}">${st.label}</span>
- </div>
- <div class="gw-week">${dias}</div>
- <div class="gw-tasks">
- <div class="gw-tasks__h">Mis tareas <span>${misTareas.length}</span></div>
- ${misTareas.length ? misTareas.map(t => `
- <div class="gw-task ${t.overdue ? 'gw-task--late' : ''}">
- <span class="gw-task__t">${esc(t.title)}</span>
- <span class="gw-task__d">${t.dueDate ? esc(t.dueDate.slice(5)) : ''}</span>
- </div>`).join('') : '<div class="gw-none">Sin tareas asignadas para este cliente</div>'}
- </div>
- <div class="gw-card__foot">
- <button class="btn btn--ghost btn--sm g-open" data-marca="${esc(m.marca)}" data-sector="${esc(m.sector || '')}">Abrir marca</button>
- </div>
+ const faltas = [];
+ if (c.creativos.faltanProgramar) faltas.push(`${c.creativos.faltanProgramar} creativo${c.creativos.faltanProgramar > 1 ? 's' : ''}`);
+ if (c.historias.faltanProgramar) faltas.push(`${c.historias.faltanProgramar} historia${c.historias.faltanProgramar > 1 ? 's' : ''}`);
+ return `<div class="gm-card">
+ <div class="gm-card__head"><div><div class="g-card__name">${esc(m.marca)}</div><div class="g-card__sector">${esc(m.sector || '')}</div></div><span class="g-status ${st.cls}">${st.label}</span></div>
+ ${bar('Creativos', c.creativos.programados, c.creativos.meta)}
+ ${bar('Historias', c.historias.programados, c.historias.meta)}
+ <div class="gm-foot">${faltas.length ? `<span class="gm-falta">Falta programar ${faltas.join(' y ')}</span>` : '<span class="gm-ok">✓ Todo programado</span>'}<button class="btn btn--ghost btn--sm g-open" data-marca="${esc(m.marca)}" data-sector="${esc(m.sector || '')}">Abrir</button></div>
  </div>`;
  }).join('');
 
- $('#gMarcas').innerHTML = contexto + '<div class="gw-grid">' + cards + '</div>';
+ $('#gMarcas').innerHTML = contexto + '<div class="gm-grid">' + (cards || '<div class="empty">Aún no hay marcas.</div>') + '</div>';
  $$('.g-open').forEach(b => b.addEventListener('click', () => {
  document.querySelector('.nav__item[data-view="archivos"]')?.click();
  setTimeout(() => openMarca(b.dataset.marca, b.dataset.sector), 350);
  }));
- $$('[data-goto2]').forEach(b => b.addEventListener('click', () => document.querySelector(`.nav__item[data-view="${b.dataset.goto2}"]`)?.click()));
 }
 
 /* ---------------- Flujo de piezas (tablero por etapa) ---------------- */
@@ -492,9 +470,8 @@ async function loadFlujo() {
   state.piezas = {}; all.forEach(p => state.piezas[p.id] = p);
   const sem = piezasSemana(data.columnas);
   const dataSemana = { etapas: data.etapas, columnas: sem.columnas, total: sem.total, semana: true };
-  out.innerHTML = pendientesHTML(all) + '<div id="flBoard"></div>';
+  out.innerHTML = '<div id="flBoard"></div>';
   const bd = $('#flBoard'); bd.innerHTML = boardHTML(dataSemana); bindBoard(bd, loadFlujo);
-  bindPendientes(out);
 }
 function refreshPiezaView() {
  const flujoVisible = document.getElementById('view-flujo') && !document.getElementById('view-flujo').classList.contains('hidden');
@@ -2019,12 +1996,18 @@ async function loadInicio() {
    <div class="md-hero__chips"><span><b>${hoy.length}</b> hoy</span><span><b>${contArr.length}</b> en contenido</span>${me.area ? `<span>${esc(me.area)}</span>` : ''}</div>
  </div>
  <div class="md-actions"><button class="btn btn--primary btn--sm" id="mdNewTask">+ Nueva tarea</button><button class="btn btn--ghost btn--sm" id="mdNewContent">+ Nuevo contenido</button></div>
- <div class="md-grid">`;
-
- html += `<section class="md-card"><div class="md-card__h">Tareas de hoy</div>${hoy.length ? capBlock(hoy, tRow, 'tareas') : '<div class="md-none">Sin tareas para hoy.</div>'}</section>`;
- html += `<section class="md-card"><div class="md-card__h">Tareas de la semana</div>${proximas.length ? capBlock(proximas, tRow, 'semana') : '<div class="md-none">Nada más programado esta semana.</div>'}</section>`;
- html += `<section class="md-card md-card--wide"><div class="md-card__h">${contTitle}</div>${contArr.length ? capBlock(contArr, contRow, 'cont') : '<div class="md-none">Nada de contenido para hoy.</div>'}</section>`;
- html += `</div>`;
+ <div class="md-2col">
+   <section class="md-card md-main">
+     <div class="md-card__h">Contenido de hoy</div>
+     ${contArr.length ? capBlock(contArr, contRow, 'cont') : '<div class="md-none">Nada de contenido para hoy.</div>'}
+   </section>
+   <section class="md-card md-side">
+     <div class="md-card__h">Tareas de hoy</div>
+     ${hoy.length ? capBlock(hoy, tRow, 'tareas') : '<div class="md-none">Sin tareas para hoy.</div>'}
+     <div class="md-subh">Esta semana</div>
+     ${proximas.length ? capBlock(proximas, tRow, 'semana') : '<div class="md-none">Nada más programado.</div>'}
+   </section>
+ </div>`;
 
  out.innerHTML = html;
  bindDashRows(out);
@@ -2109,9 +2092,17 @@ async function loadCalendario() {
  ${items.map(p => `<div class="cal__item cal-pz" data-id="${p.id}" title="${esc(p.marca)} · ${esc(p.tipo)} · ${esc(p.etapa)}"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${esc(p.marca)}</div>`).join('')}
  </div>`;
  }
- out.innerHTML = `<p class="topbar__sub" style="margin-bottom:1rem">${porDia && piezas.length} piezas en ${esc(CAL_MESES[m - 1])} ${y} · toca una para ver el guion y la etapa</p>
+ out.innerHTML = `<div class="cal-toolbar">
+   <button class="btn btn--primary btn--sm" id="calNewTask">+ Tarea</button>
+   <button class="btn btn--ghost btn--sm" id="calNewContent">+ Contenido</button>
+   <button class="btn btn--ghost btn--sm" id="calNewMeet">+ Reunión</button>
+ </div>
+ <p class="topbar__sub" style="margin-bottom:1rem">${porDia && piezas.length} piezas en ${esc(CAL_MESES[m - 1])} ${y} · toca una para ver el guion y la etapa</p>
  <div class="cal">${celdas}</div>`;
  $$('.cal-pz').forEach(el => el.addEventListener('click', () => openPieza(el.dataset.id)));
+ const bt = $('#calNewTask'); if (bt) bt.onclick = openTarea;
+ const bc = $('#calNewContent'); if (bc) bc.onclick = () => openPieza(null);
+ const bm = $('#calNewMeet'); if (bm) bm.onclick = openNuevaReunion;
 }
 
 /* ---------------- Tendencias: modo En vivo / Biblioteca ---------------- */
