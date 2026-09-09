@@ -691,7 +691,7 @@ async function loadCommunity() {
  <p class="hub-hint" style="margin:.1rem 0 .8rem">Community registra el crecimiento de cada marca — alimenta las métricas del cliente.</p>
  <div class="form-grid">
  <label class="select"><span>Marca</span><select id="cwMarca">${cwMarcas.map(m => `<option value="${esc(m.marca)}">${esc(m.marca)}</option>`).join('')}</select></label>
- <label class="select"><span>Semana</span><input id="cwWeek" type="week"></label>
+ <label class="select"><span>Semana · fecha de inicio</span><input id="cwWeek" type="date"></label>
  <label class="select"><span>Seguidores</span><input id="cwFollowers" type="number" min="0" placeholder="ej: 12500"></label>
  <label class="select"><span>Visualizaciones (semana)</span><input id="cwViews" type="number" min="0" placeholder="ej: 84000"></label>
  </div>
@@ -728,11 +728,12 @@ async function loadCommunity() {
  const r = await api('/api/marca/semanas?marca=' + encodeURIComponent(marca));
  const sem = (r.ok && r.data.semanas) || [];
  $('#cwList').innerHTML = sem.length ? `<div class="eq-list">${sem.map(s => `
- <div class="eq-row"><div class="eq-row__id"><div class="eq-person__name">${esc(s.semana)}</div></div>
+ <div class="eq-row"><div class="eq-row__id"><div class="eq-person__name">${esc(semanaLabel(s.semana))}</div></div>
  <div class="eq-person__tags"><span class="tag"> ${(+s.seguidores || 0).toLocaleString('es-CO')} seguidores</span><span class="tag">Vistas ${(+s.views || 0).toLocaleString('es-CO')} views</span></div></div>`).join('')}</div>`
  : '<div class="empty">Aún no hay semanas registradas para esta marca.</div>';
  };
  if ($('#cwMarca')) { $('#cwMarca').addEventListener('change', cwLoad); cwLoad(); }
+ (function(){ const l = startOfWeek(new Date()); const el2 = $('#cwWeek'); if (el2 && !el2.value) el2.value = l.getFullYear() + '-' + String(l.getMonth() + 1).padStart(2, '0') + '-' + String(l.getDate()).padStart(2, '0'); })();
  if ($('#cwSave')) $('#cwSave').addEventListener('click', async () => {
  const body = { marca: $('#cwMarca').value, semana: $('#cwWeek').value, seguidores: $('#cwFollowers').value, views: $('#cwViews').value };
  if (!body.semana) { alert('Elige la semana.'); return; }
@@ -1477,7 +1478,7 @@ async function marcaMetricas(marca) {
  <h4> Seguidores y visualizaciones por semana</h4>
  <p class="hub-hint" style="margin:.1rem 0 .7rem">Community registra el crecimiento de la cuenta — alimenta las métricas del cliente.</p>
  <div class="est-ctx-grid">
- <label class="select"><span>Semana</span><input id="swWeek" type="week"></label>
+ <label class="select"><span>Semana · fecha de inicio</span><input id="swWeek" type="date"></label>
  <label class="select"><span>Seguidores</span><input id="swFollowers" type="number" min="0" placeholder="12500"></label>
  <label class="select"><span>Visualizaciones</span><input id="swViews" type="number" min="0" placeholder="84000"></label>
  </div>
@@ -1499,11 +1500,12 @@ async function marcaMetricas(marca) {
  const r = await api('/api/marca/semanas?marca=' + encodeURIComponent(marca));
  const sem = (r.ok && r.data.semanas) || [];
  $('#swList').innerHTML = sem.length ? `<div class="eq-list">${sem.map(s => `
- <div class="eq-row"><div class="eq-row__id"><div class="eq-person__name">${esc(s.semana)}</div></div>
+ <div class="eq-row"><div class="eq-row__id"><div class="eq-person__name">${esc(semanaLabel(s.semana))}</div></div>
  <div class="eq-person__tags"><span class="tag"> ${(+s.seguidores || 0).toLocaleString('es-CO')}</span><span class="tag">Vistas ${(+s.views || 0).toLocaleString('es-CO')}</span></div></div>`).join('')}</div>`
  : '<div class="empty">Sin semanas registradas todavía.</div>';
  };
  swLoad();
+ (function(){ const l = startOfWeek(new Date()); const el2 = $('#swWeek'); if (el2 && !el2.value) el2.value = l.getFullYear() + '-' + String(l.getMonth() + 1).padStart(2, '0') + '-' + String(l.getDate()).padStart(2, '0'); })();
  $('#swSave').addEventListener('click', async () => {
  const body = { marca, semana: $('#swWeek').value, seguidores: $('#swFollowers').value, views: $('#swViews').value };
  if (!body.semana) { alert('Elige la semana.'); return; }
@@ -1997,6 +1999,13 @@ function relFecha(iso) {
  if (diff > 1 && diff <= 6) return dow;
  if (diff < -1 && diff >= -6) return 'hace ' + (-diff) + ' días';
  return d.toLocaleDateString('es', { day: 'numeric', month: 'short' });
+}
+// Etiqueta legible de una semana guardada. Acepta fecha (YYYY-MM-DD, nuevo) o formato viejo (2026-W37).
+function semanaLabel(v) {
+ const s = String(v || '');
+ const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+ if (m) { const d = new Date(+m[1], +m[2] - 1, +m[3]); if (!isNaN(d)) return 'Semana del ' + d.toLocaleDateString('es', { day: 'numeric', month: 'short' }); }
+ return s;
 }
 function mdEmpty(titulo, sub) {
  return `<div class="md-empty2"><div class="md-empty2__i" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12h8"/></svg></div><div class="md-empty2__t">${esc(titulo)}</div><div class="md-empty2__s">${esc(sub || '')}</div></div>`;
