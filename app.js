@@ -2006,8 +2006,7 @@ async function loadInicio() {
  const TASK_ST = { pendiente: 'Pendiente', en_curso: 'En proceso', hecho: 'Terminada' };
  const TASK_NEXT = { pendiente: 'en_curso', en_curso: 'hecho', hecho: 'pendiente' };
  const PRIO_DOT = { alta: '#F90000', media: '#f59e0b', baja: '#9aa0a6' };
- const STATE_IC = { pendiente: '○', en_curso: '◐', hecho: '✓' };
- const tRow = t => `<div class="md-row${t.status === 'hecho' ? ' md-row--done' : ''}"><div class="md-row__t"><span class="md-pd" style="background:${PRIO_DOT[t.priority] || '#ccc'}"></span>${esc(t.title)}<small>${[t.categoria && t.categoria !== 'General' ? t.categoria : '', t.cliente || '', horaTxt(t)].filter(Boolean).join(' · ')}${t.dueDate ? ' · ' + relFecha(t.dueDate) : ''}${t.overdue ? ' · atrasada' : ''}${t.compartida ? ' · compartida' : ''}</small></div><div class="md-row__r"><button class="md-state st-${t.status}" data-st="${t.id}" data-next="${TASK_NEXT[t.status] || 'pendiente'}" title="Clic para cambiar de estado">${STATE_IC[t.status] || '○'} ${TASK_ST[t.status] || 'Pendiente'}</button></div></div>`;
+ const tRow = t => `<div class="md-row md-trow" data-trow="${t.id}"><button class="md-chk" data-check="${t.id}" aria-label="Marcar como hecha" title="Marcar como hecha"></button><div class="md-row__t"><span class="md-pd" style="background:${PRIO_DOT[t.priority] || '#ccc'}"></span>${esc(t.title)}<small>${[t.categoria && t.categoria !== 'General' ? t.categoria : '', t.cliente || '', horaTxt(t)].filter(Boolean).join(' · ')}${t.dueDate ? ' · ' + relFecha(t.dueDate) : ''}${t.overdue ? ' · atrasada' : ''}${t.compartida ? ' · compartida' : ''}</small></div></div>`;
  const accionDe = p => (p.fecha && p.fecha <= hoyISO && p.etapa === 'editada') ? 'Publicar' : (ETAPA_ACCION[p.etapa] || '');
  const pRow = (p, dot) => `<div class="md-row" data-pieza="${p.id}"><div class="md-row__t"><span class="md-dotc md-dotc--${dot}"></span>${esc(p.marca)} · ${esc(p.idea || '')}<small>${p.numero ? '#' + esc(p.numero) + ' · ' : ''}${esc(p.tipo || '')}${p.fecha ? ' · publica ' + relFecha(p.fecha) : (p.fechaEntrega ? ' · entrega ' + relFecha(p.fechaEntrega) : '')}</small></div><div class="md-row__r">${accionDe(p) ? `<span class="md-act">${accionDe(p)}</span>` : ''}</div></div>`;
  const CAP = 6;
@@ -2056,7 +2055,14 @@ async function loadInicio() {
  const nc = $('#mdNewContent'); if (nc) nc.onclick = () => openPieza(null);
 }
 function bindDashRows(scope) {
- scope.querySelectorAll('.md-state').forEach(b => b.addEventListener('click', async e => { e.stopPropagation(); const id = b.dataset.st, next = b.dataset.next; b.disabled = true; await api('/api/team/task-status', { method: 'POST', body: { id, status: next } }); loadInicio(); }));
+ scope.querySelectorAll('.md-chk').forEach(b => b.addEventListener('click', async e => {
+   e.stopPropagation();
+   const id = b.dataset.check; const row = b.closest('.md-trow');
+   b.classList.add('md-chk--done'); if (row) row.classList.add('md-row--doing'); // feedback: se marca y luego sale
+   await api('/api/team/task-status', { method: 'POST', body: { id, status: 'hecho' } });
+   const inLista = b.closest('#listaModal');
+   setTimeout(() => { if (inLista && row) { row.remove(); } loadInicio(); }, 430);
+ }));
  scope.querySelectorAll('[data-pieza]').forEach(el => el.addEventListener('click', e => { if (e.target.closest('.md-wa')) return; openPieza(el.dataset.pieza); }));
  scope.querySelectorAll('.md-wa').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); window.open('https://wa.me/?text=' + b.dataset.wa, '_blank'); }));
  scope.querySelectorAll('.md-brow').forEach(b => b.addEventListener('click', () => { const marca = b.dataset.marca; const nav = document.querySelector('.nav__item[data-view="archivos"]'); if (nav) nav.click(); setTimeout(() => openMarca(marca, ''), 400); }));

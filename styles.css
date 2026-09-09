@@ -1199,7 +1199,7 @@ body { overflow-x: hidden; }
 }
 
 /* Dashboard v4 — tarjetas iguales, ordenadas, sutiles (estilo panel) */
-.md-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; align-items: stretch; max-width: 1080px; margin-bottom: 1.2rem; }
+.md-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; align-items: stretch; margin-bottom: 1.2rem; }
 .md-cards .md-card { display: flex; flex-direction: column; min-height: 210px; padding: 1.1rem 1.2rem; }
 .md-card--wide { grid-column: 1 / -1; }
 .md-card__t { display: flex; align-items: center; gap: .5rem; font-size: 1rem; font-weight: 800; letter-spacing: -.01em; margin-bottom: .7rem; }
@@ -1234,3 +1234,31 @@ body { overflow-x: hidden; }
 .tm-table td { padding: .45rem .5rem; border-top: 1px solid var(--line); }
 .tm-table td.tm-red { color: #F90000; font-weight: 700; }
 .tm-none { color: var(--ink-40); text-align: center; padding: 1rem 0; }
+
+/* Check de tarea estilo Apple (marca visible y luego sale de la lista) */
+.md-trow { gap: .7rem; }
+.md-chk { flex: none; width: 22px; height: 22px; border-radius: 7px; border: 2px solid rgba(0,0,0,.25); background: transparent; cursor: pointer; padding: 0; position: relative; transition: border-color .15s, background .15s, transform .1s; }
+.md-chk:hover { border-color: #1e8e3e; }
+.md-chk:active { transform: scale(.9); }
+.md-chk::after { content: ""; position: absolute; left: 6px; top: 2px; width: 5px; height: 10px; border: solid #fff; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg) scale(0); transition: transform .18s cubic-bezier(.2,.8,.3,1.4); }
+.md-chk--done { background: #1e8e3e; border-color: #1e8e3e; }
+.md-chk--done::after { transform: rotate(45deg) scale(1); }
+.dark .md-chk { border-color: rgba(255,255,255,.3); }
+.md-row--doing { animation: mdDone .43s ease forwards; }
+.md-row--doing .md-row__t > *:not(small) { text-decoration: line-through; }
+@keyframes mdDone { 0% { opacity: 1; } 60% { opacity: .55; } 100% { opacity: 0; transform: translateX(6px); height: 0; padding: 0; margin: 0; overflow: hidden; } }
+
+/* Perfiles del equipo — orden en móvil */
+.eq-person__actions { display: flex; gap: .4rem; align-items: center; flex-shrink: 0; }
+.eq-mini { font-family: var(--font); font-size: .78rem; font-weight: 700; padding: .35rem .7rem; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--ink-60); cursor: pointer; }
+.eq-mini:hover { border-color: var(--red, #F90000); color: var(--red, #F90000); }
+@media (max-width: 640px) {
+  .eq-person { flex-wrap: wrap; row-gap: .6rem; }
+  .eq-person__id { flex: 1 1 60%; }
+  .eq-person__actions { order: 2; margin-left: auto; }
+  .eq-person__tags { order: 3; width: 100%; }
+}
+
+/* Métricas: la tabla hace scroll interno en móvil, no desborda la página */
+.tm-panel { overflow-x: auto; }
+.tm-table { min-width: 340px; }
