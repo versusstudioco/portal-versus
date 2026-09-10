@@ -1434,10 +1434,9 @@ async function marcaCalendario(marca) {
  state.piezas = state.piezas || {}; mine.forEach(p => state.piezas[p.id] = p);
  const creativos = mine.filter(p => p.tipo !== 'Historia').length;
  const historias = mine.filter(p => p.tipo === 'Historia').length;
- // El calendario de gestión muestra SOLO creativos (post, carrusel, reel, banner). Las historias se cuentan aparte.
- const soloCreativos = mine.filter(p => p.tipo !== 'Historia');
- const conFecha = soloCreativos.filter(p => p.fecha || p.fechaEntrega).sort((a, b) => (a.fecha || a.fechaEntrega).localeCompare(b.fecha || b.fechaEntrega));
- const sinFecha = soloCreativos.filter(p => !(p.fecha || p.fechaEntrega));
+ // El calendario de la marca muestra TODO (creativos e historias).
+ const conFecha = mine.filter(p => p.fecha || p.fechaEntrega).sort((a, b) => (a.fecha || a.fechaEntrega).localeCompare(b.fecha || b.fechaEntrega));
+ const sinFecha = mine.filter(p => !(p.fecha || p.fechaEntrega));
  if (!state.marcaCalYM) {
  const ref = (conFecha.length ? (conFecha[conFecha.length - 1].fecha || conFecha[conFecha.length - 1].fechaEntrega) : new Date().toISOString().slice(0, 10));
  const [ry, rm] = ref.split('-'); state.marcaCalYM = { y: +ry, m: +rm };
@@ -2199,7 +2198,8 @@ async function loadCalendario() {
  out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando calendario…</div>';
  // Usa las PIEZAS reales (con id + etapa) para que cada una abra su ficha.
  const { data } = await api('/api/piezas');
- const piezas = Object.values(data.columnas || {}).flat().filter(p => p.fecha);
+ // El calendario general muestra creativos (post, reel, carrusel, banner) — NO historias.
+ const piezas = Object.values(data.columnas || {}).flat().filter(p => p.fecha && p.tipo !== 'Historia');
  state.piezas = state.piezas || {};
  piezas.forEach(p => state.piezas[p.id] = p);
  // Mes: el del primer item, o el actual.
@@ -2217,9 +2217,9 @@ async function loadCalendario() {
  for (let d = 1; d <= dias; d++) {
  const iso = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
  const items = porDia[iso] || [];
- celdas += `<div class="cal__cell ${iso === hoyISO ? 'cal__cell--hoy' : ''}">
+ celdas += `<div class="cal__cell ${iso === hoyISO ? 'cal__cell--hoy' : ''}" data-iso="${iso}">
  <div class="cal__num">${d}</div>
- ${items.map(p => `<div class="cal__item cal-pz" data-id="${p.id}" title="${esc(p.marca)} · ${esc(p.tipo)} · ${esc(p.etapa)}"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${esc(p.marca)}</div>`).join('')}
+ ${items.map(p => `<div class="cal__item cal-pz" draggable="true" data-id="${p.id}" title="${esc(p.marca)} · ${esc(p.tipo)} · ${esc(p.etapa)} — arrastra para cambiar la fecha"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${esc(p.marca)}</div>`).join('')}
  </div>`;
  }
  out.innerHTML = `<div class="cal-toolbar">
@@ -2229,7 +2229,25 @@ async function loadCalendario() {
  </div>
  <p class="topbar__sub" style="margin-bottom:1rem">${porDia && piezas.length} piezas en ${esc(CAL_MESES[m - 1])} ${y} · toca una para ver el guion y la etapa</p>
  <div class="cal">${celdas}</div>`;
- $$('.cal-pz').forEach(el => el.addEventListener('click', () => openPieza(el.dataset.id)));
+ $$('.cal-pz').forEach(el => {
+   el.addEventListener('click', () => { if (!el._drag) openPieza(el.dataset.id); });
+   el.addEventListener('dragstart', e => { el._drag = true; e.dataTransfer.setData('text/plain', el.dataset.id); e.dataTransfer.effectAllowed = 'move'; setTimeout(() => el.classList.add('dragging'), 0); });
+   el.addEventListener('dragend', () => { el.classList.remove('dragging'); setTimeout(() => el._drag = false, 60); });
+ });
+ $$('#calendarioOut .cal__cell').forEach(cell => {
+   if (!cell.dataset.iso) return;
+   cell.addEventListener('dragover', e => { e.preventDefault(); cell.classList.add('cal__cell--over'); });
+   cell.addEventListener('dragleave', () => cell.classList.remove('cal__cell--over'));
+   cell.addEventListener('drop', async e => {
+     e.preventDefault(); cell.classList.remove('cal__cell--over');
+     const id = e.dataTransfer.getData('text/plain'), iso = cell.dataset.iso;
+     if (!id || !iso) return;
+     const p = state.piezas[id]; if (p && p.fecha === iso) return;
+     if (p) p.fecha = iso;
+     await api('/api/piezas/update', { method: 'POST', body: { id, fecha: iso } });
+     loadCalendario();
+   });
+ });
  const bt = $('#calNewTask'); if (bt) bt.onclick = openTarea;
  const bc = $('#calNewContent'); if (bc) bc.onclick = () => openPieza(null);
  const bm = $('#calNewMeet'); if (bm) bm.onclick = openNuevaReunion;

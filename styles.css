@@ -1298,3 +1298,8 @@ body { overflow-x: hidden; }
 .cl-pass__btn:hover { border-color: var(--red, #F90000); }
 .dark .cl-pass__btn { background: rgba(255,255,255,.08); }
 .cl-pass__none { font-size: .74rem; color: var(--ink-40); }
+
+/* Calendario general: arrastrar tarjetas para cambiar de fecha */
+.cal__item.cal-pz[draggable="true"] { cursor: grab; }
+.cal__item.cal-pz.dragging { opacity: .4; }
+.cal__cell--over { outline: 2px dashed var(--red, #F90000); outline-offset: -2px; background: rgba(249,0,0,.05); }
