@@ -1635,6 +1635,28 @@ async function marcaArchivos(marca) {
 }
 
 /* --- Configuración de la marca: logo + usuarios de redes (cualquiera del equipo puede editar) --- */
+async function marcaClienteAcceso(marca) {
+ const box = $('#cfCliente'); if (!box) return;
+ const { ok, data } = await api('/api/marca/cliente?marca=' + encodeURIComponent(marca));
+ if (!ok || !data.usuario) { box.innerHTML = '<div class="md-none">Esta marca no está enlazada a una cuenta de cliente (el nombre debe coincidir con el cliente).</div>'; return; }
+ box.innerHTML = `
+ <div class="cl-acc">
+   <div class="cl-acc__row"><span>Usuario</span><b>@${esc(data.usuario)}</b></div>
+   <div class="cl-acc__row"><span>Contraseña</span>${data.pass ? `<button class="cl-pass__btn" data-pass="${esc(data.pass)}" title="Ver/ocultar">••••••</button>` : '<span class="cl-pass__none">encriptada (se restablece en Firebase)</span>'}</div>
+ </div>
+ <div class="plat-row" style="margin-top:.6rem">
+   <input class="plat-row__user" id="cfCliPass" type="text" placeholder="Nueva contraseña (mín. 6)">
+   <button class="btn btn--ghost btn--sm" id="cfCliSave">Cambiar contraseña</button>
+ </div>`;
+ const pb = box.querySelector('.cl-pass__btn'); if (pb) pb.addEventListener('click', () => { const sh = pb.dataset.shown === '1'; pb.textContent = sh ? '••••••' : pb.dataset.pass; pb.dataset.shown = sh ? '0' : '1'; });
+ const save = $('#cfCliSave'); if (save) save.addEventListener('click', async () => {
+   const np = ($('#cfCliPass').value || ''); if (np.length < 6) { alert('La contraseña debe tener 6 o más caracteres.'); return; }
+   save.disabled = true; save.textContent = 'Cambiando…';
+   const r = await api('/api/marca/cliente', { method: 'POST', body: { marca, newPass: np } });
+   save.disabled = false; save.textContent = 'Cambiar contraseña';
+   if (r.ok) { alert('Contraseña actualizada. El cliente ya entra con la nueva.'); marcaClienteAcceso(marca); } else alert(r.data.error || 'No se pudo');
+ });
+}
 async function marcaConfig(marca) {
  const pane = $('#marcaPane');
  pane.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando configuración…</div>';
@@ -1664,8 +1686,10 @@ async function marcaConfig(marca) {
  </div>`).join('')}
  </div>
  <button class="btn btn--primary btn--sm" id="cfSave" style="margin-top:.7rem">Guardar</button>
- </div>`;
+ </div>
+ ${isAdmin() ? `<div class="est-ctx" style="margin-top:1rem"><h4> Acceso del cliente <span class="hub-hint" style="display:inline;margin:0">— con esto entra a /clientes/</span></h4><div id="cfCliente"><div class="hub-hint">Cargando…</div></div></div>` : ''}`;
 
+ if (isAdmin()) marcaClienteAcceso(marca);
  const inp = pane.querySelector('.hub-file-input');
  if (inp) inp.addEventListener('change', async () => {
  const file = inp.files[0]; if (!file) return;

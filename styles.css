@@ -1303,3 +1303,8 @@ body { overflow-x: hidden; }
 .cal__item.cal-pz[draggable="true"] { cursor: grab; }
 .cal__item.cal-pz.dragging { opacity: .4; }
 .cal__cell--over { outline: 2px dashed var(--red, #F90000); outline-offset: -2px; background: rgba(249,0,0,.05); }
+
+/* Acceso del cliente en config de marca */
+.cl-acc { display: flex; flex-direction: column; gap: .4rem; }
+.cl-acc__row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; font-size: .9rem; padding: .4rem .1rem; border-bottom: 1px solid var(--line); }
+.cl-acc__row span { color: var(--ink-60); }

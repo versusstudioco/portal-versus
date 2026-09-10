@@ -637,6 +637,34 @@
         };
         return { ok: true, data: cfg };
       }
+      if (p === '/api/marca/cliente') {
+        // Acceso del cliente de una marca (usuario + contraseña). Solo admin.
+        const s = await sesionActual();
+        if (!s || s.role !== 'admin') return { ok: false, status: 403, data: { error: 'Solo el administrador' } };
+        const marca = q.get('marca') || body.marca || '';
+        const norm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+        const [credsTeam, credsCli] = await Promise.all([fbGet('db/creds').catch(() => ({})), fbGet('creds').catch(() => ({}))]);
+        const km = norm(marca);
+        let cu = '';
+        const buscar = obj => Object.entries(obj || {}).forEach(([u, v]) => { if (!cu && v && v.type === 'client' && (norm(v.name) === km || norm(u) === km || (km && norm(v.name).indexOf(km) >= 0) || (km && km.indexOf(norm(v.name)) >= 0))) cu = u; });
+        buscar(credsCli); buscar(credsTeam);
+        if (!cu) return { ok: true, data: { usuario: '', pass: '' } };
+        const cur = (credsCli[cu] && credsCli[cu].pass) || (credsTeam[cu] && credsTeam[cu].pass) || '';
+        if (method === 'POST') {
+          const nueva = String(body.newPass || '');
+          if (nueva.length < 6) return { ok: false, status: 400, data: { error: 'La contraseña debe tener 6 o más caracteres' } };
+          if (!_secondary || !cur) return { ok: false, status: 400, data: { error: 'No se puede cambiar automáticamente (no tenemos la contraseña actual). Restablécela en la consola de Firebase.' } };
+          try {
+            await _secondary.auth().signInWithEmailAndPassword(cu + EMAIL_DOM, cur);
+            await _secondary.auth().currentUser.updatePassword(nueva);
+            await _secondary.auth().signOut();
+          } catch (e) { try { await _secondary.auth().signOut(); } catch (_) {} return { ok: false, status: 400, data: { error: 'No se pudo cambiar: ' + (e.code || e.message || e) } }; }
+          if (credsCli[cu]) await fbPut('creds/' + cu + '/pass', nueva).catch(() => {});
+          if (credsTeam[cu]) await fbPut('db/creds/' + cu + '/pass', nueva).catch(() => {});
+          return { ok: true, data: { ok: true, pass: nueva } };
+        }
+        return { ok: true, data: { usuario: cu, pass: cur } };
+      }
       if (p === '/api/marca/wm') {
         // Métricas semanales (seguidores/vistas) conectadas al portal del cliente: db/weekMetrics[CU__ciclo__plat][semana].
         const s = await sesionActual();
