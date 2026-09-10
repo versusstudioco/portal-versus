@@ -518,10 +518,11 @@ function openPieza(id, prefill) {
  if (p && p.historico) return openPiezaHistorico(p);
  let people = ((state.teamPeople && state.teamPeople.length ? state.teamPeople : state.equipoPeople) || []).map(x => x.name);
  if (!people.length) people = ['Michelle', 'Vero'];
- // Conteo del ciclo para esta marca (para saber qué # de publicación es)
- const dela = Object.values(state.piezas || {}).filter(x => x.marca === p.marca && x.id !== p.id);
- const nCreativos = dela.filter(x => x.tipo !== 'Historia').length;
- const nHistorias = dela.filter(x => x.tipo === 'Historia').length;
+ // Conteo POR CICLO (no histórico): solo piezas dentro del rango del ciclo activo de la marca.
+ let cr = (state._cicloRange && state._cicloRange.marca === p.marca) ? state._cicloRange : null;
+ const enCiclo = x => { if (!cr || !(cr.inicio || cr.fin)) return true; const f = x.fecha || x.fechaEntrega; if (!f) return true; return (!cr.inicio || f >= cr.inicio) && (!cr.fin || f <= cr.fin); };
+ const contar = () => { const dela = Object.values(state.piezas || {}).filter(x => x.marca === p.marca && x.id !== p.id && enCiclo(x)); return { c: dela.filter(x => x.tipo !== 'Historia').length, h: dela.filter(x => x.tipo === 'Historia').length }; };
+ let _cc = contar(), nCreativos = _cc.c, nHistorias = _cc.h;
  if (!id && !p.numero) p.numero = String((p.tipo === 'Historia' ? nHistorias : nCreativos) + 1);
  const PLATS = [['ig', 'Instagram'], ['tiktok', 'TikTok'], ['linkedin', 'LinkedIn']];
  const MET_KEYS = [['views', 'Vistas'], ['likes', 'Likes'], ['comments', 'Coment.'], ['saved', 'Guard.'], ['shared', 'Comp.']];
@@ -595,7 +596,19 @@ function openPieza(id, prefill) {
  $('#pzModal').addEventListener('click', e => { if (e.target.id === 'pzModal' && downOnBackdrop) close(); downOnBackdrop = false; });
  $$('#pzModal .rte-b').forEach(b => b.addEventListener('mousedown', e => { e.preventDefault(); document.execCommand(b.dataset.cmd, false, null); }));
  const pzNum = $('#pzNum'), pzTipo = $('#pzTipo'), pzCount = $('#pzModal .pz-count');
- if (!id && pzTipo && pzNum) pzTipo.addEventListener('change', () => { pzNum.value = String((pzTipo.value === 'Historia' ? nHistorias : nCreativos) + 1); if (pzCount) pzCount.innerHTML = `En este ciclo de <b>${esc($('#pzMarca').value || 'la marca')}</b>: ${nCreativos} creativo(s) · ${nHistorias} historia(s) — esta sería la #${esc(pzNum.value)}`; });
+ if (pzNum) pzNum.addEventListener('input', () => { pzNum._touched = true; });
+ const sugerirNum = () => { if (!pzNum || pzNum._touched) return; pzNum.value = String(((pzTipo && pzTipo.value === 'Historia') ? nHistorias : nCreativos) + 1); if (pzCount) pzCount.innerHTML = `En este ciclo de <b>${esc(($('#pzMarca') && $('#pzMarca').value) || p.marca || 'la marca')}</b>: ${nCreativos} creativo(s) · ${nHistorias} historia(s) — esta sería la #${esc(pzNum.value)}`; };
+ if (!id && pzTipo && pzNum) pzTipo.addEventListener('change', sugerirNum);
+ // Si el rango del ciclo no estaba cacheado, tráelo y recalcula el # por ciclo.
+ if (!id && p.marca && !cr) {
+   api('/api/marca/ciclo?marca=' + encodeURIComponent(p.marca)).then(r => {
+     if (!r.ok || !document.getElementById('pzModal')) return;
+     cr = { marca: p.marca, inicio: r.data.inicio || '', fin: r.data.fin || '' };
+     state._cicloRange = cr;
+     const cc = contar(); nCreativos = cc.c; nHistorias = cc.h;
+     sugerirNum();
+   }).catch(() => {});
+ }
  const rteSize = $('#rteSize'); if (rteSize) rteSize.addEventListener('change', () => { if (rteSize.value) { $('#pzGuion').focus(); document.execCommand('fontSize', false, rteSize.value); rteSize.value = ''; } });
  const rteColor = $('#rteColor'); if (rteColor) rteColor.addEventListener('input', () => { $('#pzGuion').focus(); document.execCommand('foreColor', false, rteColor.value); });
  $$('.pz-plattab').forEach(t => t.addEventListener('click', () => {
@@ -1426,7 +1439,9 @@ function buildMonthGrid(piezas, refISO) {
 async function marcaCalendario(marca) {
  const pane = $('#marcaPane');
  pane.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando calendario…</div>';
- const [board, histR] = await Promise.all([api('/api/piezas'), api('/api/marca/publicaciones?marca=' + encodeURIComponent(marca))]);
+ const [board, histR, cicR] = await Promise.all([api('/api/piezas'), api('/api/marca/publicaciones?marca=' + encodeURIComponent(marca)), api('/api/marca/ciclo?marca=' + encodeURIComponent(marca))]);
+ // Guardar el rango del ciclo activo para numerar por ciclo (no por histórico).
+ if (cicR.ok) state._cicloRange = { marca, inicio: cicR.data.inicio || '', fin: cicR.data.fin || '' };
  const data = board.data; state.hubBoard = data;
  const mine = Object.values(data.columnas || {}).flat().filter(p => p.marca === marca);
  const hist = (histR.ok && histR.data.items) || [];
