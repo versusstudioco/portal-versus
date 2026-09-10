@@ -1002,9 +1002,13 @@ async function loadConfig() {
  <button class="btn btn--primary" id="ccSave">Crear cliente</button>
  </div>
  <h3 class="live-h3">Clientes (${clientes.length})</h3>
+ <p class="hub-hint" style="margin:-.3rem 0 .6rem">Usuario y contraseña con que cada cliente entra a <b>/clientes/</b>. Toca la contraseña para verla.</p>
  <div class="eq-list">${clientes.map(c => `
  <div class="eq-person"><div class="eq-av">${esc((c.name || '?').trim().charAt(0).toUpperCase())}</div>
  <div class="eq-person__id"><div class="eq-person__name">${esc(c.name)}</div><div class="eq-person__user">@${esc(c.usuario)}</div></div>
+ <div class="cl-pass">${c.pass
+   ? `<button class="cl-pass__btn" data-pass="${esc(c.pass)}" title="Toca para ver/ocultar">••••••</button>`
+   : `<span class="cl-pass__none" title="Se creó con contraseña propia (encriptada). Restablécela en la consola de Firebase.">sin ver</span>`}</div>
  </div>`).join('') || '<div class="empty">Aún no hay clientes.</div>'}</div>
  <div class="glass panel form-panel" style="margin-top:1.2rem">
  <h3 class="live-h3" style="margin-top:0"> Otras acciones</h3>
@@ -1033,6 +1037,11 @@ async function loadConfig() {
  if (res.ok) { alert('Cliente creado. Ya puede entrar al Portal de Clientes con su usuario y contraseña.'); loadConfig(); }
  else alert(res.data.error || 'No se pudo crear');
  });
+ $$('.cl-pass__btn').forEach(b => b.addEventListener('click', () => {
+ const shown = b.dataset.shown === '1';
+ b.textContent = shown ? '••••••' : b.dataset.pass;
+ b.dataset.shown = shown ? '0' : '1';
+ }));
  renderNotifPanel();
  renderAgenda();
 }

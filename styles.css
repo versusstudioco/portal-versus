@@ -1291,3 +1291,10 @@ body { overflow-x: hidden; }
 .wm-week__h span { font-weight: 400; color: var(--ink-60); font-size: .78rem; }
 .wm-week__in { display: flex; gap: .6rem; flex-wrap: wrap; align-items: flex-end; }
 .wm-week__in .select { min-width: 120px; flex: 1; }
+
+/* Clientes: contraseña ver/ocultar */
+.cl-pass { flex-shrink: 0; }
+.cl-pass__btn { font-family: ui-monospace, monospace; font-size: .82rem; font-weight: 700; letter-spacing: .06em; color: var(--ink); background: rgba(0,0,0,.05); border: 1px solid var(--line); border-radius: 8px; padding: .35rem .7rem; cursor: pointer; }
+.cl-pass__btn:hover { border-color: var(--red, #F90000); }
+.dark .cl-pass__btn { background: rgba(255,255,255,.08); }
+.cl-pass__none { font-size: .74rem; color: var(--ink-40); }

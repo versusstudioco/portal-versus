@@ -484,8 +484,13 @@
       if (p === '/api/admin/clientes') {
         const s = await sesionActual();
         if (!s || s.role !== 'admin') return { ok: false, status: 403, data: { error: 'Solo el administrador' } };
-        const creds = (await fbGet('db/creds').catch(() => null)) || {};
-        const clientes = Object.entries(creds).filter(([u, v]) => v && v.type === 'client').map(([u, v]) => ({ usuario: u, name: v.name || u })).sort((a, b) => a.name.localeCompare(b.name));
+        // Los clientes pueden estar en db/creds (creados desde el Team) o en creds (portal del cliente).
+        const [credsTeam, credsCli] = await Promise.all([fbGet('db/creds').catch(() => ({})), fbGet('creds').catch(() => ({}))]);
+        const map = {};
+        const add = (u, v) => { if (!v || v.type !== 'client') return; if (!map[u]) map[u] = { usuario: u, name: v.name || u, pass: v.pass || '' }; else if (v.pass && !map[u].pass) map[u].pass = v.pass; };
+        Object.entries(credsTeam || {}).forEach(([u, v]) => add(u, v));
+        Object.entries(credsCli || {}).forEach(([u, v]) => add(u, v));
+        const clientes = Object.values(map).sort((a, b) => a.name.localeCompare(b.name));
         return { ok: true, data: { clientes } };
       }
       if (p === '/api/admin/crear-cliente' && method === 'POST') {
@@ -638,9 +643,10 @@
         if (!s || !s.esEquipo) return { ok: false, status: 403, data: { error: 'Solo el equipo' } };
         const marca = q.get('marca') || body.marca || '';
         const norm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
-        const creds = (await fbGet('db/creds').catch(() => ({}))) || {};
+        const [credsTeam, credsCli] = await Promise.all([fbGet('db/creds').catch(() => ({})), fbGet('creds').catch(() => ({}))]);
+        const creds = Object.assign({}, credsCli || {}, credsTeam || {});
         const km = norm(marca);
-        // Encontrar el usuario (CU) del cliente cuyo nombre coincide con la marca.
+        // Encontrar el usuario (CU) del cliente cuyo nombre coincide con la marca (en cualquiera de los dos stores).
         let cu = '';
         Object.entries(creds).forEach(([u, v]) => { if (!cu && v && v.type === 'client' && (norm(v.name) === km || norm(u) === km || (km && norm(v.name).indexOf(km) >= 0) || (km && km.indexOf(norm(v.name)) >= 0))) cu = u; });
         if (method === 'POST') {
