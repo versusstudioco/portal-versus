@@ -81,22 +81,26 @@
     if (!r.ok) throw new Error('fb get ' + r.status);
     return r.json();
   }
+  function _bustIf(path) { if (typeof _pzBust === 'function' && String(path).indexOf('gestor/piezas') === 0) _pzBust(); }
   async function fbPut(path, data) {
     const t = await token();
     const r = await fetch(withAuth(`${RTDB}/${path}.json`, t), { method: 'PUT', body: JSON.stringify(data) });
     if (!r.ok) throw new Error('fb put ' + r.status);
+    _bustIf(path);
     return r.json();
   }
   async function fbPatch(path, data) {
     const t = await token();
     const r = await fetch(withAuth(`${RTDB}/${path}.json`, t), { method: 'PATCH', body: JSON.stringify(data) });
     if (!r.ok) throw new Error('fb patch ' + r.status);
+    _bustIf(path);
     return r.json();
   }
   async function fbDelete(path) {
     const t = await token();
     const r = await fetch(withAuth(`${RTDB}/${path}.json`, t), { method: 'DELETE' });
     if (!r.ok) throw new Error('fb del ' + r.status);
+    _bustIf(path);
     return true;
   }
   const uid = () => 'z' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
@@ -137,7 +141,10 @@
   }
 
   /* ---- PIEZAS (gestor) con semilla la primera vez ---- */
+  // Caché corta de gestor/piezas: evita releer en cada recarga (se invalida al escribir piezas).
+  let _pzArr = null, _pzAt = 0;
   async function piezasAll() {
+    if (_pzArr && Date.now() - _pzAt < 6000) return _pzArr;
     let obj = await fbGet('gestor/piezas').catch(() => null);
     if (!obj) {
       // Semilla desde el archivo del repo (una sola vez).
@@ -148,8 +155,10 @@
         obj = map;
       } catch (_) { obj = {}; }
     }
-    return Object.values(obj || {}).map(normPieza);
+    _pzArr = Object.values(obj || {}).map(normPieza); _pzAt = Date.now();
+    return _pzArr;
   }
+  function _pzBust() { _pzArr = null; }
   function normPieza(p) {
     return {
       id: p.id, marca: p.marca, tipo: p.tipo || 'Reel', idea: p.idea || '', guion: p.guion || '',

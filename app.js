@@ -477,10 +477,13 @@ async function loadFlujo() {
   const bd = $('#flBoard'); bd.innerHTML = boardHTML(dataSemana); bindBoard(bd, loadFlujo);
 }
 function refreshPiezaView() {
- const flujoVisible = document.getElementById('view-flujo') && !document.getElementById('view-flujo').classList.contains('hidden');
- if (state.marcaActiva) { marcaCalendario(state.marcaActiva.marca); }
- else if (flujoVisible) { loadFlujo(); }
- else if (typeof renderFlujo === 'function') { try { renderFlujo(); } catch (_) {} }
+ // Recarga SOLO la vista que está visible (antes ignoraba el calendario general).
+ const vis = id => { const el = document.getElementById(id); return el && !el.classList.contains('hidden'); };
+ if (vis('view-archivos') && state.marcaActiva) marcaCalendario(state.marcaActiva.marca);
+ else if (vis('view-calendario')) loadCalendario();
+ else if (vis('view-flujo')) loadFlujo();
+ else if (vis('view-inicio')) loadInicio();
+ else if (vis('view-gestion')) { /* no depende de piezas directamente */ }
 }
 function metricsFromMet(met) {
  const names = { ig: 'Instagram', tiktok: 'TikTok', linkedin: 'LinkedIn' };
