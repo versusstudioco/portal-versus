@@ -547,7 +547,8 @@ function openPiezaHistorico(p) {
 const CATEGORIAS_PIEZA = ['Post', 'Reel', 'Carrusel', 'Historia', 'Banner'];
 function openPieza(id, prefill) {
  const et = [['idea', 'Idea'], ['aprobada', 'Aprobada'], ['grabada', 'Grabada'], ['editada', 'Editada'], ['publicada', 'Publicada']];
- const p = id ? state.piezas[id] : Object.assign({ id: '', marca: '', idea: '', tipo: 'Reel', guion: '', caracteristicas: '', etapa: 'idea', responsable: '', numero: '', comentarios: [] }, prefill || {});
+ const p = id ? ((state.piezas && state.piezas[id]) || null) : Object.assign({ id: '', marca: '', idea: '', tipo: 'Reel', guion: '', caracteristicas: '', etapa: 'idea', responsable: '', numero: '', comentarios: [] }, prefill || {});
+ if (!p) return; // el item ya no está en memoria (recargó); evita romper
  if (p && p.historico) return openPiezaHistorico(p);
  let people = ((state.teamPeople && state.teamPeople.length ? state.teamPeople : state.equipoPeople) || []).map(x => x.name);
  if (!people.length) people = ['Michelle', 'Vero'];
