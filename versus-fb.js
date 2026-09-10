@@ -469,6 +469,23 @@
         return { ok: true, data: { ok: true, pieza: p2 } };
       }
       if (p === '/api/piezas/remove' && method === 'POST') { await fbDelete('gestor/piezas/' + body.id); return { ok: true, data: { ok: true } }; }
+      if (p === '/api/publicacion' && method === 'POST') {
+        // Editar una publicación histórica del cliente (db/publications) desde el Team.
+        const s = await sesionActual();
+        if (!s || !s.esEquipo) return { ok: false, status: 403, data: { error: 'Solo el equipo' } };
+        const id = body.id; if (!id) return { ok: false, status: 400, data: { error: 'Falta el id' } };
+        const raw = await fbGet('db/publications').catch(() => null);
+        if (!raw) return { ok: false, status: 404, data: { error: 'No hay publicaciones' } };
+        let key = null;
+        if (Array.isArray(raw)) { const i = raw.findIndex(x => x && String(x.id) === String(id)); if (i >= 0) key = i; }
+        else { const e = Object.entries(raw).find(([, v]) => v && String(v.id) === String(id)); if (e) key = e[0]; }
+        if (key === null) return { ok: false, status: 404, data: { error: 'No se encontró la publicación' } };
+        const patch = {};
+        ['desc', 'type', 'date', 'platform', 'link'].forEach(k => { if (body[k] != null) patch[k] = String(body[k]); });
+        ['views', 'likes', 'comments', 'saved', 'shares'].forEach(k => { if (body[k] != null) patch[k] = +body[k] || 0; });
+        await fbPatch('db/publications/' + key, patch);
+        return { ok: true, data: { ok: true } };
+      }
       if (p === '/api/piezas/limpiar-placeholder' && method === 'POST') {
         const s = await sesionActual();
         if (!s || s.role !== 'admin') return { ok: false, status: 403, data: { error: 'Solo el administrador' } };

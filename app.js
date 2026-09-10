@@ -500,19 +500,49 @@ function metricsFromMet(met) {
  return out;
 }
 function openPiezaHistorico(p) {
- const mets = metricsFromMet(p.met);
+ // Publicación histórica del cliente (db/publications) — EDITABLE desde el Team.
+ const realId = String(p.id || '').replace(/^pub_/, '');
+ const m = (p.met && p.met.ig) || {};
+ const cats = ['Post', 'Reel', 'Carrusel', 'Historia', 'Banner', 'Video', 'Short'];
+ const vv = (a, b) => (a != null && a !== '') ? a : (b != null ? b : '');
  const html = `<div class="g-modal" id="pzModal"><div class="g-modal__box glass pz-box">
- <div class="pz-hist__head"><div><div class="pz-hist__sub">${esc(p.tipo || '')}${p.fecha ? ' · ' + esc(p.fecha) : ''}</div><div class="pz-hist__title">${esc(p.idea || 'Publicación')}</div></div><span class="g-status st-green">Publicado</span></div>
- ${p.plataforma ? `<div style="margin:.2rem 0 .8rem"><span class="tag" style="background:rgba(108,0,255,.1);color:var(--pur)"> ${esc(p.plataforma)}</span></div>` : ''}
- ${p.guion ? `<div class="pz-hist__guion">${esc(p.guion)}</div>` : ''}
- ${mets || '<div class="hub-hint">Sin métricas registradas.</div>'}
- ${p.link ? `<a class="btn btn--primary btn--sm" href="${esc(p.link)}" target="_blank" rel="noopener" style="margin-top:.8rem">Ver publicación</a>` : ''}
- <div class="g-modal__actions"><button class="btn btn--ghost btn--sm" id="pzCancel">Cerrar</button></div>
+ <button type="button" class="g-close" id="phX" aria-label="Cerrar">✕</button>
+ <div class="pz-hist__head"><span class="g-status st-green">Publicado</span></div>
+ <input id="phIdea" class="pz-idea" value="${esc(p.idea || '')}" placeholder="Título de la publicación">
+ <div class="form-grid" style="margin:.6rem 0">
+ <label class="select"><span>Categoría</span><select id="phTipo">${cats.map(t => `<option ${p.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}${cats.includes(p.tipo) ? '' : `<option selected>${esc(p.tipo || '')}</option>`}</select></label>
+ <label class="select"><span>Fecha</span><input id="phFecha" type="date" value="${esc(p.fecha || '')}"></label>
+ <label class="select"><span>Plataforma</span><input id="phPlat" value="${esc(p.plataforma || '')}" placeholder="Instagram"></label>
+ <label class="select select--grow"><span>Link</span><input id="phLink" value="${esc(p.link || '')}" placeholder="Link de la publicación"></label>
+ </div>
+ <div class="pz-field"><span>Métricas</span>
+ <div class="pz-metgrid">
+ <label class="select"><span>Vistas</span><input id="phViews" type="number" min="0" value="${esc(vv(m.views, p.mViews))}"></label>
+ <label class="select"><span>Likes</span><input id="phLikes" type="number" min="0" value="${esc(vv(m.likes, p.mLikes))}"></label>
+ <label class="select"><span>Coment.</span><input id="phComments" type="number" min="0" value="${esc(vv(m.comments, p.mComments))}"></label>
+ <label class="select"><span>Guard.</span><input id="phSaved" type="number" min="0" value="${esc(vv(m.saved, p.mSaved))}"></label>
+ <label class="select"><span>Comp.</span><input id="phShares" type="number" min="0" value="${esc(vv(m.shared, p.mShared))}"></label>
+ </div>
+ </div>
+ <div class="hub-hint" style="margin-top:.4rem">Es una publicación del histórico del cliente. Al guardar, el cambio se refleja en su portal.</div>
+ <div class="g-modal__actions">
+ ${p.link ? `<a class="btn btn--ghost btn--sm" href="${esc(p.link)}" target="_blank" rel="noopener">Ver</a>` : ''}
+ <button class="btn btn--ghost btn--sm" id="phClose">Cerrar</button>
+ <button class="btn btn--primary btn--sm" id="phSave">Guardar</button>
+ </div>
  </div></div>`;
  document.body.insertAdjacentHTML('beforeend', html);
  const close = () => $('#pzModal').remove();
- $('#pzCancel').addEventListener('click', close);
+ $('#phClose').addEventListener('click', close);
+ $('#phX').addEventListener('click', close);
  $('#pzModal').addEventListener('click', e => { if (e.target.id === 'pzModal') close(); });
+ $('#phSave').addEventListener('click', async () => {
+ const body = { id: realId, desc: $('#phIdea').value, type: $('#phTipo').value, date: $('#phFecha').value, platform: $('#phPlat').value, link: $('#phLink').value, views: $('#phViews').value, likes: $('#phLikes').value, comments: $('#phComments').value, saved: $('#phSaved').value, shares: $('#phShares').value };
+ const btn = $('#phSave'); btn.disabled = true; btn.textContent = 'Guardando…';
+ const r = await api('/api/publicacion', { method: 'POST', body });
+ btn.disabled = false; btn.textContent = 'Guardar';
+ if (r.ok) { close(); refreshPiezaView(); } else alert((r.data && r.data.error) || 'No se pudo');
+ });
 }
 const CATEGORIAS_PIEZA = ['Post', 'Reel', 'Carrusel', 'Historia', 'Banner'];
 function openPieza(id, prefill) {
