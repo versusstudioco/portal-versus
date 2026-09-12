@@ -1379,6 +1379,7 @@ async function addMarcaPrompt() {
 function openMarca(marca, sector) {
  state.marcaActiva = { marca, sector };
  state.marcaCalYM = null;
+ state._marcaCiclos = null; state._marcaCicloSel = null; // reset selección de ciclo al cambiar de marca
  const out = $('#archivosOut');
  $('#viewTitle').textContent = marca;
  $('#viewSub').textContent = (sector || '') + ' · su universo completo';
@@ -1413,19 +1414,43 @@ function marcaTab(tab) {
 
 /* --- Ciclo: configuración (pactado) + Pactado vs. Realizado (automático) --- */
 const CICLO_TIPOS = [['reels', 'Reels'], ['carruseles', 'Carruseles'], ['posts', 'Posts'], ['banners', 'Banners'], ['historias', 'Historias']];
+function cicFD(s) { if (!s) return '—'; const [y, m, d] = s.split('-'); return d + '/' + m + '/' + String(y).slice(2); }
+function cicBadge(c) {
+ return c.activo ? '<span class="cic-badge cic-badge--act">Activo</span>'
+   : (c.end && c.end < new Date().toISOString().slice(0, 10) ? '<span class="cic-badge cic-badge--past">Terminado</span>' : '<span class="cic-badge cic-badge--fut">Próximo</span>');
+}
 function cicloCardsHTML(cycles) {
  if (!cycles || !cycles.length) return '';
- const fD = s => { if (!s) return '—'; const [y, m, d] = s.split('-'); return d + '/' + m + '/' + String(y).slice(2); };
- const cards = cycles.map(c => {
- const badge = c.activo ? '<span class="cic-badge cic-badge--act">Activo</span>' : (c.end && c.end < new Date().toISOString().slice(0, 10) ? '<span class="cic-badge cic-badge--past">Terminado</span>' : '<span class="cic-badge cic-badge--fut">Próximo</span>');
- return `<div class="cic-card ${c.activo ? 'cic-card--act' : ''}">
-   <div class="cic-card__top"><b>${esc(c.name)}</b>${badge}</div>
-   <div class="cic-card__dates">${fD(c.start)} – ${fD(c.end)}</div>
+ state._marcaCiclos = cycles;
+ if (!state._marcaCicloSel || !cycles.find(c => c.id === state._marcaCicloSel)) state._marcaCicloSel = cycles[0].id; // el activo/primero
+ const cards = cycles.map(c => `<div class="cic-card ${c.id === state._marcaCicloSel ? 'cic-card--sel' : ''} ${c.activo ? 'cic-card--act' : ''}" data-cid="${esc(c.id)}" onclick="pickMarcaCiclo('${esc(c.id)}')">
+   <div class="cic-card__top"><b>${esc(c.name)}</b>${cicBadge(c)}</div>
+   <div class="cic-card__dates">${cicFD(c.start)} – ${cicFD(c.end)}</div>
    <div class="cic-card__bar"><div class="cic-card__fill" style="width:${c.pct}%"></div></div>
    <div class="cic-card__meta">${c.creativosPub}/${c.metaCreativos || '—'} creativos${c.metaHist ? ` · ${c.histPub}/${c.metaHist} historias` : (c.histPub ? ` · ${c.histPub} historias` : '')}</div>
+ </div>`).join('');
+ return `<div class="est-ctx" style="margin-bottom:1rem"><h4> Ciclos de la marca <span class="hub-hint" style="display:inline;margin:0">— toca un ciclo para ver su detalle</span></h4>
+   <div class="cic-cards">${cards}</div>
+   <div id="cicDetalle">${cicloDetalleHTML(state._marcaCicloSel)}</div></div>`;
+}
+function cicloDetalleHTML(id) {
+ const c = (state._marcaCiclos || []).find(x => x.id === id); if (!c) return '';
+ const barra = (val, meta, lbl) => {
+ const pct = meta ? Math.min(100, Math.round(val / meta * 100)) : (val ? 100 : 0);
+ return `<div class="ciclo-row"><div class="ciclo-row__top"><b>${lbl}</b><span>${val} / ${meta || '—'}</span></div>
+   <div class="ciclo-bar"><div class="ciclo-bar__fill ${meta && val >= meta ? 'ciclo-bar__fill--done' : ''}" style="width:${pct}%"></div></div></div>`;
+ };
+ return `<div class="cic-detalle">
+   <div class="cic-detalle__head"><b>${esc(c.name)}</b> ${cicBadge(c)} <span class="hub-hint" style="display:inline;margin:0">${cicFD(c.start)} – ${cicFD(c.end)}</span></div>
+   ${barra(c.creativosPub, c.metaCreativos, 'Creativos publicados')}
+   ${(c.metaHist || c.histPub) ? barra(c.histPub, c.metaHist, 'Historias') : ''}
+   <p class="hub-hint" style="margin-top:.5rem">Lo publicado se cuenta solo desde el portal del cliente.</p>
  </div>`;
- }).join('');
- return `<div class="est-ctx" style="margin-bottom:1rem"><h4> Ciclos de la marca <span class="hub-hint" style="display:inline;margin:0">— el activo va primero; los anteriores para revisar</span></h4><div class="cic-cards">${cards}</div></div>`;
+}
+function pickMarcaCiclo(id) {
+ state._marcaCicloSel = id;
+ document.querySelectorAll('.cic-card').forEach(el => el.classList.toggle('cic-card--sel', el.dataset.cid === id));
+ const det = $('#cicDetalle'); if (det) det.innerHTML = cicloDetalleHTML(id);
 }
 async function marcaCiclo(marca) {
  const pane = $('#marcaPane');
@@ -1829,6 +1854,59 @@ async function marcaPlataformas(marca) {
 
 /* --- Estrategia de la marca: contexto + generadores (hashtags, ideas, captions) --- */
 const APRENDE_KIND = { nota: ' Nota de marca', info: ' Información', insight: ' Aprendizaje', ganador: ' Ya funcionó' };
+function ctxCompleto(ctx) { return !!((ctx.industria || '').trim() && (ctx.servicios || '').trim() && (ctx.tono || '').trim()); }
+function ctxCardHTML(ctx) {
+ const chip = (lbl, val) => val ? `<div class="ctx-chip"><span>${lbl}</span><b>${esc(val)}</b></div>` : '';
+ return `<div class="est-ctx ctx-card">
+   <div class="ctx-card__head"><h4> Contexto de la marca <span class="hub-hint" style="display:inline;margin:0">— base guardada; el agente ya está activo</span></h4>
+   <button class="btn btn--ghost btn--sm" id="esCtxEdit">Editar</button></div>
+   <div class="ctx-chips">
+   ${chip('Industria', ctx.industria)}${chip('País', ctx.pais)}${chip('Tono', ctx.tono)}${chip('Clientes', ctx.tipoClientes)}${chip('Público', ctx.publico)}${chip('Comunicación', ctx.comunicacion)}
+   </div>
+   ${ctx.servicios ? `<div class="ctx-block"><span>Servicios / productos</span><p>${esc(ctx.servicios)}</p></div>` : ''}
+   ${ctx.notas ? `<div class="ctx-block"><span>Notas / do's & don'ts</span><p>${esc(ctx.notas)}</p></div>` : ''}
+ </div>`;
+}
+function ctxFormHTML(ctx) {
+ return `<div class="est-ctx">
+   <h4> Contexto de la marca <span class="hub-hint" style="display:inline;margin:0">— cada marca es un mundo; esto hace que la estrategia sea única</span></h4>
+   ${!ctxCompleto(ctx) ? '<div class="est-ctx-alert"> Completa al menos <b>Industria</b>, <b>Servicios/productos</b> y <b>Tono</b>, y guarda, para activar el agente de esta marca.</div>' : ''}
+   <div class="est-ctx-grid">
+   <label class="select"><span>Industria / sector</span><input id="esIndustria" value="${esc(ctx.industria || '')}" placeholder="inmobiliario, café, legal…"></label>
+   <label class="select"><span>País / mercado</span><input id="esPais" value="${esc(ctx.pais || '')}" placeholder="Colombia"></label>
+   <label class="select"><span>Tipo de clientes</span><input id="esTipoClientes" value="${esc(ctx.tipoClientes || '')}" placeholder="a quién le vende"></label>
+   <label class="select"><span>Público objetivo</span><input id="esPublico" value="${esc(ctx.publico || '')}" placeholder="edad, intereses…"></label>
+   <label class="select"><span>Tono de voz</span><input id="esTono" value="${esc(ctx.tono || '')}" placeholder="cercano, premium…"></label>
+   <label class="select"><span>Cómo se comunica</span><input id="esComunicacion" value="${esc(ctx.comunicacion || '')}" placeholder="directa, educativa, divertida…"></label>
+   </div>
+   <label class="select" style="margin-top:.6rem"><span>Servicios / productos</span><textarea id="esServicios" rows="2" placeholder="qué vende u ofrece la marca">${esc(ctx.servicios || '')}</textarea></label>
+   <label class="select" style="margin-top:.6rem"><span>Notas / do's & don'ts</span><textarea id="esNotas" rows="2" placeholder="qué mencionar, qué evitar…">${esc(ctx.notas || '')}</textarea></label>
+   <p class="hub-hint" style="margin:.5rem 0 0">El logo y los @ de las redes se editan en la pestaña <b>Configuración</b>.</p>
+   <button class="btn btn--primary btn--sm" id="esCtxSave" style="margin-top:.6rem">Guardar contexto</button>
+ </div>`;
+}
+function renderContexto(marca, ctx, forceEdit) {
+ const box = $('#esCtxBox'); if (!box) return;
+ const modoTarjeta = ctxCompleto(ctx) && !forceEdit;
+ box.innerHTML = modoTarjeta ? ctxCardHTML(ctx) : ctxFormHTML(ctx);
+ estAgentSet(ctxCompleto(ctx)); // el agente vive según la base guardada
+ if (modoTarjeta) {
+ const ed = $('#esCtxEdit'); if (ed) ed.addEventListener('click', () => renderContexto(marca, ctx, true));
+ return;
+ }
+ const save = $('#esCtxSave');
+ if (save) save.addEventListener('click', async () => {
+ const nuevo = {
+ industria: $('#esIndustria').value, pais: $('#esPais').value, tipoClientes: $('#esTipoClientes').value,
+ publico: $('#esPublico').value, tono: $('#esTono').value, comunicacion: $('#esComunicacion').value,
+ servicios: $('#esServicios').value, notas: $('#esNotas').value
+ };
+ save.disabled = true; save.textContent = 'Guardando…';
+ await api('/api/marca/contexto', { method: 'POST', body: Object.assign({ marca }, nuevo) });
+ Object.assign(ctx, nuevo); // conserva la base actualizada en memoria
+ renderContexto(marca, ctx); // si quedó completo → se convierte en tarjeta + agente activo
+ });
+}
 async function marcaEstrategia(marca) {
  const pane = $('#marcaPane');
  pane.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando estrategia…</div>';
@@ -1838,22 +1916,7 @@ async function marcaEstrategia(marca) {
  ]);
  state.aprendizaje = ap.ok ? ap.data.entries : [];
  pane.innerHTML = `
- <div class="est-ctx">
- <h4> Contexto de la marca <span class="hub-hint" style="display:inline;margin:0">— cada marca es un mundo; esto hace que la estrategia sea única</span></h4>
- ${!ctx.completo ? '<div class="est-ctx-alert"> Completa al menos <b>Industria</b>, <b>Servicios/productos</b> y <b>Tono</b> para activar la estrategia a la medida de esta marca.</div>' : ''}
- <div class="est-ctx-grid">
- <label class="select"><span>Industria / sector</span><input id="esIndustria" value="${esc(ctx.industria || '')}" placeholder="inmobiliario, café, legal…"></label>
- <label class="select"><span>País / mercado</span><input id="esPais" value="${esc(ctx.pais || '')}" placeholder="Colombia"></label>
- <label class="select"><span>Tipo de clientes</span><input id="esTipoClientes" value="${esc(ctx.tipoClientes || '')}" placeholder="a quién le vende"></label>
- <label class="select"><span>Público objetivo</span><input id="esPublico" value="${esc(ctx.publico || '')}" placeholder="edad, intereses…"></label>
- <label class="select"><span>Tono de voz</span><input id="esTono" value="${esc(ctx.tono || '')}" placeholder="cercano, premium…"></label>
- <label class="select"><span>Cómo se comunica</span><input id="esComunicacion" value="${esc(ctx.comunicacion || '')}" placeholder="directa, educativa, divertida…"></label>
- </div>
- <label class="select" style="margin-top:.6rem"><span>Servicios / productos</span><textarea id="esServicios" rows="2" placeholder="qué vende u ofrece la marca">${esc(ctx.servicios || '')}</textarea></label>
- <label class="select" style="margin-top:.6rem"><span>Notas / do's & don'ts</span><textarea id="esNotas" rows="2" placeholder="qué mencionar, qué evitar…">${esc(ctx.notas || '')}</textarea></label>
- <p class="hub-hint" style="margin:.5rem 0 0">El logo y los @ de las redes ahora se editan en la pestaña <b>Configuración</b>.</p>
- <button class="btn btn--ghost btn--sm" id="esCtxSave" style="margin-top:.6rem">Guardar contexto</button>
- </div>
+ <div id="esCtxBox"></div>
 
  <div class="est-learn">
  <h4> Línea de aprendizaje <span class="hub-hint" style="display:inline;margin:0">— la marca aprende; esto alimenta captions e historias</span></h4>
@@ -1884,20 +1947,9 @@ async function marcaEstrategia(marca) {
  </div>
  <div id="esOut"></div>
  </div>`;
- // El agente se habilita solo cuando el contexto base está completo.
- estAgentSet(!!(($('#esIndustria').value || '').trim() && ($('#esServicios').value || '').trim() && ($('#esTono').value || '').trim()));
- $('#esCtxSave').addEventListener('click', async () => {
- await api('/api/marca/contexto', { method: 'POST', body: {
- marca, industria: $('#esIndustria').value, pais: $('#esPais').value, tipoClientes: $('#esTipoClientes').value,
- publico: $('#esPublico').value, tono: $('#esTono').value, comunicacion: $('#esComunicacion').value,
- servicios: $('#esServicios').value, notas: $('#esNotas').value
- } });
- const completo = !!($('#esIndustria').value.trim() && $('#esServicios').value.trim() && $('#esTono').value.trim());
- $('#esCtxSave').textContent = completo ? 'Guardado ✓ · agente activo' : 'Guardado ✓';
- const alert = $('.est-ctx-alert'); if (alert && completo) alert.remove();
- estAgentSet(completo); // Habilita/inhabilita el agente según el contexto guardado
- setTimeout(() => { const b = $('#esCtxSave'); if (b) b.textContent = 'Guardar contexto'; }, 1800);
- });
+ // Contexto: si ya está completo se muestra como TARJETA (con el agente activo);
+ // si no, se muestra el formulario para completarlo.
+ renderContexto(marca, ctx);
  $('#apAdd').addEventListener('click', async () => {
  const texto = $('#apTexto').value.trim(); if (!texto) return;
  const { data } = await api('/api/marca/aprendizaje', { method: 'POST', body: { marca, kind: $('#apKind').value, texto } });
@@ -2399,14 +2451,19 @@ async function loadCalendario() {
    if (!cell.dataset.iso) return;
    cell.addEventListener('dragover', e => { e.preventDefault(); cell.classList.add('cal__cell--over'); });
    cell.addEventListener('dragleave', () => cell.classList.remove('cal__cell--over'));
-   cell.addEventListener('drop', async e => {
+   cell.addEventListener('drop', e => {
      e.preventDefault(); cell.classList.remove('cal__cell--over');
      const id = e.dataTransfer.getData('text/plain'), iso = cell.dataset.iso;
      if (!id || !iso) return;
      const p = state.piezas[id]; if (p && p.fecha === iso) return;
+     // Mover la tarjeta en el DOM al instante — arrastre fluido, sin recargar el mes.
+     const card = $('#calendarioOut .cal-pz[data-id="' + id + '"]');
+     if (card) { card.classList.remove('dragging'); cell.appendChild(card); }
      if (p) p.fecha = iso;
-     await api('/api/piezas/update', { method: 'POST', body: { id, fecha: iso } });
-     loadCalendario();
+     // Persistir en segundo plano; solo si falla, recargamos para resincronizar.
+     api('/api/piezas/update', { method: 'POST', body: { id, fecha: iso } })
+       .then(r => { if (!r || !r.ok) loadCalendario(); })
+       .catch(() => loadCalendario());
    });
  });
  const bt = $('#calNewTask'); if (bt) bt.onclick = openTarea;

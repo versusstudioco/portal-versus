@@ -1328,3 +1328,19 @@ body { overflow-x: hidden; }
 .cic-badge--act{background:rgba(249,0,0,.14);color:var(--red,#F90000)}
 .cic-badge--past{background:rgba(0,0,0,.08);color:var(--t2,#888)}
 .cic-badge--fut{background:rgba(108,0,255,.12);color:#6C00FF}
+
+/* Ciclo seleccionado + detalle */
+.cic-card{cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.cic-card:hover{border-color:var(--red,#F90000)}
+.cic-card--sel{box-shadow:0 0 0 2px var(--red,#F90000);border-color:var(--red,#F90000)}
+.cic-detalle{margin-top:.9rem;padding-top:.8rem;border-top:1px solid var(--bd,rgba(0,0,0,.1))}
+.cic-detalle__head{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.6rem;font-size:14px}
+
+/* Contexto de marca como tarjeta (una vez guardado) */
+.ctx-card__head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap}
+.ctx-chips{display:flex;flex-wrap:wrap;gap:.45rem;margin:.6rem 0}
+.ctx-chip{background:var(--bg3,rgba(0,0,0,.04));border:1px solid var(--bd,rgba(0,0,0,.08));border-radius:10px;padding:5px 10px;font-size:12px;display:flex;gap:.35rem;align-items:baseline}
+.ctx-chip span{color:var(--t2,#888);font-size:10px;text-transform:uppercase;letter-spacing:.4px}
+.ctx-block{margin-top:.5rem;font-size:13px}
+.ctx-block span{display:block;color:var(--t2,#888);font-size:10px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px}
+.ctx-block p{margin:0}
