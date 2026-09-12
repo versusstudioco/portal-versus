@@ -937,9 +937,9 @@
         let analysis = null, terminos = [];
         if (window.VFB_GEMINI) {
           try {
-            const system = 'Eres estratega de contenido de redes sociales de Versus Studio (agencia de marketing). Analizas un tema y devuelves ideas accionables para grabar y publicar HOY, en español de ' + paisLabel + '. Respondes SOLO con JSON válido, sin texto adicional.';
+            const system = 'Eres estratega de contenido de redes sociales de Versus Studio (agencia de marketing). Analizas un tema y devuelves ideas accionables para grabar y publicar HOY, en español de ' + paisLabel + '. Respondes SOLO con JSON válido y COMPACTO, sin texto adicional. Sé breve: frases de máximo 12 palabras.';
             const prompt = 'Tema: "' + topic + '"\nPaís/mercado: ' + paisLabel + (catLabel ? ('\nTono/categoría: ' + catLabel) : '') +
-              '\n\nDevuelve EXACTAMENTE este JSON:\n{\n "resumen": "2-3 frases: por qué este tema importa ahora y el ángulo general",\n "accion_rapida": "una acción concreta para grabar o publicar hoy",\n "temas": [{"tema":"...","por_que":"...","angulo_sugerido":"..."}],\n "estructuras_ganadoras": ["...","..."],\n "hashtags_sugeridos": ["#...","..."],\n "ganchos": ["...","..."],\n "terminos_tendencia": ["...","..."]\n}\nReglas: 4-6 temas; 4-6 estructuras de video/post que funcionan para este tema; 8-12 hashtags relevantes al país; 5-6 ganchos (primeras líneas listas para usar' + (catLabel ? (' en tono ' + catLabel) : '') + '); 6-10 términos/búsquedas relacionadas en ascenso.';
+              '\n\nDevuelve EXACTAMENTE este JSON (breve):\n{\n "resumen": "1-2 frases",\n "accion_rapida": "una acción para hoy",\n "temas": [{"tema":"...","por_que":"...","angulo_sugerido":"..."}],\n "estructuras_ganadoras": ["..."],\n "hashtags_sugeridos": ["#..."],\n "ganchos": ["..."],\n "terminos_tendencia": ["..."]\n}\nReglas: exactamente 3 temas (frases cortas); 3 estructuras; 6 hashtags; 3 ganchos' + (catLabel ? (' en tono ' + catLabel) : '') + '; 5 términos. Todo muy conciso para que el JSON quepa completo.';
             const json = extractJSON(await callGemini(system, prompt));
             if (json) {
               analysis = {
