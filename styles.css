@@ -1344,3 +1344,25 @@ body { overflow-x: hidden; }
 .ctx-block{margin-top:.5rem;font-size:13px}
 .ctx-block span{display:block;color:var(--t2,#888);font-size:10px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px}
 .ctx-block p{margin:0}
+
+/* Métricas: tarjetas de "qué funcionó" expandibles */
+.m-card{border:1px solid var(--bd,rgba(0,0,0,.1));border-radius:11px;margin:.4rem 0;overflow:hidden;background:var(--bg2,#fff)}
+.m-card__head{display:flex;align-items:center;gap:.5rem;padding:9px 12px;cursor:pointer}
+.m-card__head:hover{background:var(--bg3,rgba(0,0,0,.03))}
+.m-card__ttl{flex:1;min-width:0}
+.m-card__chev{transition:transform .18s;color:var(--t2,#888)}
+.m-card__head--open .m-card__chev{transform:rotate(180deg)}
+.m-card__body{padding:0 12px 12px;border-top:1px dashed var(--bd,rgba(0,0,0,.1))}
+.m-metrics{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--t2,#888);margin:.5rem 0}
+.m-why{display:flex;flex-direction:column;gap:4px;margin-bottom:.5rem}
+.m-why__row{font-size:12.5px;padding:6px 9px;border-radius:8px;background:var(--bg3,rgba(0,0,0,.04))}
+.m-why--ok{background:rgba(34,197,94,.12);color:#16a34a}
+.m-why--no{background:rgba(249,0,0,.1);color:#F90000}
+/* Balance ciclo a ciclo */
+.m-bal-wrap{overflow-x:auto}
+.m-bal{width:100%;border-collapse:collapse;font-size:13px;margin-top:.5rem}
+.m-bal th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--t2,#888);padding:6px 8px;border-bottom:1px solid var(--bd,rgba(0,0,0,.1))}
+.m-bal td{padding:8px;border-bottom:1px solid var(--bd,rgba(0,0,0,.06))}
+.m-bal__delta{font-size:11px;font-weight:700;margin-left:.3rem}
+.m-bal__delta.up{color:#16a34a}
+.m-bal__delta.down{color:#F90000}

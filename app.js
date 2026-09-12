@@ -1590,21 +1590,26 @@ function openAgregarCreativo(marca, fecha) {
 async function marcaMetricas(marca) {
  const pane = $('#marcaPane');
  pane.innerHTML = '<div class="loading"><div class="spinner"></div>Leyendo métricas…</div>';
- if (!state.metricas) { const r = await api('/api/metricas'); if (r.ok) state.metricas = r.data; }
+ const [, cicR] = await Promise.all([
+ (async () => { if (!state.metricas) { const r = await api('/api/metricas'); if (r.ok) state.metricas = r.data; } })(),
+ api('/api/marca/ciclos?marca=' + encodeURIComponent(marca))
+ ]);
  const key = normKey(marca);
  const m = (state.metricas && state.metricas.marcas || []).find(x => normKey(x.marca) === key || normKey(x.marca).includes(key) || key.includes(normKey(x.marca)));
  const idx = m ? state.metricas.marcas.indexOf(m) : -1;
+ const medV = m ? m.medianaViews : 0;
+ const balanceCard = cicloBalanceHTML((cicR.data && cicR.data.cycles) || []);
  const semanalCard = `<div class="est-ctx" id="wmCard"><div class="loading"><div class="spinner"></div>Cargando métricas por semana…</div></div>`;
  const pubCard = m ? `<div class="hub-metrics-top">
  <div class="g-stat"><b>${m.total || 0}</b><span>publicaciones</span></div>
  <div class="g-stat"><b>${fmtViews(m.medianaViews)}</b><span>mediana views</span></div>
  </div>
- <div class="kv"><b> Lo que más funcionó</b>${(m.mejores || []).map(p => metricRow(p)).join('')}</div>
- <div class="kv"><b> Lo que menos funcionó</b>${(m.peores || []).map(p => metricRow(p)).join('')}</div>
+ <div class="kv"><b> Lo que más funcionó <span class="hub-hint" style="display:inline;margin:0">— toca una tarjeta para ver por qué</span></b>${(m.mejores || []).map(p => metricCard(p, medV)).join('')}</div>
+ <div class="kv"><b> Lo que menos funcionó</b>${(m.peores || []).map(p => metricCard(p, medV)).join('')}</div>
  <button class="btn btn--primary btn--sm m-ia" data-i="${idx}">Análisis con IA</button>
  <div class="m-ia-out" id="mia-${idx}"></div>`
  : '<div class="hub-empty">Aún no hay métricas de publicaciones del Portal de clientes para esta marca.</div>';
- pane.innerHTML = semanalCard + pubCard;
+ pane.innerHTML = balanceCard + semanalCard + pubCard;
  wmRender(marca);
  if (m) { const b = pane.querySelector('.m-ia'); if (b) b.addEventListener('click', (e) => analizarMarca(idx, e.target)); }
 }
@@ -2096,6 +2101,68 @@ function metricRow(p) {
  return `<div class="hash-item">
  <div><div class="tagname">${esc((p.desc || '').slice(0, 42))}</div><div class="note">${esc(p.type)} · ${fmtViews(p.views)} views · ${fmtViews(p.likes)} likes · eng ${p.engagement}%</div></div>
  <span class="g-status ${n.c}">${n.t}</span></div>`;
+}
+// Tarjeta de publicación que se abre para explicar POR QUÉ funcionó o no.
+function metricPorque(p, medViews) {
+ const f = medViews ? (p.views / medViews) : 0;
+ const r = [];
+ if (medViews) {
+ if (f >= 2) r.push({ ok: 1, t: `Rindió ${f.toFixed(1)}× la mediana de vistas de la marca.` });
+ else if (f >= 1.2) r.push({ ok: 1, t: `Por encima del promedio (${f.toFixed(1)}× la mediana).` });
+ else if (f <= 0.6) r.push({ ok: 0, t: `Por debajo del promedio (${f.toFixed(2)}× la mediana).` });
+ else r.push({ ok: null, t: `Cerca del promedio de la marca.` });
+ }
+ const eng = +p.engagement || 0;
+ if (eng >= 4) r.push({ ok: 1, t: `Muy buen engagement (${eng}%): conectó con la audiencia.` });
+ else if (eng > 0 && eng < 1) r.push({ ok: 0, t: `Engagement bajo (${eng}%): poca interacción para las vistas.` });
+ if ((+p.saved || 0) > (+p.likes || 0) * 0.15 && (+p.saved || 0) > 0) r.push({ ok: 1, t: `Alto nivel de guardados: contenido de valor/referencia.` });
+ if (!r.length) r.push({ ok: null, t: `Sin base suficiente para comparar todavía.` });
+ return r.map(x => `<div class="m-why__row ${x.ok === 1 ? 'm-why--ok' : x.ok === 0 ? 'm-why--no' : ''}">${x.ok === 1 ? '▲' : x.ok === 0 ? '▼' : '•'} ${esc(x.t)}</div>`).join('');
+}
+function metricCard(p, medViews) {
+ const n = NIVEL_INFO[p.nivel] || NIVEL_INFO.sin_base;
+ const f = medViews ? (p.views / medViews) : 0;
+ return `<div class="m-card">
+ <div class="m-card__head" onclick="toggleMetricCard(this)">
+ <div class="m-card__ttl"><div class="tagname">${esc((p.desc || '').slice(0, 48) || '(sin título)')}</div>
+ <div class="note">${esc(p.type || '')} · ${fmtViews(p.views)} views · eng ${p.engagement}%</div></div>
+ <span class="g-status ${n.c}">${n.t}</span><span class="m-card__chev">⌄</span>
+ </div>
+ <div class="m-card__body" hidden>
+ <div class="m-metrics">
+ <span>👁 ${fmtViews(p.views)} views${medViews ? ` · ${f.toFixed(f >= 1 ? 1 : 2)}× la mediana` : ''}</span>
+ <span>❤ ${fmtViews(p.likes)} · 💬 ${fmtViews(p.comments)} · 🔖 ${fmtViews(p.saved)} · ↗ ${fmtViews(p.shares)}</span>
+ </div>
+ <div class="m-why">${metricPorque(p, medViews)}</div>
+ ${p.link ? `<a href="${esc(p.link)}" target="_blank" rel="noopener" class="btn btn--ghost btn--sm">Ver publicación</a>` : ''}
+ </div>
+ </div>`;
+}
+function toggleMetricCard(head) {
+ const body = head.parentElement.querySelector('.m-card__body');
+ if (body) body.hidden = !body.hidden;
+ head.classList.toggle('m-card__head--open', body && !body.hidden);
+}
+// Balance de métricas ciclo a ciclo (views totales y seguidores al cierre, con variación).
+function cicloBalanceHTML(cycles) {
+ const cs = (cycles || []).slice().filter(c => (c.totalViews || c.closeFollowers)).sort((a, b) => String(a.start || '').localeCompare(String(b.start || '')));
+ if (!cs.length) return '';
+ let prevV = null, prevF = null;
+ const rows = cs.map(c => {
+ const dV = prevV != null ? c.totalViews - prevV : null;
+ const dF = prevF != null ? c.closeFollowers - prevF : null;
+ prevV = c.totalViews; prevF = c.closeFollowers;
+ const delta = (d) => d == null ? '' : `<span class="m-bal__delta ${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '▲ +' : '▼ '}${fmtViews(Math.abs(d))}</span>`;
+ return `<tr>
+ <td>${esc(c.name)}${c.activo ? ' <span class="cic-badge cic-badge--act">Activo</span>' : ''}</td>
+ <td>${fmtViews(c.totalViews)} ${delta(dV)}</td>
+ <td>${fmtViews(c.closeFollowers)} ${delta(dF)}</td>
+ </tr>`;
+ }).join('');
+ return `<div class="est-ctx" style="margin-top:1rem"><h4> Balance ciclo a ciclo <span class="hub-hint" style="display:inline;margin:0">— cómo evoluciona la marca de un ciclo al siguiente</span></h4>
+ <div class="m-bal-wrap"><table class="m-bal">
+ <thead><tr><th>Ciclo</th><th>Visualizaciones (total)</th><th>Seguidores (cierre)</th></tr></thead>
+ <tbody>${rows}</tbody></table></div></div>`;
 }
 async function analizarMarca(i, btn) {
  const m = state.metricas.marcas[i];
