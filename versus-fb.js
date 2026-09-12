@@ -320,7 +320,7 @@
       if (p === '/api/me') {
         const s = await sesionActual();
         if (!s) return { ok: true, data: { authenticated: false } };
-        return { ok: true, data: { authenticated: true, name: s.name, area: s.area, role: s.role, type: s.type, esEquipo: s.esEquipo, username: s.username, aiEnabled: !!window.VFB_GEMINI, provider: window.VFB_GEMINI ? 'gemini' : null } };
+        return { ok: true, data: { authenticated: true, name: s.name, area: s.area, areas: s.areas || (s.area ? [s.area] : []), role: s.role, type: s.type, esEquipo: s.esEquipo, username: s.username, aiEnabled: !!window.VFB_GEMINI, provider: window.VFB_GEMINI ? 'gemini' : null } };
       }
       if (p === '/api/meta') return { ok: true, data: META };
 
@@ -858,6 +858,46 @@
         const creds = (await fbGet('db/creds').catch(() => ({}))) || {};
         const items = pubs.map(x => ({ marca: (creds[x.brand] && creds[x.brand].name) || x.brand, fecha: x.date, tipo: x.type || 'Post' }));
         return { ok: true, data: { items } };
+      }
+      // ---- Workspaces por rol (leen el pipeline gestor/piezas) ----
+      // Pipeline de etapas: idea → aprobada (Estrategia) → grabada (Producción) → editada (Creativa) → publicada (Community)
+      if (p === '/api/gestion/produccion') {
+        const pz = await piezasAll();
+        const byMarca = {};
+        const bucket = (m) => (byMarca[m] || (byMarca[m] = { marca: m, pendientes: 0, enBanco: 0 }));
+        pz.forEach(x => {
+          const m = x.marca || 'Sin marca';
+          if (x.etapa === 'aprobada') bucket(m).pendientes++;      // lista para grabar
+          else if (x.etapa === 'idea') bucket(m).enBanco++;         // idea sin aprobar aún
+        });
+        const porGrabar = Object.values(byMarca).filter(x => x.pendientes > 0 || x.enBanco > 0).sort((a, b) => b.pendientes - a.pendientes);
+        const grabado = pz.filter(x => x.etapa === 'grabada').map(x => ({ marca: x.marca, tipo: x.tipo, fecha: x.fechaEntrega || x.fecha || '' }));
+        return { ok: true, data: { area: 'Producción', porGrabar, grabado } };
+      }
+      if (p === '/api/gestion/edicion') {
+        const pz = await piezasAll();
+        const porEditar = pz.filter(x => x.etapa === 'grabada');
+        const editadas = pz.filter(x => x.etapa === 'editada');
+        const chk = () => ['Revisar guion y tomas', 'Cortar y afinar ritmo', 'Música, textos y branding', 'Exportar en el formato de la plataforma'];
+        const mapIt = x => ({ marca: x.marca, tipo: x.tipo, publicaEl: (x.fecha || '').slice(0, 10), checklist: chk() });
+        const columnas = { 'Por editar': porEditar.map(mapIt), 'Editada · lista para publicar': editadas.map(mapIt) };
+        return { ok: true, data: { total: porEditar.length + editadas.length, orden: ['Por editar', 'Editada · lista para publicar'], columnas } };
+      }
+      if (p === '/api/gestion/community') {
+        const pz = await piezasAll();
+        const hoyISO = new Date().toISOString().slice(0, 10);
+        const retrasos = pz.filter(x => x.etapa !== 'publicada' && x.fecha && x.fecha.slice(0, 10) < hoyISO)
+          .map(x => ({ marca: x.marca, tipo: x.tipo, fecha: (x.fecha || '').slice(0, 10), estado: 'Pendiente' }));
+        const agenda = pz.filter(x => x.fecha).sort((a, b) => a.fecha.localeCompare(b.fecha))
+          .map(x => ({ fecha: (x.fecha || '').slice(0, 10), marca: x.marca, tipo: x.tipo, estado: x.etapa === 'publicada' ? 'Publicada' : 'Programada' }));
+        const hByMarca = {};
+        pz.filter(x => x.tipo === 'Historia' || x.tipo === 'Historias').forEach(x => {
+          const m = x.marca || 'Sin marca';
+          const h = hByMarca[m] || (hByMarca[m] = { marca: m, hechas: 0, meta: 15, enBanco: 0 });
+          if (x.etapa === 'publicada') h.hechas++; else h.enBanco++;
+        });
+        const historias = Object.values(hByMarca).sort((a, b) => a.marca.localeCompare(b.marca));
+        return { ok: true, data: { retrasos, agenda, historias } };
       }
       if (p.startsWith('/api/gestion')) return { ok: true, data: { marcas: [], area: null, porGrabar: [], grabado: [], items: [] } };
       if (p === '/api/radar') return { ok: true, data: { items: [] } };

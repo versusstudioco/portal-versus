@@ -177,6 +177,7 @@ async function enterApp(me) {
  $('.avatar').textContent = (me.name || 'V').trim().charAt(0).toUpperCase();
  $('#navConfig')?.classList.remove('hidden'); // Configuración: agenda personal (todos) + ajustes de admin
  if (me.role === 'admin') { $('#navEquipo').classList.remove('hidden'); }
+ revelarWorkspaces(me); // Muestra el workspace de cada área (admin ve todos)
  const badge = $('#aiBadge');
  if (me.aiEnabled) { badge.textContent = '● IA activa' + (me.provider === 'gemini' ? ' · Gemini' : me.provider === 'claude' ? ' · Claude' : ''); badge.className = 'ai-badge on'; }
  else { badge.textContent = '● Modo demo'; badge.className = 'ai-badge demo'; }
@@ -185,6 +186,29 @@ async function enterApp(me) {
  loadInicio().catch(e => { const o = $('#inicioOut'); if (o) o.innerHTML = `<div class="md-none">No se pudo cargar tu día. <button class="btn btn--ghost btn--sm" onclick="loadInicio()">Reintentar</button></div>`; });
  loadMeta().catch(() => {}); // en segundo plano, para los selects de las demás vistas
  api('/api/team/people').then(r => { if (r.ok && r.data.people) state.teamPeople = r.data.people; }).catch(() => {}); // para el selector de Responsable
+}
+
+/* ---------------- Navegación por rol: cada área ve su workspace ---------------- */
+// Mapa área → vistas propias. "Mis tareas" y "Métricas" son para todo el equipo.
+const AREA_VIEWS = {
+ 'estrategia': ['radar'],
+ 'producción': ['produccion'], 'produccion': ['produccion'],
+ 'creativa': ['edicion'], 'edición': ['edicion'], 'edicion': ['edicion'],
+ 'community': ['community'], 'comunidad': ['community'],
+ 'pauta': ['pauta'], 'medios': ['pauta']
+};
+function revelarWorkspaces(me) {
+ const mostrar = new Set(['mistareas', 'metricas']); // todo el equipo
+ const esAdmin = me.role === 'admin';
+ if (esAdmin) {
+ ['produccion', 'edicion', 'community', 'pauta', 'radar'].forEach(v => mostrar.add(v));
+ } else {
+ const misAreas = [].concat(me.areas || [], me.area || []).map(a => String(a).toLowerCase().trim());
+ misAreas.forEach(a => (AREA_VIEWS[a] || []).forEach(v => mostrar.add(v)));
+ }
+ let alguno = false;
+ mostrar.forEach(v => { const el = document.getElementById('nav_' + v); if (el) { el.classList.remove('hidden'); alguno = true; } });
+ const sec = document.getElementById('navWorkSec'); if (sec) sec.hidden = !alguno;
 }
 
 /* ---------------- Meta / selects ---------------- */
