@@ -188,27 +188,23 @@ async function enterApp(me) {
  api('/api/team/people').then(r => { if (r.ok && r.data.people) state.teamPeople = r.data.people; }).catch(() => {}); // para el selector de Responsable
 }
 
-/* ---------------- Navegación por rol: cada área ve su workspace ---------------- */
-// Mapa área → vistas propias. "Mis tareas" y "Métricas" son para todo el equipo.
-const AREA_VIEWS = {
- 'estrategia': ['radar'],
- 'producción': ['produccion'], 'produccion': ['produccion'],
- 'creativa': ['edicion'], 'edición': ['edicion'], 'edicion': ['edicion'],
- 'community': ['community'], 'comunidad': ['community'],
- 'pauta': ['pauta'], 'medios': ['pauta']
-};
+/* ---------------- Navegación por rol ---------------- */
+// "Mi trabajo" es solo Mis tareas (el flujo diario vive en Flujo y en Mi día).
+// "Estrategia · Radar" se muestra al área de Estrategia y al admin.
+function esArea(me, needle) {
+ return [].concat(me.areas || [], me.area || []).map(a => String(a).toLowerCase()).some(a => a.indexOf(needle) >= 0);
+}
 function revelarWorkspaces(me) {
- const mostrar = new Set(['mistareas', 'metricas']); // todo el equipo
  const esAdmin = me.role === 'admin';
- if (esAdmin) {
- ['produccion', 'edicion', 'community', 'pauta', 'radar'].forEach(v => mostrar.add(v));
- } else {
- const misAreas = [].concat(me.areas || [], me.area || []).map(a => String(a).toLowerCase().trim());
- misAreas.forEach(a => (AREA_VIEWS[a] || []).forEach(v => mostrar.add(v)));
- }
- let alguno = false;
- mostrar.forEach(v => { const el = document.getElementById('nav_' + v); if (el) { el.classList.remove('hidden'); alguno = true; } });
- const sec = document.getElementById('navWorkSec'); if (sec) sec.hidden = !alguno;
+ // Mi trabajo → Mis tareas (todo el equipo)
+ const tareas = document.getElementById('nav_mistareas');
+ if (tareas) tareas.classList.remove('hidden');
+ const secW = document.getElementById('navWorkSec'); if (secW) secW.hidden = false;
+ // Estrategia → Radar (Estrategia o admin)
+ const verRadar = esAdmin || esArea(me, 'estrateg');
+ const radar = document.getElementById('nav_radar');
+ if (radar) radar.classList.toggle('hidden', !verRadar);
+ const secE = document.getElementById('navEstSec'); if (secE) secE.hidden = !verRadar;
 }
 
 /* ---------------- Meta / selects ---------------- */
@@ -763,8 +759,8 @@ async function loadCommunity() {
  <div class="form-grid">
  <label class="select"><span>Marca</span><select id="cwMarca">${cwMarcas.map(m => `<option value="${esc(m.marca)}">${esc(m.marca)}</option>`).join('')}</select></label>
  <label class="select"><span>Semana · fecha de inicio</span><input id="cwWeek" type="date"></label>
- <label class="select"><span>Seguidores</span><input id="cwFollowers" type="number" min="0" placeholder="ej: 12500"></label>
- <label class="select"><span>Visualizaciones (semana)</span><input id="cwViews" type="number" min="0" placeholder="ej: 84000"></label>
+ <label class="select"><span>Seguidores (total al cierre)</span><input id="cwFollowers" type="number" min="0" placeholder="ej: 12500"></label>
+ <label class="select"><span>Visualizaciones (total de la semana)</span><input id="cwViews" type="number" min="0" placeholder="ej: 84000"></label>
  </div>
  <button class="btn btn--primary" id="cwSave">Guardar semana</button>
  <div id="cwList" style="margin-top:1rem"></div>
@@ -1610,8 +1606,8 @@ async function wmRender(marca) {
    return `<div class="wm-week" data-week="${w.num}" data-date="${wmISO(w.start)}">
      <div class="wm-week__h">Semana ${w.num} <span>${wmFecha(w.start)} – ${wmFecha(w.end)}</span></div>
      <div class="wm-week__in">
-       <label class="select"><span>Seguidores</span><input class="wmF" type="number" min="0" value="${sv.followers != null ? sv.followers : ''}" placeholder="12500"></label>
-       <label class="select"><span>Visualizaciones</span><input class="wmV" type="number" min="0" value="${sv.views != null ? sv.views : ''}" placeholder="84000"></label>
+       <label class="select"><span>Seguidores (total al cierre)</span><input class="wmF" type="number" min="0" value="${sv.followers != null ? sv.followers : ''}" placeholder="ej: 12500"></label>
+       <label class="select"><span>Visualizaciones (total de la semana)</span><input class="wmV" type="number" min="0" value="${sv.views != null ? sv.views : ''}" placeholder="ej: 84000"></label>
        <button class="btn btn--ghost btn--sm wmSave">Guardar</button>
      </div></div>`;
  }).join('');
@@ -1745,8 +1741,15 @@ async function marcaConfig(marca) {
  </div>
  <button class="btn btn--primary btn--sm" id="cfSave" style="margin-top:.7rem">Guardar</button>
  </div>
+
+ <div class="est-ctx" style="margin-top:1rem" id="cfPlatBox">
+ <h4> Plataformas y pauta <span class="hub-hint" style="display:inline;margin:0">— define qué ve el cliente en su portal</span></h4>
+ <div id="cfPlatInner"><div class="hub-hint">Cargando…</div></div>
+ </div>
+
  ${isAdmin() ? `<div class="est-ctx" style="margin-top:1rem"><h4> Acceso del cliente <span class="hub-hint" style="display:inline;margin:0">— con esto entra a /clientes/</span></h4><div id="cfCliente"><div class="hub-hint">Cargando…</div></div></div>` : ''}`;
 
+ marcaPlataformas(marca);
  if (isAdmin()) marcaClienteAcceso(marca);
  const inp = pane.querySelector('.hub-file-input');
  if (inp) inp.addEventListener('change', async () => {
@@ -1773,6 +1776,36 @@ async function marcaConfig(marca) {
  } });
  save.disabled = false; save.textContent = 'Guardado ✓';
  setTimeout(() => { if (save) save.textContent = 'Guardar'; }, 1500);
+ });
+}
+
+// Plataformas habilitadas + si lleva pauta (lo que ve el cliente en /clientes/)
+async function marcaPlataformas(marca) {
+ const box = $('#cfPlatInner'); if (!box) return;
+ const { ok, data } = await api('/api/marca/plataformas?marca=' + encodeURIComponent(marca));
+ if (!ok || !data.cu) {
+ box.innerHTML = '<div class="hub-hint">Esta marca aún no tiene una cuenta de cliente vinculada. Crea el acceso del cliente abajo para poder configurar sus plataformas.</div>';
+ return;
+ }
+ const p = data.plats || {};
+ const row = (k, l) => `<label class="np-chk" style="margin-right:1rem"><input type="checkbox" id="cfPlat_${k}" ${p[k] ? 'checked' : ''}> ${l}</label>`;
+ box.innerHTML = `
+ <div class="hub-hint" style="margin:0 0 .5rem">El cliente solo verá métricas y contenido de las plataformas activas.</div>
+ <div style="display:flex;flex-wrap:wrap;align-items:center;gap:.3rem .2rem">
+ ${row('Instagram', 'Instagram')}${row('TikTok', 'TikTok')}${row('YouTube', 'YouTube')}
+ </div>
+ <label class="np-chk" style="margin-top:.7rem;display:flex;align-items:center;gap:.4rem"><input type="checkbox" id="cfPautaOn" ${data.pauta ? 'checked' : ''}> <b>Esta marca lleva pauta</b> <span class="hub-hint" style="display:inline;margin:0">— muestra el bloque de pauta en su portal</span></label>
+ <button class="btn btn--primary btn--sm" id="cfPlatSave" style="margin-top:.7rem">Guardar plataformas</button>`;
+ const save = $('#cfPlatSave');
+ if (save) save.addEventListener('click', async () => {
+ save.disabled = true; save.textContent = 'Guardando…';
+ const r = await api('/api/marca/plataformas', { method: 'POST', body: {
+ marca,
+ Instagram: $('#cfPlat_Instagram').checked, TikTok: $('#cfPlat_TikTok').checked, YouTube: $('#cfPlat_YouTube').checked,
+ pauta: $('#cfPautaOn').checked
+ } });
+ save.disabled = false; save.textContent = (r.ok && !r.data.error) ? 'Guardado ✓' : 'Reintentar';
+ setTimeout(() => { if (save) save.textContent = 'Guardar plataformas'; }, 1600);
  });
 }
 

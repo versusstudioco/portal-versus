@@ -721,6 +721,26 @@
         const plats = Object.keys(platsObj).filter(k => platsObj[k]);
         return { ok: true, data: { cu, cycles, plats: plats.length ? plats : ['Instagram'], weekMetrics: wmRaw || {} } };
       }
+      // Plataformas habilitadas + pauta de la marca → lo que VE el cliente en /clientes/
+      if (p === '/api/marca/plataformas') {
+        const marca = q.get('marca') || body.marca || '';
+        const norm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+        const [credsTeam, credsCli] = await Promise.all([fbGet('db/creds').catch(() => ({})), fbGet('creds').catch(() => ({}))]);
+        const creds = Object.assign({}, credsCli || {}, credsTeam || {});
+        const km = norm(marca);
+        let cu = '';
+        Object.entries(creds).forEach(([u, v]) => { if (!cu && v && v.type === 'client' && (norm(v.name) === km || norm(u) === km || (km && norm(v.name).indexOf(km) >= 0) || (km && km.indexOf(norm(v.name)) >= 0))) cu = u; });
+        if (!cu) return { ok: true, data: { cu: '', plats: { Instagram: true, TikTok: false, YouTube: false }, pauta: false } };
+        if (method === 'POST') {
+          const plats = { Instagram: !!body.Instagram, TikTok: !!body.TikTok, YouTube: !!body.YouTube };
+          await fbPut('db/platCfg/' + cu, plats);
+          await fbPut('db/pautaOn/' + cu, !!body.pauta);
+          return { ok: true, data: { ok: true, cu } };
+        }
+        const [platCfg, pautaOn] = await Promise.all([fbGet('db/platCfg').catch(() => null), fbGet('db/pautaOn').catch(() => null)]);
+        const plats = (platCfg && platCfg[cu]) || { Instagram: true, TikTok: false, YouTube: false };
+        return { ok: true, data: { cu, plats: { Instagram: !!plats.Instagram, TikTok: !!plats.TikTok, YouTube: !!plats.YouTube }, pauta: !!(pautaOn && pautaOn[cu]) } };
+      }
       if (p === '/api/marca/aprendizaje') {
         const marca = q.get('marca') || body.marca || '';
         if (method === 'POST') { const item = { id: uid(), kind: body.kind || 'nota', texto: String(body.texto || '').trim(), fuente: body.fuente || '', at: new Date().toISOString() }; await fbPut('gestor/marcas/' + fbKey(marca) + '/aprendizaje/' + item.id, item); return { ok: true, data: { ok: true, item } }; }
@@ -900,7 +920,45 @@
         return { ok: true, data: { retrasos, agenda, historias } };
       }
       if (p.startsWith('/api/gestion')) return { ok: true, data: { marcas: [], area: null, porGrabar: [], grabado: [], items: [] } };
-      if (p === '/api/radar') return { ok: true, data: { items: [] } };
+      if (p === '/api/radar') {
+        const topic = (q.get('topic') || body.topic || '').trim();
+        const country = q.get('country') || body.country || 'co';
+        const category = q.get('category') || body.category || '';
+        if (!topic) return { ok: false, status: 400, data: { error: 'Escribe un tema para analizar.' } };
+        const paisLabel = ({ co: 'Colombia', mx: 'México', us: 'Estados Unidos', es: 'España', ar: 'Argentina' })[country] || country;
+        const catLabel = ({ educativo: 'Educativo', entretenimiento: 'Entretenimiento', venta: 'Venta', inspiracion: 'Inspiración' })[category] || '';
+        // Enlaces reales a cada plataforma (sin API): el equipo ve el tema en vivo.
+        const enc = encodeURIComponent(topic);
+        const links = [
+          { platform: 'tiktok', url: 'https://www.tiktok.com/search?q=' + enc, label: 'Buscar' },
+          { platform: 'instagram', url: 'https://www.instagram.com/explore/search/keyword/?q=' + enc, label: 'Explorar' },
+          { platform: 'youtube', url: 'https://www.youtube.com/results?search_query=' + enc, label: 'Buscar' }
+        ];
+        let analysis = null, terminos = [];
+        if (window.VFB_GEMINI) {
+          try {
+            const system = 'Eres estratega de contenido de redes sociales de Versus Studio (agencia de marketing). Analizas un tema y devuelves ideas accionables para grabar y publicar HOY, en español de ' + paisLabel + '. Respondes SOLO con JSON válido, sin texto adicional.';
+            const prompt = 'Tema: "' + topic + '"\nPaís/mercado: ' + paisLabel + (catLabel ? ('\nTono/categoría: ' + catLabel) : '') +
+              '\n\nDevuelve EXACTAMENTE este JSON:\n{\n "resumen": "2-3 frases: por qué este tema importa ahora y el ángulo general",\n "accion_rapida": "una acción concreta para grabar o publicar hoy",\n "temas": [{"tema":"...","por_que":"...","angulo_sugerido":"..."}],\n "estructuras_ganadoras": ["...","..."],\n "hashtags_sugeridos": ["#...","..."],\n "ganchos": ["...","..."],\n "terminos_tendencia": ["...","..."]\n}\nReglas: 4-6 temas; 4-6 estructuras de video/post que funcionan para este tema; 8-12 hashtags relevantes al país; 5-6 ganchos (primeras líneas listas para usar' + (catLabel ? (' en tono ' + catLabel) : '') + '); 6-10 términos/búsquedas relacionadas en ascenso.';
+            const json = extractJSON(await callGemini(system, prompt));
+            if (json) {
+              analysis = {
+                source: 'gemini',
+                resumen: json.resumen || '',
+                accion_rapida: json.accion_rapida || '',
+                temas: Array.isArray(json.temas) ? json.temas : [],
+                estructuras_ganadoras: Array.isArray(json.estructuras_ganadoras) ? json.estructuras_ganadoras : [],
+                hashtags_sugeridos: Array.isArray(json.hashtags_sugeridos) ? json.hashtags_sugeridos : [],
+                ganchos: Array.isArray(json.ganchos) ? json.ganchos : []
+              };
+              terminos = Array.isArray(json.terminos_tendencia) ? json.terminos_tendencia : [];
+            }
+          } catch (_) {}
+        }
+        if (!analysis) analysis = { source: 'demo', resumen: 'Explora el tema en vivo con los enlaces de cada plataforma.', accion_rapida: '', temas: [], estructuras_ganadoras: [], hashtags_sugeridos: [], ganchos: [] };
+        const signals = { trends: terminos.map(t => ({ term: String(t), traffic: '' })), news: [] };
+        return { ok: true, data: { analysis, signals, links, category, memoria: { corridas: 1, temasAcumulados: (analysis.temas || []).length }, updatedAt: new Date().toISOString(), aiEnabled: !!window.VFB_GEMINI } };
+      }
 
       return { ok: false, status: 404, data: { error: 'Ruta no disponible en modo Firebase: ' + p } };
     } catch (e) {
