@@ -1600,15 +1600,23 @@ async function marcaMetricas(marca) {
  const medV = m ? m.medianaViews : 0;
  const balanceCard = cicloBalanceHTML((cicR.data && cicR.data.cycles) || []);
  const semanalCard = `<div class="est-ctx" id="wmCard"><div class="loading"><div class="spinner"></div>Cargando métricas por semana…</div></div>`;
- const pubCard = m ? `<div class="hub-metrics-top">
- <div class="g-stat"><b>${m.total || 0}</b><span>publicaciones</span></div>
- <div class="g-stat"><b>${fmtViews(m.medianaViews)}</b><span>mediana views</span></div>
+ const pubCard = m ? `<div class="est-ctx" style="margin-top:1rem">
+ <div class="m-head">
+ <h4 style="margin:0"> Rendimiento del contenido <span class="hub-hint" style="display:inline;margin:0">— toca una tarjeta para ver por qué funcionó o no</span></h4>
+ <div class="m-head__stats"><span><b>${m.total || 0}</b> publicaciones</span><span><b>${fmtViews(m.medianaViews)}</b> mediana de vistas</span></div>
  </div>
- <div class="kv"><b> Lo que más funcionó <span class="hub-hint" style="display:inline;margin:0">— toca una tarjeta para ver por qué</span></b>${(m.mejores || []).map(p => metricCard(p, medV)).join('')}</div>
- <div class="kv"><b> Lo que menos funcionó</b>${(m.peores || []).map(p => metricCard(p, medV)).join('')}</div>
- <button class="btn btn--primary btn--sm m-ia" data-i="${idx}">Análisis con IA</button>
- <div class="m-ia-out" id="mia-${idx}"></div>`
- : '<div class="hub-empty">Aún no hay métricas de publicaciones del Portal de clientes para esta marca.</div>';
+ <div class="m-group">
+ <div class="m-group__label m-group__label--ok"><span class="m-dot"></span> Lo que más funcionó</div>
+ ${(m.mejores || []).map((p, i) => metricCard(p, medV, 'top', i + 1)).join('') || '<div class="hub-empty">Aún sin datos.</div>'}
+ </div>
+ <div class="m-group">
+ <div class="m-group__label m-group__label--no"><span class="m-dot"></span> Lo que menos funcionó</div>
+ ${(m.peores || []).map((p, i) => metricCard(p, medV, 'low', i + 1)).join('') || '<div class="hub-empty">Aún sin datos.</div>'}
+ </div>
+ <button class="btn btn--primary btn--sm m-ia" data-i="${idx}" style="margin-top:.6rem">✨ Análisis con IA</button>
+ <div class="m-ia-out" id="mia-${idx}"></div>
+ </div>`
+ : '<div class="est-ctx" style="margin-top:1rem"><div class="hub-empty">Aún no hay métricas de publicaciones del Portal de clientes para esta marca.</div></div>';
  pane.innerHTML = balanceCard + semanalCard + pubCard;
  wmRender(marca);
  if (m) { const b = pane.querySelector('.m-ia'); if (b) b.addEventListener('click', (e) => analizarMarca(idx, e.target)); }
@@ -2119,22 +2127,27 @@ function metricPorque(p, medViews) {
  if (!r.length) r.push({ ok: null, t: `Sin base suficiente para comparar todavía.` });
  return r.map(x => `<div class="m-why__row ${x.ok === 1 ? 'm-why--ok' : x.ok === 0 ? 'm-why--no' : ''}">${x.ok === 1 ? '▲' : x.ok === 0 ? '▼' : '•'} ${esc(x.t)}</div>`).join('');
 }
-function metricCard(p, medViews) {
- const n = NIVEL_INFO[p.nivel] || NIVEL_INFO.sin_base;
+function metricCard(p, medViews, kind, rank) {
  const f = medViews ? (p.views / medViews) : 0;
- return `<div class="m-card">
- <div class="m-card__head" onclick="toggleMetricCard(this)">
- <div class="m-card__ttl"><div class="tagname">${esc((p.desc || '').slice(0, 48) || '(sin título)')}</div>
- <div class="note">${esc(p.type || '')} · ${fmtViews(p.views)} views · eng ${p.engagement}%</div></div>
- <span class="g-status ${n.c}">${n.t}</span><span class="m-card__chev">⌄</span>
- </div>
+ const factorTxt = medViews ? `${f.toFixed(f >= 10 ? 0 : 1)}×` : '—';
+ const stat = (lbl, val) => `<div class="m-stat"><span class="m-stat__v">${val}</span><span class="m-stat__l">${lbl}</span></div>`;
+ return `<div class="m-card m-card--${kind === 'low' ? 'low' : 'top'}">
+ <button class="m-card__head" onclick="toggleMetricCard(this)">
+ <span class="m-rank">${rank}</span>
+ <span class="m-card__ttl"><span class="m-card__desc">${esc((p.desc || '').slice(0, 52) || '(sin título)')}</span>
+ <span class="m-card__meta">${esc(p.type || 'Post')}${p.platform ? ' · ' + esc(p.platform) : ''}</span></span>
+ <span class="m-card__views">${fmtViews(p.views)}<small>views</small></span>
+ <span class="m-card__chev" aria-hidden="true"></span>
+ </button>
  <div class="m-card__body" hidden>
- <div class="m-metrics">
- <span>👁 ${fmtViews(p.views)} views${medViews ? ` · ${f.toFixed(f >= 1 ? 1 : 2)}× la mediana` : ''}</span>
- <span>❤ ${fmtViews(p.likes)} · 💬 ${fmtViews(p.comments)} · 🔖 ${fmtViews(p.saved)} · ↗ ${fmtViews(p.shares)}</span>
+ <div class="m-stats">
+ ${stat('vistas', fmtViews(p.views))}
+ ${stat('vs. mediana', factorTxt)}
+ ${stat('engagement', (p.engagement || 0) + '%')}
+ ${stat('guardados', fmtViews(p.saved))}
  </div>
  <div class="m-why">${metricPorque(p, medViews)}</div>
- ${p.link ? `<a href="${esc(p.link)}" target="_blank" rel="noopener" class="btn btn--ghost btn--sm">Ver publicación</a>` : ''}
+ ${p.link ? `<a href="${esc(p.link)}" target="_blank" rel="noopener" class="m-card__link">Ver publicación →</a>` : ''}
  </div>
  </div>`;
 }
