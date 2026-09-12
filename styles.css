@@ -1308,3 +1308,23 @@ body { overflow-x: hidden; }
 .cl-acc { display: flex; flex-direction: column; gap: .4rem; }
 .cl-acc__row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; font-size: .9rem; padding: .4rem .1rem; border-bottom: 1px solid var(--line); }
 .cl-acc__row span { color: var(--ink-60); }
+
+/* Agente de estrategia: estado bloqueado hasta guardar el contexto base */
+.est-gen-lock{background:rgba(249,0,0,.06);border:1px solid rgba(249,0,0,.18);color:var(--red,#F90000);font-size:12px;font-weight:600;padding:8px 12px;border-radius:10px;margin:.2rem 0 .6rem}
+.est-gen--locked{opacity:.55}
+.est-gen--locked .est-gen-bar,.est-gen--locked .est-gen-btns{filter:grayscale(.6);pointer-events:none}
+.est-gen--locked .est-run,.est-gen--locked #esTema,.est-gen--locked #esPlat{cursor:not-allowed}
+
+/* Tarjetas de ciclo en Marcas → Ciclo */
+.cic-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:.7rem;margin-top:.6rem}
+.cic-card{border:1px solid var(--bd,rgba(0,0,0,.1));border-radius:12px;padding:12px;background:var(--bg2,#fff)}
+.cic-card--act{border-color:var(--red,#F90000);box-shadow:0 0 0 1px rgba(249,0,0,.25)}
+.cic-card__top{display:flex;align-items:center;justify-content:space-between;gap:.4rem;font-size:13px}
+.cic-card__dates{font-size:11px;color:var(--t2,#888);margin:.25rem 0 .45rem}
+.cic-card__bar{height:6px;border-radius:6px;background:rgba(0,0,0,.08);overflow:hidden}
+.cic-card__fill{height:100%;background:var(--red,#F90000)}
+.cic-card__meta{font-size:11px;color:var(--t2,#888);margin-top:.4rem}
+.cic-badge{font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;padding:2px 7px;border-radius:9px}
+.cic-badge--act{background:rgba(249,0,0,.14);color:var(--red,#F90000)}
+.cic-badge--past{background:rgba(0,0,0,.08);color:var(--t2,#888)}
+.cic-badge--fut{background:rgba(108,0,255,.12);color:#6C00FF}

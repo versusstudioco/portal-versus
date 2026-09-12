@@ -721,6 +721,38 @@
         const plats = Object.keys(platsObj).filter(k => platsObj[k]);
         return { ok: true, data: { cu, cycles, plats: plats.length ? plats : ['Instagram'], weekMetrics: wmRaw || {} } };
       }
+      // Todos los ciclos del cliente de esta marca (para las tarjetas por ciclo en el Team)
+      if (p === '/api/marca/ciclos') {
+        const marca = q.get('marca') || body.marca || '';
+        const norm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+        const [credsTeam, credsCli] = await Promise.all([fbGet('db/creds').catch(() => ({})), fbGet('creds').catch(() => ({}))]);
+        const creds = Object.assign({}, credsCli || {}, credsTeam || {});
+        const km = norm(marca);
+        let cu = '';
+        Object.entries(creds).forEach(([u, v]) => { if (!cu && v && v.type === 'client' && (norm(v.name) === km || norm(u) === km || (km && norm(v.name).indexOf(km) >= 0) || (km && km.indexOf(norm(v.name)) >= 0))) cu = u; });
+        if (!cu) return { ok: true, data: { cu: '', cycles: [] } };
+        const [cyclesRaw, objsRaw, pubsRaw] = await Promise.all([
+          fbGet('db/cycles').catch(() => null), fbGet('db/objectives').catch(() => null), fbGet('db/publications').catch(() => null)
+        ]);
+        const objectives = (Array.isArray(objsRaw) ? objsRaw : Object.values(objsRaw || {})).filter(Boolean);
+        const pubs = (Array.isArray(pubsRaw) ? pubsRaw : Object.values(pubsRaw || {})).filter(Boolean).filter(x => x.brand === cu && x.status === 'published');
+        const cyclesArr = (Array.isArray(cyclesRaw) ? cyclesRaw : Object.values(cyclesRaw || {})).filter(c => c && c.brand === cu);
+        const hoyISO = new Date().toISOString().slice(0, 10);
+        const cycles = cyclesArr.map(cyc => {
+          const goals = { reels: +cyc.reels || 0, carruseles: +cyc.carruseles || 0, posts: +cyc.posts || 0, historias: +cyc.historias || 0, videos: +cyc.videos || 0, shorts: +cyc.shorts || 0 };
+          const cobjs = objectives.filter(o => o.brand === cu && o.cycle === cyc.id);
+          if (cobjs.length) { const s = { reels: 0, carruseles: 0, posts: 0, historias: 0 }; cobjs.forEach(o => { s.reels += +o.reels || 0; s.carruseles += +o.carruseles || 0; s.posts += +o.posts || 0; s.historias += +o.stories || 0; }); if (s.reels) goals.reels = s.reels; if (s.carruseles) goals.carruseles = s.carruseles; if (s.posts) goals.posts = s.posts; if (s.historias) goals.historias = s.historias; }
+          const metaCreativos = goals.reels + goals.carruseles + goals.posts + goals.videos + goals.shorts;
+          const cpubs = pubs.filter(x => x.cycle === cyc.id);
+          const creativosPub = cpubs.filter(x => x.type !== 'Historia' && x.type !== 'Historias').length;
+          const histPub = cpubs.filter(x => x.type === 'Historia' || x.type === 'Historias').length;
+          const pct = metaCreativos ? Math.min(100, Math.round(creativosPub / metaCreativos * 100)) : (creativosPub ? 100 : 0);
+          const activo = cyc.status === 'active' || (cyc.start && cyc.end && cyc.start <= hoyISO && hoyISO <= cyc.end);
+          return { id: cyc.id, name: cyc.name || cyc.id, start: cyc.start || '', end: cyc.end || '', status: cyc.status || (activo ? 'active' : ''), activo,
+            metaCreativos, creativosPub, metaHist: goals.historias, histPub, pct };
+        }).sort((a, b) => (a.activo && !b.activo) ? -1 : (b.activo && !a.activo) ? 1 : String(b.start || '').localeCompare(String(a.start || '')));
+        return { ok: true, data: { cu, cycles } };
+      }
       // Plataformas habilitadas + pauta de la marca → lo que VE el cliente en /clientes/
       if (p === '/api/marca/plataformas') {
         const marca = q.get('marca') || body.marca || '';
@@ -730,16 +762,16 @@
         const km = norm(marca);
         let cu = '';
         Object.entries(creds).forEach(([u, v]) => { if (!cu && v && v.type === 'client' && (norm(v.name) === km || norm(u) === km || (km && norm(v.name).indexOf(km) >= 0) || (km && km.indexOf(norm(v.name)) >= 0))) cu = u; });
-        if (!cu) return { ok: true, data: { cu: '', plats: { Instagram: true, TikTok: false, YouTube: false }, pauta: false } };
+        if (!cu) return { ok: true, data: { cu: '', plats: { Instagram: true, TikTok: false, YouTube: false, LinkedIn: false }, pauta: false } };
         if (method === 'POST') {
-          const plats = { Instagram: !!body.Instagram, TikTok: !!body.TikTok, YouTube: !!body.YouTube };
+          const plats = { Instagram: !!body.Instagram, TikTok: !!body.TikTok, YouTube: !!body.YouTube, LinkedIn: !!body.LinkedIn };
           await fbPut('db/platCfg/' + cu, plats);
           await fbPut('db/pautaOn/' + cu, !!body.pauta);
           return { ok: true, data: { ok: true, cu } };
         }
         const [platCfg, pautaOn] = await Promise.all([fbGet('db/platCfg').catch(() => null), fbGet('db/pautaOn').catch(() => null)]);
-        const plats = (platCfg && platCfg[cu]) || { Instagram: true, TikTok: false, YouTube: false };
-        return { ok: true, data: { cu, plats: { Instagram: !!plats.Instagram, TikTok: !!plats.TikTok, YouTube: !!plats.YouTube }, pauta: !!(pautaOn && pautaOn[cu]) } };
+        const plats = (platCfg && platCfg[cu]) || { Instagram: true, TikTok: false, YouTube: false, LinkedIn: false };
+        return { ok: true, data: { cu, plats: { Instagram: !!plats.Instagram, TikTok: !!plats.TikTok, YouTube: !!plats.YouTube, LinkedIn: !!plats.LinkedIn }, pauta: !!(pautaOn && pautaOn[cu]) } };
       }
       if (p === '/api/marca/aprendizaje') {
         const marca = q.get('marca') || body.marca || '';

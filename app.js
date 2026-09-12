@@ -1413,10 +1413,28 @@ function marcaTab(tab) {
 
 /* --- Ciclo: configuración (pactado) + Pactado vs. Realizado (automático) --- */
 const CICLO_TIPOS = [['reels', 'Reels'], ['carruseles', 'Carruseles'], ['posts', 'Posts'], ['banners', 'Banners'], ['historias', 'Historias']];
+function cicloCardsHTML(cycles) {
+ if (!cycles || !cycles.length) return '';
+ const fD = s => { if (!s) return '—'; const [y, m, d] = s.split('-'); return d + '/' + m + '/' + String(y).slice(2); };
+ const cards = cycles.map(c => {
+ const badge = c.activo ? '<span class="cic-badge cic-badge--act">Activo</span>' : (c.end && c.end < new Date().toISOString().slice(0, 10) ? '<span class="cic-badge cic-badge--past">Terminado</span>' : '<span class="cic-badge cic-badge--fut">Próximo</span>');
+ return `<div class="cic-card ${c.activo ? 'cic-card--act' : ''}">
+   <div class="cic-card__top"><b>${esc(c.name)}</b>${badge}</div>
+   <div class="cic-card__dates">${fD(c.start)} – ${fD(c.end)}</div>
+   <div class="cic-card__bar"><div class="cic-card__fill" style="width:${c.pct}%"></div></div>
+   <div class="cic-card__meta">${c.creativosPub}/${c.metaCreativos || '—'} creativos${c.metaHist ? ` · ${c.histPub}/${c.metaHist} historias` : (c.histPub ? ` · ${c.histPub} historias` : '')}</div>
+ </div>`;
+ }).join('');
+ return `<div class="est-ctx" style="margin-bottom:1rem"><h4> Ciclos de la marca <span class="hub-hint" style="display:inline;margin:0">— el activo va primero; los anteriores para revisar</span></h4><div class="cic-cards">${cards}</div></div>`;
+}
 async function marcaCiclo(marca) {
  const pane = $('#marcaPane');
  pane.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando ciclo…</div>';
- const { data } = await api('/api/marca/ciclo?marca=' + encodeURIComponent(marca));
+ const [{ data }, cicR] = await Promise.all([
+ api('/api/marca/ciclo?marca=' + encodeURIComponent(marca)),
+ api('/api/marca/ciclos?marca=' + encodeURIComponent(marca))
+ ]);
+ const cardsHTML = cicloCardsHTML((cicR.data && cicR.data.cycles) || []);
  const pac = data.pactado || {}, real = data.realizado || {};
  const isAdmin = esEstrategia(); // Admin o Estrategia pueden editar el ciclo/fechas
  const totalPac = CICLO_TIPOS.reduce((s, [k]) => s + (+pac[k] || 0), 0);
@@ -1444,7 +1462,7 @@ async function marcaCiclo(marca) {
  </div>
  <p class="hub-hint" style="margin-top:.5rem">Solo el administrador puede editar ciclos, fechas y cantidades.</p>
  </div>`;
- pane.innerHTML = (isAdmin ? configAdmin : configLectura) + `
+ pane.innerHTML = cardsHTML + (isAdmin ? configAdmin : configLectura) + `
  <div class="ciclo-vs">
  <div class="ciclo-vs__head"><h4>Pactado vs. Realizado</h4><span class="g-card__meta">${totalReal}/${totalPac} del ciclo</span></div>
  ${CICLO_TIPOS.filter(([k]) => (+pac[k] || 0) > 0 || (+real[k] || 0) > 0).map(([k, l]) => {
@@ -1792,7 +1810,7 @@ async function marcaPlataformas(marca) {
  box.innerHTML = `
  <div class="hub-hint" style="margin:0 0 .5rem">El cliente solo verá métricas y contenido de las plataformas activas.</div>
  <div style="display:flex;flex-wrap:wrap;align-items:center;gap:.3rem .2rem">
- ${row('Instagram', 'Instagram')}${row('TikTok', 'TikTok')}${row('YouTube', 'YouTube')}
+ ${row('Instagram', 'Instagram')}${row('TikTok', 'TikTok')}${row('YouTube', 'YouTube')}${row('LinkedIn', 'LinkedIn')}
  </div>
  <label class="np-chk" style="margin-top:.7rem;display:flex;align-items:center;gap:.4rem"><input type="checkbox" id="cfPautaOn" ${data.pauta ? 'checked' : ''}> <b>Esta marca lleva pauta</b> <span class="hub-hint" style="display:inline;margin:0">— muestra el bloque de pauta en su portal</span></label>
  <button class="btn btn--primary btn--sm" id="cfPlatSave" style="margin-top:.7rem">Guardar plataformas</button>`;
@@ -1801,7 +1819,7 @@ async function marcaPlataformas(marca) {
  save.disabled = true; save.textContent = 'Guardando…';
  const r = await api('/api/marca/plataformas', { method: 'POST', body: {
  marca,
- Instagram: $('#cfPlat_Instagram').checked, TikTok: $('#cfPlat_TikTok').checked, YouTube: $('#cfPlat_YouTube').checked,
+ Instagram: $('#cfPlat_Instagram').checked, TikTok: $('#cfPlat_TikTok').checked, YouTube: $('#cfPlat_YouTube').checked, LinkedIn: $('#cfPlat_LinkedIn').checked,
  pauta: $('#cfPautaOn').checked
  } });
  save.disabled = false; save.textContent = (r.ok && !r.data.error) ? 'Guardado ✓' : 'Reintentar';
@@ -1851,7 +1869,9 @@ async function marcaEstrategia(marca) {
  <div id="apList" class="est-learn-list">${renderAprende()}</div>
  </div>
 
- <div class="est-gen">
+ <div class="est-gen" id="esAgent">
+ <h4 style="margin:0 0 .1rem"> Agente de estrategia de la marca</h4>
+ <div class="est-gen-lock" id="esAgentLock"> Guarda el contexto de arriba (Industria, Servicios y Tono) para activar el agente de esta marca.</div>
  <div class="est-gen-bar">
  <input id="esTema" placeholder="Tema del contenido (ej: lanzamiento de producto)">
  <select id="esPlat"><option value="instagram">Instagram</option><option value="tiktok">TikTok</option><option value="linkedin">LinkedIn</option></select>
@@ -1864,15 +1884,19 @@ async function marcaEstrategia(marca) {
  </div>
  <div id="esOut"></div>
  </div>`;
+ // El agente se habilita solo cuando el contexto base está completo.
+ estAgentSet(!!(($('#esIndustria').value || '').trim() && ($('#esServicios').value || '').trim() && ($('#esTono').value || '').trim()));
  $('#esCtxSave').addEventListener('click', async () => {
  await api('/api/marca/contexto', { method: 'POST', body: {
  marca, industria: $('#esIndustria').value, pais: $('#esPais').value, tipoClientes: $('#esTipoClientes').value,
  publico: $('#esPublico').value, tono: $('#esTono').value, comunicacion: $('#esComunicacion').value,
  servicios: $('#esServicios').value, notas: $('#esNotas').value
  } });
- $('#esCtxSave').textContent = 'Guardado ✓';
- const alert = $('.est-ctx-alert'); if (alert && $('#esIndustria').value && $('#esServicios').value && $('#esTono').value) alert.remove();
- setTimeout(() => { const b = $('#esCtxSave'); if (b) b.textContent = 'Guardar contexto'; }, 1500);
+ const completo = !!($('#esIndustria').value.trim() && $('#esServicios').value.trim() && $('#esTono').value.trim());
+ $('#esCtxSave').textContent = completo ? 'Guardado ✓ · agente activo' : 'Guardado ✓';
+ const alert = $('.est-ctx-alert'); if (alert && completo) alert.remove();
+ estAgentSet(completo); // Habilita/inhabilita el agente según el contexto guardado
+ setTimeout(() => { const b = $('#esCtxSave'); if (b) b.textContent = 'Guardar contexto'; }, 1800);
  });
  $('#apAdd').addEventListener('click', async () => {
  const texto = $('#apTexto').value.trim(); if (!texto) return;
@@ -1888,6 +1912,13 @@ async function marcaEstrategia(marca) {
  });
  bindAprendeRemove(marca);
  pane.querySelectorAll('.est-run').forEach(b => b.addEventListener('click', () => estGenerar(marca, b.dataset.kind, b)));
+}
+// Habilita o bloquea el agente de estrategia (generadores) según el contexto base.
+function estAgentSet(on) {
+ const box = $('#esAgent'); if (!box) return;
+ box.classList.toggle('est-gen--locked', !on);
+ const lock = $('#esAgentLock'); if (lock) lock.style.display = on ? 'none' : '';
+ box.querySelectorAll('.est-run, #esTema, #esPlat').forEach(el => { el.disabled = !on; });
 }
 function renderAprende() {
  if (!state.aprendizaje || !state.aprendizaje.length) return '<div class="hub-empty">Aún no aprende nada de esta marca. Agrégale info o busca por tema.</div>';
