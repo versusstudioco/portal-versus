@@ -1679,10 +1679,14 @@ async function marcaCalendario(marca) {
  const card = pane.querySelector('.cal-pz[data-id="' + id + '"]');
  if (card) { card.classList.remove('dragging'); cell.appendChild(card); } // movimiento instantáneo
  if (p) p.fecha = iso;
- // Persistir en gestor/piezas (fuente única): sincroniza team y cliente al recargar.
- api('/api/piezas/update', { method: 'POST', body: { id, fecha: iso } })
- .then(r => { if (!r || !r.ok) marcaCalendario(marca); })
- .catch(() => marcaCalendario(marca));
+ // Se sincroniza en todos lados guardando en la fuente correcta según el tipo de tarjeta:
+ //  · pieza del equipo → gestor/piezas (calendario general, de marca y flujo)
+ //  · publicación ya publicada → db/publications (portal del cliente y métricas)
+ const esPub = (p && p.historico) || String(id).indexOf('pub_') === 0;
+ const req = esPub
+ ? api('/api/publicacion', { method: 'POST', body: { id: String(id).replace(/^pub_/, ''), date: iso } })
+ : api('/api/piezas/update', { method: 'POST', body: { id, fecha: iso } });
+ req.then(r => { if (!r || !r.ok) marcaCalendario(marca); }).catch(() => marcaCalendario(marca));
  });
  });
  };
