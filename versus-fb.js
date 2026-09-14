@@ -514,7 +514,7 @@
         else { const e = Object.entries(raw).find(([, v]) => v && String(v.id) === String(id)); if (e) key = e[0]; }
         if (key === null) return { ok: false, status: 404, data: { error: 'No se encontró la publicación' } };
         const patch = {};
-        ['desc', 'type', 'date', 'platform', 'link'].forEach(k => { if (body[k] != null) patch[k] = String(body[k]); });
+        ['desc', 'type', 'date', 'platform', 'link', 'cycle'].forEach(k => { if (body[k] != null) patch[k] = String(body[k]); });
         ['views', 'likes', 'comments', 'saved', 'shares'].forEach(k => { if (body[k] != null) patch[k] = +body[k] || 0; });
         await fbPatch('db/publications/' + key, patch);
         return { ok: true, data: { ok: true } };
@@ -586,7 +586,7 @@
           return b === k || n === k || (k && b.indexOf(k) >= 0) || (k && b && k.indexOf(b) >= 0) || (n && (n.indexOf(k) >= 0 || k.indexOf(n) >= 0));
         }).map(x => ({
           id: 'pub_' + (x.id || Math.random().toString(36).slice(2)), marca, tipo: x.type || 'Post', idea: x.desc || 'Publicación',
-          etapa: 'publicada', fecha: x.date, plataforma: x.platform || 'Instagram', link: x.link || '', historico: true, guion: x.desc || '',
+          etapa: 'publicada', fecha: x.date, plataforma: x.platform || 'Instagram', link: x.link || '', historico: true, guion: x.desc || '', cycle: x.cycle || '',
           met: { ig: { views: +x.views || 0, likes: +x.likes || 0, comments: +x.comments || 0, saved: +x.saved || 0, shared: +(x.shares || x.shared) || 0 } }
         }));
         return { ok: true, data: { items } };

@@ -531,10 +531,12 @@ function openPiezaHistorico(p) {
  <input id="phIdea" class="pz-idea" value="${esc(p.idea || '')}" placeholder="Título de la publicación">
  <div class="form-grid" style="margin:.6rem 0">
  <label class="select"><span>Categoría</span><select id="phTipo">${cats.map(t => `<option ${p.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}${cats.includes(p.tipo) ? '' : `<option selected>${esc(p.tipo || '')}</option>`}</select></label>
- <label class="select"><span>Fecha</span><input id="phFecha" type="date" value="${esc(p.fecha || '')}"></label>
+ <label class="select"><span>Fecha de publicación</span><input id="phFecha" type="date" value="${esc(p.fecha || '')}"></label>
  <label class="select"><span>Plataforma</span><input id="phPlat" value="${esc(p.plataforma || '')}" placeholder="Instagram"></label>
  <label class="select select--grow"><span>Link</span><input id="phLink" value="${esc(p.link || '')}" placeholder="Link de la publicación"></label>
+ <label class="select select--grow"><span>Pertenece al ciclo <em style="font-weight:400;color:var(--ink-40)">(no depende de la fecha)</em></span><select id="phCycle"><option value="${esc(p.cycle || '')}">Cargando ciclos…</option></select></label>
  </div>
+ <div class="hub-hint" style="margin:-.2rem 0 .2rem">Si se publicó en otro mes pero es de este ciclo (ej. pieza de agosto que salió en septiembre), elige aquí el ciclo correcto: así cuenta en las métricas del ciclo al que pertenece, sin importar la fecha.</div>
  <div class="pz-field"><span>Métricas</span>
  <div class="pz-metgrid">
  <label class="select"><span>Vistas</span><input id="phViews" type="number" min="0" value="${esc(vv(m.views, p.mViews))}"></label>
@@ -556,8 +558,19 @@ function openPiezaHistorico(p) {
  $('#phClose').addEventListener('click', close);
  $('#phX').addEventListener('click', close);
  $('#pzModal').addEventListener('click', e => { if (e.target.id === 'pzModal') close(); });
+ // Cargar los ciclos de la marca para poder asignar la publicación al ciclo correcto (independiente de la fecha).
+ if (p.marca) api('/api/marca/ciclos?marca=' + encodeURIComponent(p.marca)).then(r => {
+ const sel = $('#phCycle'); if (!sel || !document.getElementById('pzModal')) return;
+ const cycles = (r.ok && r.data.cycles) || [];
+ const fD = s => { if (!s) return ''; const [y, mm, d] = s.split('-'); return d + '/' + mm; };
+ const opts = ['<option value="">— Sin ciclo asignado —</option>'].concat(cycles.map(c =>
+ `<option value="${esc(c.id)}" ${p.cycle === c.id ? 'selected' : ''}>${esc(c.name)}${c.start ? ' (' + fD(c.start) + '–' + fD(c.end) + ')' : ''}${c.activo ? ' · activo' : ''}</option>`));
+ // Si el ciclo actual de la pub no está en la lista, consérvalo como opción.
+ if (p.cycle && !cycles.some(c => c.id === p.cycle)) opts.push(`<option value="${esc(p.cycle)}" selected>${esc(p.cycle)} (actual)</option>`);
+ sel.innerHTML = opts.join('');
+ }).catch(() => { const sel = $('#phCycle'); if (sel) sel.innerHTML = '<option value="' + esc(p.cycle || '') + '">No se pudieron cargar los ciclos</option>'; });
  $('#phSave').addEventListener('click', async () => {
- const body = { id: realId, desc: $('#phIdea').value, type: $('#phTipo').value, date: $('#phFecha').value, platform: $('#phPlat').value, link: $('#phLink').value, views: $('#phViews').value, likes: $('#phLikes').value, comments: $('#phComments').value, saved: $('#phSaved').value, shares: $('#phShares').value };
+ const body = { id: realId, desc: $('#phIdea').value, type: $('#phTipo').value, date: $('#phFecha').value, platform: $('#phPlat').value, link: $('#phLink').value, cycle: ($('#phCycle') && $('#phCycle').value) || '', views: $('#phViews').value, likes: $('#phLikes').value, comments: $('#phComments').value, saved: $('#phSaved').value, shares: $('#phShares').value };
  const btn = $('#phSave'); btn.disabled = true; btn.textContent = 'Guardando…';
  const r = await api('/api/publicacion', { method: 'POST', body });
  btn.disabled = false; btn.textContent = 'Guardar';
