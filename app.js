@@ -622,7 +622,7 @@ function openPieza(id, prefill) {
  <input id="pzIdea" class="pz-idea" placeholder="La idea / título" value="${esc(p.idea)}">
  <div class="form-grid" style="margin:.6rem 0">
  <label class="select"><span>Categoría</span><select id="pzTipo">${CATEGORIAS_PIEZA.map(t => `<option ${p.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
- <label class="select"><span>N.º de publicación <em style="font-weight:400;color:var(--ink-40)">(del ciclo)</em></span><input id="pzNum" type="text" value="${esc(p.numero || '')}" placeholder="1"></label>
+ <label class="select"><span>N.º de publicación <em style="font-weight:400;color:var(--ink-40)">(del ciclo)</em></span><input id="pzNum" type="text" value="${esc(p.numero || '')}" placeholder="1"><span id="pzExtraBadge" class="pz-extra-badge" hidden></span></label>
  <label class="select select--grow"><span>Responsable</span>
  <select id="pzResp"><option value="">— Sin asignar —</option>${people.map(n => `<option ${p.responsable === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}<option value="Cliente" ${p.responsable === 'Cliente' ? 'selected' : ''}>Cliente (pendiente de aprobación)</option>${(p.responsable && !people.includes(p.responsable) && p.responsable !== 'Cliente') ? `<option selected>${esc(p.responsable)}</option>` : ''}</select></label>
  <label class="select"><span> Fecha de entrega <em style="font-weight:400;color:var(--ink-40)">(para aprobación)</em></span><input id="pzFechaEntrega" type="date" value="${esc(p.fechaEntrega || '')}"></label>
@@ -681,6 +681,26 @@ function openPieza(id, prefill) {
      sugerirNum();
    }).catch(() => {});
  }
+ // Novedad "Adicional": cuando el consecutivo del creativo supera lo pactado.
+ const CRE_TIPOS = ['Reel', 'Carrusel', 'Post', 'Banner', 'Pauta'];
+ let metaCre = (state._cicloMeta && state._cicloMeta.marca === p.marca) ? state._cicloMeta.creativos : null;
+ const calcExtra = () => {
+   const el = $('#pzExtraBadge'); if (!el) return;
+   const isC = CRE_TIPOS.includes((pzTipo && pzTipo.value) || p.tipo);
+   const n = Number(pzNum && pzNum.value) || 0;
+   const show = isC && metaCre > 0 && n > metaCre;
+   el.hidden = !show;
+   if (show) el.textContent = 'Adicional · sobre lo pactado (' + metaCre + ')';
+ };
+ if (pzNum) pzNum.addEventListener('input', calcExtra);
+ if (pzTipo) pzTipo.addEventListener('change', calcExtra);
+ if (metaCre == null && p.marca) {
+   api('/api/marca/ciclo?marca=' + encodeURIComponent(p.marca)).then(r => {
+     if (!r.ok || !document.getElementById('pzModal')) return;
+     const pa = r.data.pactado || {}; metaCre = (+pa.reels || 0) + (+pa.carruseles || 0) + (+pa.posts || 0);
+     state._cicloMeta = { marca: p.marca, creativos: metaCre }; calcExtra();
+   }).catch(() => {});
+ } else calcExtra();
  const rteSize = $('#rteSize'); if (rteSize) rteSize.addEventListener('change', () => { if (rteSize.value) { $('#pzGuion').focus(); document.execCommand('fontSize', false, rteSize.value); rteSize.value = ''; } });
  const rteColor = $('#rteColor'); if (rteColor) rteColor.addEventListener('input', () => { $('#pzGuion').focus(); document.execCommand('foreColor', false, rteColor.value); });
  $$('.pz-plattab').forEach(t => t.addEventListener('click', () => {
@@ -1505,8 +1525,10 @@ function cicloDetalleHTML(id) {
    <div class="cic-detalle__head"><b>${esc(c.name)}</b> ${cicBadge(c)} <span class="hub-hint" style="display:inline;margin:0">${cicFD(c.start)} – ${cicFD(c.end)}</span>
    ${esEstrategia() ? `<button class="btn btn--ghost btn--sm" style="margin-left:auto" onclick="editarMarcaCiclo('${esc(c.id)}')">Editar ciclo</button>` : ''}</div>
    ${barra(c.creativosPub, c.metaCreativos, 'Creativos publicados')}
+   ${(c.metaCreativos > 0 && c.creativosPub > c.metaCreativos) ? '<div class="cic-extra">🎉 Meta cumplida · +' + (c.creativosPub - c.metaCreativos) + ' adicional' + (c.creativosPub - c.metaCreativos > 1 ? 'es' : '') + ' sobre lo pactado</div>' : ''}
    ${(c.metaHist || c.histPub) ? barra(c.histPub, c.metaHist, 'Historias') : ''}
-   <p class="hub-hint" style="margin-top:.5rem">Lo publicado se cuenta solo desde el portal del cliente.</p>
+   ${(c.metaHist > 0 && c.histPub > c.metaHist) ? '<div class="cic-extra">🎉 +' + (c.histPub - c.metaHist) + ' historia' + (c.histPub - c.metaHist > 1 ? 's' : '') + ' adicional' + (c.histPub - c.metaHist > 1 ? 'es' : '') + '</div>' : ''}
+   <p class="hub-hint" style="margin-top:.5rem">El ciclo lo define la <b>etiqueta</b>, no la fecha: una pieza publicada fuera del mes igual cuenta aquí. Lo que supera lo pactado se marca como <b>adicional</b>.</p>
  </div>`;
 }
 function editarMarcaCiclo(id) {

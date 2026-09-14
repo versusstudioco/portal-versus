@@ -2924,7 +2924,7 @@ function renderResumen(cycId, targetId) {
  html+='<span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;background:rgba(249,0,0,.12);color:var(--red);">Banner: '+entrBanner+'</span>';
  }
  html+='</div>';
- if(hasGoalC) html+='<div class="kpi-diff">'+(pctC>=100?'\u2713 Completo':entrCreat+'/'+promCreat)+'</div>';
+ if(hasGoalC){ var _ex=entrCreat-promCreat; html+='<div class="kpi-diff">'+(_ex>0?('\u2713 Completo \u00b7 +'+_ex+' adicional'+(_ex>1?'es':'')):(pctC>=100?'\u2713 Completo':entrCreat+'/'+promCreat))+'</div>'; }
  else html+='<div class="kpi-diff">'+entrCreat+' creativos publicados</div>';
  html+='</div>';
  }
