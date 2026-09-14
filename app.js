@@ -559,7 +559,7 @@ function openPiezaHistorico(p) {
  $('#phX').addEventListener('click', close);
  $('#pzModal').addEventListener('click', e => { if (e.target.id === 'pzModal') close(); });
  // Cargar los ciclos de la marca para poder asignar la publicación al ciclo correcto (independiente de la fecha).
- if (p.marca) api('/api/marca/ciclos?marca=' + encodeURIComponent(p.marca)).then(r => {
+ if (p.marca) getCiclos(p.marca).then(r => {
  const sel = $('#phCycle'); if (!sel || !document.getElementById('pzModal')) return;
  const cycles = (r.ok && r.data.cycles) || [];
  const fD = s => { if (!s) return ''; const [y, mm, d] = s.split('-'); return d + '/' + mm; };
@@ -703,7 +703,7 @@ function openPieza(id, prefill) {
    }).catch(() => {});
  } else calcExtra();
  // Selector de CICLO: el número guía, pero aquí se corrige a qué ciclo pertenece (aunque ya esté editado/publicado).
- if (p.marca) api('/api/marca/ciclos?marca=' + encodeURIComponent(p.marca)).then(r => {
+ if (p.marca) getCiclos(p.marca).then(r => {
    const sel = $('#pzCycle'); if (!sel || !document.getElementById('pzModal')) return;
    const cycles = (r.ok && r.data.cycles) || [];
    const fD = s => { if (!s) return ''; const p2 = s.split('-'); return p2[2] + '/' + p2[1]; };
@@ -1511,6 +1511,14 @@ function cicBadge(c) {
  return c.activo ? '<span class="cic-badge cic-badge--act">Activo</span>'
    : (c.end && c.end < new Date().toISOString().slice(0, 10) ? '<span class="cic-badge cic-badge--past">Terminado</span>' : '<span class="cic-badge cic-badge--fut">Próximo</span>');
 }
+// Caché corta de los ciclos por marca: evita releer publicaciones/weekMetrics en cada apertura.
+function getCiclos(marca, force) {
+ state._ciclosCache = state._ciclosCache || {};
+ const c = state._ciclosCache[marca];
+ if (!force && c && (Date.now() - c.at < 30000)) return Promise.resolve({ ok: true, data: c.data });
+ return api('/api/marca/ciclos?marca=' + encodeURIComponent(marca)).then(r => { if (r.ok && r.data) state._ciclosCache[marca] = { at: Date.now(), data: r.data }; return r; });
+}
+function bustCiclos(marca) { if (state._ciclosCache) delete state._ciclosCache[marca]; }
 function cicloCardsHTML(cycles) {
  if (!cycles || !cycles.length) return '';
  state._marcaCiclos = cycles;
@@ -1575,6 +1583,7 @@ function editarMarcaCiclo(id) {
  reels: $('#ecReels').value, carruseles: $('#ecCarr').value, posts: $('#ecPosts').value, historias: $('#ecHist').value
  } });
  if (!r.ok || (r.data && r.data.error)) { btn.disabled = false; btn.textContent = 'Guardar ciclo'; alert((r.data && r.data.error) || 'No se pudo guardar'); return; }
+ bustCiclos(marca);
  marcaCiclo(marca); // recarga las tarjetas con los datos nuevos
  });
 }
@@ -1588,7 +1597,7 @@ async function marcaCiclo(marca) {
  pane.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando ciclo…</div>';
  const [{ data }, cicR] = await Promise.all([
  api('/api/marca/ciclo?marca=' + encodeURIComponent(marca)),
- api('/api/marca/ciclos?marca=' + encodeURIComponent(marca))
+ getCiclos(marca)
  ]);
  const cardsHTML = cicloCardsHTML((cicR.data && cicR.data.cycles) || []);
  const pac = data.pactado || {}, real = data.realizado || {};
@@ -1637,6 +1646,7 @@ async function marcaCiclo(marca) {
  CICLO_TIPOS.forEach(([k]) => body[k] = $('#cl_' + k).value);
  const { ok, data } = await api('/api/marca/ciclo', { method: 'POST', body });
  if (!ok || data.error) { alert(data.error || 'No se pudo guardar'); return; }
+ bustCiclos(marca);
  if (data.avisoCliente) alert('⚠ ' + data.avisoCliente);
  else if (data.cliente) alert('Ciclo guardado y activado en el portal del cliente ✓');
  marcaCiclo(marca);
@@ -1734,7 +1744,7 @@ async function marcaCalendario(marca) {
  const req = esPub
  ? api('/api/publicacion', { method: 'POST', body: { id: String(id).replace(/^pub_/, ''), date: iso } })
  : api('/api/piezas/update', { method: 'POST', body: { id, fecha: iso } });
- req.then(r => { if (!r || !r.ok) marcaCalendario(marca); }).catch(() => marcaCalendario(marca));
+ req.then(r => { if (!r || !r.ok) { alert('No se pudo mover la tarjeta: ' + ((r && r.data && r.data.error) || 'intenta de nuevo')); marcaCalendario(marca); } }).catch(() => { alert('No se pudo mover la tarjeta (revisa tu conexión).'); marcaCalendario(marca); });
  });
  });
  };
@@ -1751,7 +1761,7 @@ async function marcaMetricas(marca) {
  pane.innerHTML = '<div class="loading"><div class="spinner"></div>Leyendo métricas…</div>';
  const [, cicR] = await Promise.all([
  (async () => { if (!state.metricas) { const r = await api('/api/metricas'); if (r.ok) state.metricas = r.data; } })(),
- api('/api/marca/ciclos?marca=' + encodeURIComponent(marca))
+ getCiclos(marca)
  ]);
  const key = normKey(marca);
  const m = (state.metricas && state.metricas.marcas || []).find(x => normKey(x.marca) === key || normKey(x.marca).includes(key) || key.includes(normKey(x.marca)));
@@ -2089,6 +2099,7 @@ async function marcaEstrategia(marca) {
  api('/api/marca/plataformas?marca=' + encodeURIComponent(marca))
  ]);
  state.aprendizaje = ap.ok ? ap.data.entries : [];
+ state._estCtx = ctx; // contexto disponible para el agente aunque esté en modo tarjeta
  // El agente trabaja sobre las plataformas ACTIVAS de la marca (cada una funciona distinto).
  const platsCfg = (plt.data && plt.data.plats) || { Instagram: true };
  const platActivas = Object.keys(platsCfg).filter(k => platsCfg[k]);
@@ -2168,16 +2179,20 @@ function bindAprendeRemove(marca) {
  }));
 }
 async function estGenerar(marca, kind, btn) {
- const tema = $('#esTema').value.trim();
+ const tema = ($('#esTema') && $('#esTema').value.trim()) || '';
  const out = $('#esOut');
+ // El contexto puede estar en el formulario (modo edición) o en la tarjeta (ya guardado).
+ // Se lee del input si existe; si no, del contexto guardado en memoria.
+ const saved = state._estCtx || {};
+ const gv2 = (id, key) => { const el = $('#' + id); return el ? el.value.trim() : (saved[key] || ''); };
+ const ctx = { industria: gv2('esIndustria', 'industria'), pais: gv2('esPais', 'pais'), tipoClientes: gv2('esTipoClientes', 'tipoClientes'), comunicacion: gv2('esComunicacion', 'comunicacion'), servicios: gv2('esServicios', 'servicios'), tono: gv2('esTono', 'tono'), publico: gv2('esPublico', 'publico'), notas: gv2('esNotas', 'notas') };
  // Cada marca es un mundo: exige el contexto mínimo antes de generar.
- if (!$('#esIndustria').value.trim() || !$('#esServicios').value.trim() || !$('#esTono').value.trim()) {
+ if (!ctx.industria || !ctx.servicios || !ctx.tono) {
  out.innerHTML = '<div class="empty"> Primero completa el <b>contexto de la marca</b> (al menos Industria, Servicios/productos y Tono) y guárdalo. Así la estrategia sale a la medida de esta marca.</div>';
  return;
  }
  if (!tema) { out.innerHTML = '<div class="empty">Escribe el tema del contenido primero.</div>'; return; }
- const platform = $('#esPlat').value;
- const ctx = { industria: $('#esIndustria').value.trim(), pais: $('#esPais').value.trim(), tipoClientes: $('#esTipoClientes').value.trim(), comunicacion: $('#esComunicacion').value.trim(), servicios: $('#esServicios').value.trim(), tono: $('#esTono').value.trim(), publico: $('#esPublico').value.trim(), notas: $('#esNotas').value.trim() };
+ const platform = ($('#esPlat') && $('#esPlat').value) || 'instagram';
  const label = btn.textContent; loadingBtn(btn, '…');
  out.innerHTML = '<div class="loading"><div class="spinner"></div>Generando…</div>';
  try {
