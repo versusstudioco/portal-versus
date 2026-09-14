@@ -427,23 +427,39 @@ function boardHTML(data) {
       </div>`;
   }).join('') + '</div>';
 }
+function flColCount(scope) {
+  scope.querySelectorAll('.fl-col').forEach(col => {
+    const body = col.querySelector('.fl-col__body'); const n = col.querySelector('.fl-col__n');
+    if (body && n) n.textContent = body.querySelectorAll('.fl-piece').length;
+    if (body && !body.querySelector('.fl-piece') && !body.querySelector('.fl-empty')) body.innerHTML = '<div class="fl-empty">—</div>';
+  });
+}
 function bindBoard(scope, reload) {
   scope.querySelectorAll('.fl-piece').forEach(el => {
     el.addEventListener('click', () => { if (!el._drag) openPieza(el.dataset.id); });
     el.addEventListener('dragstart', e => { el._drag = true; e.dataTransfer.setData('text/plain', el.dataset.id); e.dataTransfer.effectAllowed = 'move'; setTimeout(() => el.classList.add('dragging'), 0); });
     el.addEventListener('dragend', () => { el.classList.remove('dragging'); setTimeout(() => el._drag = false, 60); });
   });
-  scope.querySelectorAll('.fl-col__body').forEach(body => {
-    body.addEventListener('dragover', e => { e.preventDefault(); body.classList.add('fl-over'); });
-    body.addEventListener('dragleave', () => body.classList.remove('fl-over'));
-    body.addEventListener('drop', async e => {
-      e.preventDefault(); body.classList.remove('fl-over');
+  // TODA la columna recibe la tarjeta (no solo la parte de arriba), y el cambio es instantáneo.
+  scope.querySelectorAll('.fl-col').forEach(col => {
+    const body = col.querySelector('.fl-col__body'); if (!body) return;
+    col.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; col.classList.add('fl-over'); });
+    col.addEventListener('dragleave', e => { if (!col.contains(e.relatedTarget)) col.classList.remove('fl-over'); });
+    col.addEventListener('drop', e => {
+      e.preventDefault(); col.classList.remove('fl-over');
       const id = e.dataTransfer.getData('text/plain'), etapa = body.dataset.etapa;
       if (!id || !etapa) return;
       const p = state.piezas[id]; if (p && p.etapa === etapa) return;
+      // Mover la tarjeta al instante (arrastre fluido, sin recargar el tablero).
+      const card = scope.querySelector('.fl-piece[data-id="' + id + '"]');
+      const emptyMark = body.querySelector('.fl-empty'); if (emptyMark) emptyMark.remove();
+      if (card) { card.classList.remove('dragging'); body.appendChild(card); }
       if (p) p.etapa = etapa;
-      await api('/api/piezas/etapa', { method: 'POST', body: { id, etapa } });
-      reload && reload();
+      flColCount(scope);
+      // Persistir en segundo plano; solo si falla, recargamos para resincronizar.
+      api('/api/piezas/etapa', { method: 'POST', body: { id, etapa } })
+        .then(r => { if (!r || !r.ok) reload && reload(); })
+        .catch(() => reload && reload());
     });
   });
   const nueva = scope.querySelector('#flNueva'); if (nueva) nueva.addEventListener('click', () => openPieza(null));
@@ -2615,17 +2631,34 @@ async function loadInicio() {
  const nc = $('#mdNewContent'); if (nc) nc.onclick = () => openPieza(null);
 }
 function bindDashRows(scope) {
- scope.querySelectorAll('.md-chk').forEach(b => b.addEventListener('click', async e => {
+ scope.querySelectorAll('.md-chk').forEach(b => b.addEventListener('click', e => {
    e.stopPropagation();
+   if (b._done) return; b._done = true; // evita doble click
    const id = b.dataset.check; const row = b.closest('.md-trow');
-   b.classList.add('md-chk--done'); if (row) row.classList.add('md-row--doing'); // feedback: se marca y luego sale
-   await api('/api/team/task-status', { method: 'POST', body: { id, status: 'hecho' } });
-   const inLista = b.closest('#listaModal');
-   setTimeout(() => { if (inLista && row) { row.remove(); } loadInicio(); }, 430);
+   b.classList.add('md-chk--done'); if (row) row.classList.add('md-row--doing'); // feedback inmediato
+   // Sacar de los estados locales para que no reaparezca en las listas.
+   ['_mdTareas', '_mdSemana'].forEach(k => { if (Array.isArray(state[k])) state[k] = state[k].filter(t => String(t.id) !== String(id)); });
+   // Guardar en segundo plano — SIN recargar todo el panel (así es instantáneo).
+   api('/api/team/task-status', { method: 'POST', body: { id, status: 'hecho' } }).catch(() => {});
+   setTimeout(() => { if (row) row.remove(); actualizarTareasUI(); }, 300);
  }));
  scope.querySelectorAll('[data-pieza]').forEach(el => el.addEventListener('click', e => { if (e.target.closest('.md-wa')) return; openPieza(el.dataset.pieza); }));
  scope.querySelectorAll('.md-wa').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); window.open('https://wa.me/?text=' + b.dataset.wa, '_blank'); }));
  scope.querySelectorAll('.md-brow').forEach(b => b.addEventListener('click', () => { const marca = b.dataset.marca; const nav = document.querySelector('.nav__item[data-view="archivos"]'); if (nav) nav.click(); setTimeout(() => openMarca(marca, ''), 400); }));
+}
+// Actualiza contadores/estado vacío de las tarjetas de tareas sin recargar todo el panel.
+function actualizarTareasUI() {
+ document.querySelectorAll('.md-card').forEach(card => {
+   const rows = card.querySelectorAll('.md-trow');
+   const badge = card.querySelector('.md-count');
+   const box = card.querySelector('.md-rows');
+   // Solo tarjetas de tareas (tienen filas .md-trow o quedaron vacías tras marcar).
+   if (!box || (card.querySelector('.md-row[data-pieza]'))) return;
+   if (badge) { if (rows.length) badge.textContent = rows.length; else badge.remove(); }
+   const more = card.querySelector('.md-more');
+   if (more && rows.length <= 6) more.remove();
+   if (!rows.length && !box.querySelector('.md-none')) box.innerHTML = '<div class="md-none">Todo al día por aquí ✓</div>';
+ });
 }
 function openLista(title, rowsHtml) {
  const html = `<div class="g-modal" id="listaModal"><div class="g-modal__box glass" style="max-width:560px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.7rem"><h3>${esc(title)}</h3><button class="btn btn--ghost btn--sm" id="listaClose">Cerrar</button></div><div class="md-list">${rowsHtml}</div></div></div>`;
@@ -2655,13 +2688,14 @@ function openTarea() {
   document.body.insertAdjacentHTML('beforeend', html);
   const close = () => $('#tkModal').remove();
   $('#tkCancel').onclick = close; $('#tkX').onclick = close; $('#tkModal').onclick = e => { if (e.target.id === 'tkModal') close(); };
-  $('#tkSave').onclick = async () => {
+  $('#tkSave').onclick = () => {
     const title = $('#tkTitle').value.trim(); if (!title) { $('#tkTitle').focus(); return; }
     const colaboradores = $$('.tkColab').filter(c => c.checked).map(c => c.value);
     const body = { title, assignedTo: $('#tkWho').value, colaboradores, categoria: $('#tkCat').value, dueDate: $('#tkDue').value, horaInicio: $('#tkHi').value, horaFin: $('#tkHf').value, priority: $('#tkPrio').value };
-    const btn = $('#tkSave'); btn.disabled = true; btn.textContent = 'Creando…';
-    const r = await api('/api/team/task-crear', { method: 'POST', body });
-    if (r.ok) { close(); loadInicio(); } else { btn.disabled = false; btn.textContent = 'Crear tarea'; alert(r.data.error || 'No se pudo'); }
+    close(); // se cierra al instante; se crea y refresca en segundo plano
+    api('/api/team/task-crear', { method: 'POST', body })
+      .then(r => { if (r.ok) loadInicio(); else alert((r.data && r.data.error) || 'No se pudo crear la tarea'); })
+      .catch(() => alert('No se pudo crear la tarea (revisa tu conexión).'));
   };
 }
 
