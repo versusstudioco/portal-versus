@@ -1441,11 +1441,48 @@ function cicloDetalleHTML(id) {
    <div class="ciclo-bar"><div class="ciclo-bar__fill ${meta && val >= meta ? 'ciclo-bar__fill--done' : ''}" style="width:${pct}%"></div></div></div>`;
  };
  return `<div class="cic-detalle">
-   <div class="cic-detalle__head"><b>${esc(c.name)}</b> ${cicBadge(c)} <span class="hub-hint" style="display:inline;margin:0">${cicFD(c.start)} – ${cicFD(c.end)}</span></div>
+   <div class="cic-detalle__head"><b>${esc(c.name)}</b> ${cicBadge(c)} <span class="hub-hint" style="display:inline;margin:0">${cicFD(c.start)} – ${cicFD(c.end)}</span>
+   ${esEstrategia() ? `<button class="btn btn--ghost btn--sm" style="margin-left:auto" onclick="editarMarcaCiclo('${esc(c.id)}')">Editar ciclo</button>` : ''}</div>
    ${barra(c.creativosPub, c.metaCreativos, 'Creativos publicados')}
    ${(c.metaHist || c.histPub) ? barra(c.histPub, c.metaHist, 'Historias') : ''}
    <p class="hub-hint" style="margin-top:.5rem">Lo publicado se cuenta solo desde el portal del cliente.</p>
  </div>`;
+}
+function editarMarcaCiclo(id) {
+ const c = (state._marcaCiclos || []).find(x => x.id === id); if (!c) return;
+ const det = $('#cicDetalle'); if (!det) return;
+ const num = (v) => v == null ? '' : v;
+ det.innerHTML = `<div class="cic-detalle">
+   <div class="cic-detalle__head"><b>Editar ${esc(c.name)}</b></div>
+   <div class="est-ctx-alert" style="margin:.2rem 0 .6rem">El ciclo NO es un mes de calendario: puede cruzar meses (ej. 7 ago → 6 sep). Las fechas mandan; las semanas se calculan desde ellas.</div>
+   <div class="est-ctx-grid">
+     <label class="select"><span>Nombre / periodo</span><input id="ecName" value="${esc(c.name || '')}" placeholder="Agosto"></label>
+     <label class="select"><span>Inicio</span><input id="ecStart" type="date" value="${esc(c.start || '')}"></label>
+     <label class="select"><span>Fin</span><input id="ecEnd" type="date" value="${esc(c.end || '')}"></label>
+   </div>
+   <div class="ciclo-pactado" style="margin-top:.6rem">
+     <label class="select"><span>Reels</span><input id="ecReels" type="number" min="0" value="${num(c.reels)}" placeholder="0"></label>
+     <label class="select"><span>Carruseles</span><input id="ecCarr" type="number" min="0" value="${num(c.carruseles)}" placeholder="0"></label>
+     <label class="select"><span>Posts</span><input id="ecPosts" type="number" min="0" value="${num(c.posts)}" placeholder="0"></label>
+     <label class="select"><span>Historias</span><input id="ecHist" type="number" min="0" value="${num(c.metaHist)}" placeholder="0"></label>
+   </div>
+   <div style="display:flex;gap:.5rem;margin-top:.7rem">
+     <button class="btn btn--primary btn--sm" id="ecSave">Guardar ciclo</button>
+     <button class="btn btn--ghost btn--sm" id="ecCancel">Cancelar</button>
+   </div></div>`;
+ $('#ecCancel').addEventListener('click', () => { det.innerHTML = cicloDetalleHTML(id); });
+ $('#ecSave').addEventListener('click', async () => {
+ const marca = state.marcaActiva && state.marcaActiva.marca;
+ const start = $('#ecStart').value, end = $('#ecEnd').value;
+ if (start && end && start > end) { alert('La fecha de inicio no puede ser posterior a la de fin.'); return; }
+ const btn = $('#ecSave'); btn.disabled = true; btn.textContent = 'Guardando…';
+ const r = await api('/api/marca/ciclo/guardar', { method: 'POST', body: {
+ marca, id, name: $('#ecName').value, start, end,
+ reels: $('#ecReels').value, carruseles: $('#ecCarr').value, posts: $('#ecPosts').value, historias: $('#ecHist').value
+ } });
+ if (!r.ok || (r.data && r.data.error)) { btn.disabled = false; btn.textContent = 'Guardar ciclo'; alert((r.data && r.data.error) || 'No se pudo guardar'); return; }
+ marcaCiclo(marca); // recarga las tarjetas con los datos nuevos
+ });
 }
 function pickMarcaCiclo(id) {
  state._marcaCicloSel = id;
@@ -1923,11 +1960,16 @@ function renderContexto(marca, ctx, forceEdit) {
 async function marcaEstrategia(marca) {
  const pane = $('#marcaPane');
  pane.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando estrategia…</div>';
- const [{ data: ctx }, ap] = await Promise.all([
+ const [{ data: ctx }, ap, plt] = await Promise.all([
  api('/api/marca/contexto?marca=' + encodeURIComponent(marca)),
- api('/api/marca/aprendizaje?marca=' + encodeURIComponent(marca))
+ api('/api/marca/aprendizaje?marca=' + encodeURIComponent(marca)),
+ api('/api/marca/plataformas?marca=' + encodeURIComponent(marca))
  ]);
  state.aprendizaje = ap.ok ? ap.data.entries : [];
+ // El agente trabaja sobre las plataformas ACTIVAS de la marca (cada una funciona distinto).
+ const platsCfg = (plt.data && plt.data.plats) || { Instagram: true };
+ const platActivas = Object.keys(platsCfg).filter(k => platsCfg[k]);
+ const platOpts = (platActivas.length ? platActivas : ['Instagram']).map(pl => `<option value="${esc(pl.toLowerCase())}">${esc(pl)}</option>`).join('');
  pane.innerHTML = `
  <div id="esCtxBox"></div>
 
@@ -1950,8 +1992,9 @@ async function marcaEstrategia(marca) {
  <div class="est-gen-lock" id="esAgentLock"> Guarda el contexto de arriba (Industria, Servicios y Tono) para activar el agente de esta marca.</div>
  <div class="est-gen-bar">
  <input id="esTema" placeholder="Tema del contenido (ej: lanzamiento de producto)">
- <select id="esPlat"><option value="instagram">Instagram</option><option value="tiktok">TikTok</option><option value="linkedin">LinkedIn</option></select>
+ <select id="esPlat" title="Cada plataforma funciona distinto; el agente se adapta a la que elijas">${platOpts}</select>
  </div>
+ <p class="hub-hint" style="margin:.1rem 0 .5rem">Elige la plataforma: el agente adapta captions, historias, ideas y hashtags a cómo funciona cada una.</p>
  <div class="est-gen-btns">
  <button class="btn btn--primary btn--sm est-run" data-kind="captions"> Captions</button>
  <button class="btn btn--ghost btn--sm est-run" data-kind="historias"> Historias</button>

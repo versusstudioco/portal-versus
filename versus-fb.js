@@ -53,6 +53,15 @@
     if (m) { try { return JSON.parse(m[0]); } catch (_) {} }
     return null;
   }
+  // Cada plataforma funciona distinto: guía que se inyecta a los prompts del agente.
+  function platGuide(platform) {
+    const p = String(platform || '').toLowerCase();
+    if (p.indexOf('tiktok') >= 0) return '\nPLATAFORMA TikTok: gancho en el primer segundo, ritmo rápido, tono nativo y espontáneo (nada corporativo), aprovecha tendencias y sonidos del momento, texto en pantalla corto, CTA suave. Formatos: video vertical.';
+    if (p.indexOf('youtube') >= 0) return '\nPLATAFORMA YouTube: para Shorts, título con búsqueda/curiosidad y los primeros 3 segundos decisivos, retención hasta el final; para long-form, estructura por capítulos y valor claro. Piensa en SEO del título.';
+    if (p.indexOf('linkedin') >= 0) return '\nPLATAFORMA LinkedIn: tono profesional y de autoridad, storytelling con aprendizaje de negocio, primera línea que corta el scroll, se permite texto más largo, pocos hashtags de industria. Nada de jerga informal.';
+    if (p.indexOf('facebook') >= 0) return '\nPLATAFORMA Facebook: tono cercano y claro, funciona el texto que genera conversación y compartidos, público más amplio y adulto.';
+    return '\nPLATAFORMA Instagram: muy visual (Reel/Carrusel), gancho visual + primera línea potente, prioriza guardados y compartidos, CTA a guardar/seguir, 3-6 hashtags relevantes.';
+  }
   // Bloque con el contexto + línea de aprendizaje de ESA marca (independiente por cliente).
   async function marcaBloque(marca) {
     if (!marca) return '';
@@ -763,9 +772,37 @@
           const pct = metaCreativos ? Math.min(100, Math.round(creativosPub / metaCreativos * 100)) : (creativosPub ? 100 : 0);
           const activo = cyc.status === 'active' || (cyc.start && cyc.end && cyc.start <= hoyISO && hoyISO <= cyc.end);
           return { id: cyc.id, name: cyc.name || cyc.id, start: cyc.start || '', end: cyc.end || '', status: cyc.status || (activo ? 'active' : ''), activo,
+            reels: goals.reels, carruseles: goals.carruseles, posts: goals.posts,
             metaCreativos, creativosPub, metaHist: goals.historias, histPub, pct, totalViews, closeFollowers };
         }).sort((a, b) => (a.activo && !b.activo) ? -1 : (b.activo && !a.activo) ? 1 : String(b.start || '').localeCompare(String(a.start || '')));
         return { ok: true, data: { cu, cycles } };
+      }
+      // Editar un ciclo del cliente (nombre, fechas arbitrarias y metas). Las fechas mandan: un ciclo puede cruzar meses.
+      if (p === '/api/marca/ciclo/guardar' && method === 'POST') {
+        const marca = body.marca || '';
+        const norm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+        const [credsTeam, credsCli] = await Promise.all([fbGet('db/creds').catch(() => ({})), fbGet('creds').catch(() => ({}))]);
+        const creds = Object.assign({}, credsCli || {}, credsTeam || {});
+        const km = norm(marca); let cu = '';
+        Object.entries(creds).forEach(([u, v]) => { if (!cu && v && v.type === 'client' && (norm(v.name) === km || norm(u) === km || (km && norm(v.name).indexOf(km) >= 0) || (km && km.indexOf(norm(v.name)) >= 0))) cu = u; });
+        if (!cu || !body.id) return { ok: false, status: 400, data: { error: 'Falta cliente o ciclo' } };
+        if (body.start && body.end && body.start > body.end) return { ok: false, status: 400, data: { error: 'La fecha de inicio no puede ser posterior a la de fin.' } };
+        const upd = {};
+        ['name', 'start', 'end', 'status'].forEach(k => { if (body[k] != null && body[k] !== '') upd[k] = String(body[k]); });
+        ['reels', 'carruseles', 'posts', 'historias'].forEach(k => { if (body[k] != null && body[k] !== '') upd[k] = +body[k] || 0; });
+        const raw = await fbGet('db/cycles').catch(() => null);
+        if (Array.isArray(raw)) {
+          const i = raw.findIndex(c => c && c.id === body.id && c.brand === cu);
+          if (i < 0) return { ok: false, status: 404, data: { error: 'Ciclo no encontrado' } };
+          raw[i] = Object.assign({}, raw[i], upd);
+          await fbPut('db/cycles', raw);
+        } else if (raw && typeof raw === 'object') {
+          const k = Object.keys(raw).find(x => raw[x] && raw[x].id === body.id && raw[x].brand === cu);
+          if (!k) return { ok: false, status: 404, data: { error: 'Ciclo no encontrado' } };
+          raw[k] = Object.assign({}, raw[k], upd);
+          await fbPut('db/cycles/' + k, raw[k]);
+        } else return { ok: false, status: 404, data: { error: 'Sin ciclos' } };
+        return { ok: true, data: { ok: true } };
       }
       // Plataformas habilitadas + pauta de la marca → lo que VE el cliente en /clientes/
       if (p === '/api/marca/plataformas') {
@@ -838,7 +875,7 @@
         try {
           const bloque = await marcaBloque(body.marca);
           const system = 'Eres el director de contenido de Versus Studio, experto en captions que venden. Escribes en español, sin relleno ni frases genéricas. Respondes SOLO con JSON válido.';
-          const prompt = `Escribe 3 captions PROFESIONALES y distintos entre sí para ${body.platform || 'instagram'} sobre "${tema}".${bloque}\nCada uno con un ángulo diferente. Devuelve SOLO JSON: {"captions":[{"angulo":"nombre corto","primera_linea":"gancho","texto":"caption completo listo para pegar","hashtags":["#.."],"que_aporta":"","por_que_funciona":""}]}`;
+          const prompt = `Escribe 3 captions PROFESIONALES y distintos entre sí para ${body.platform || 'instagram'} sobre "${tema}".${bloque}${platGuide(body.platform)}\nCada uno con un ángulo diferente y adaptado a esta plataforma. Devuelve SOLO JSON: {"captions":[{"angulo":"nombre corto","primera_linea":"gancho","texto":"caption completo listo para pegar","hashtags":["#.."],"que_aporta":"","por_que_funciona":""}]}`;
           const json = extractJSON(await callGemini(system, prompt));
           if (json && json.captions) return { ok: true, data: { source: 'ia', captions: json.captions.slice(0, 3) } };
         } catch (_) {}
@@ -849,7 +886,7 @@
         try {
           const bloque = await marcaBloque(body.marca);
           const system = 'Eres estratega de HISTORIAS (stories) de Instagram en Versus Studio. Diseñas secuencias que enganchan, con objetivo por frame y elementos interactivos. Español. SOLO JSON válido.';
-          const prompt = `Diseña una secuencia de 4-6 historias sobre "${tema}".${bloque}\nEl primer frame frena el dedo; cierra con acción. Devuelve SOLO JSON: {"historias":[{"frame":1,"texto":"lo que va escrito","elemento":"encuesta/pregunta/quiz/link o ''","objetivo":"qué logra"}]}`;
+          const prompt = `Diseña una secuencia de 4-6 historias (stories) para ${body.platform || 'instagram'} sobre "${tema}".${bloque}${platGuide(body.platform)}\nEl primer frame frena el dedo; cierra con acción. Devuelve SOLO JSON: {"historias":[{"frame":1,"texto":"lo que va escrito","elemento":"encuesta/pregunta/quiz/link o ''","objetivo":"qué logra"}]}`;
           const json = extractJSON(await callGemini(system, prompt));
           if (json && json.historias) return { ok: true, data: { source: 'ia', historias: json.historias.slice(0, 6) } };
         } catch (_) {}
@@ -860,7 +897,7 @@
         try {
           const bloque = await marcaBloque(body.marca);
           const system = 'Eres estratega de contenido de Versus Studio. Generas ideas de contenido con gancho y estructura. Español. SOLO JSON válido.';
-          const prompt = `Genera 5 ideas de contenido sobre "${tema}" para ${body.platform || 'instagram'}.${bloque}\nDevuelve SOLO JSON: {"ideas":[{"titulo":"","hook":"","estructura":"","formato":"Reel/Carrusel/Post","por_que_funciona":"","cta":""}]}`;
+          const prompt = `Genera 5 ideas de contenido sobre "${tema}" para ${body.platform || 'instagram'}.${bloque}${platGuide(body.platform)}\nAdapta formato y ángulo a esta plataforma. Devuelve SOLO JSON: {"ideas":[{"titulo":"","hook":"","estructura":"","formato":"Reel/Carrusel/Post","por_que_funciona":"","cta":""}]}`;
           const json = extractJSON(await callGemini(system, prompt));
           if (json && json.ideas) return { ok: true, data: { source: 'ia', ideas: json.ideas.slice(0, 6) } };
         } catch (_) {}
@@ -871,7 +908,7 @@
         try {
           const bloque = await marcaBloque(body.marca);
           const system = 'Eres estratega de hashtags de Versus Studio. Español. SOLO JSON válido.';
-          const prompt = `Analiza hashtags y palabras clave para "${tema}" (${body.platform || 'instagram'}).${bloque}\nDevuelve SOLO JSON: {"estrategia":"1-2 frases","grupos":{"amplios":[{"tag":"#..","nota":"","alcance":"alto/medio/bajo"}],"nicho":[{"tag":"#..","nota":"","alcance":""}],"longtail":[{"tag":"#..","nota":"","alcance":""}]},"recomendado":["#..","#.."]}`;
+          const prompt = `Analiza hashtags y palabras clave para "${tema}" (${body.platform || 'instagram'}).${bloque}${platGuide(body.platform)}\nDevuelve SOLO JSON: {"estrategia":"1-2 frases","grupos":{"amplios":[{"tag":"#..","nota":"","alcance":"alto/medio/bajo"}],"nicho":[{"tag":"#..","nota":"","alcance":""}],"longtail":[{"tag":"#..","nota":"","alcance":""}]},"recomendado":["#..","#.."]}`;
           const json = extractJSON(await callGemini(system, prompt));
           if (json && json.grupos) return { ok: true, data: { source: 'ia', ...json } };
         } catch (_) {}
