@@ -53,6 +53,8 @@
     if (m) { try { return JSON.parse(m[0]); } catch (_) {} }
     return null;
   }
+  // Regla de formato robusta: evita que la respuesta se corte o traiga comillas/saltos que rompen el JSON.
+  const JSON_RULE = ' IMPORTANTE: responde SOLO con JSON válido en UNA sola línea, sin saltos de línea, y sin comillas dobles dentro de los textos (usa comillas simples). Sé conciso para que el JSON quepa completo.';
   // Cada plataforma funciona distinto: guía que se inyecta a los prompts del agente.
   function platGuide(platform) {
     const p = String(platform || '').toLowerCase();
@@ -924,8 +926,8 @@
         const tema = body.topic || body.tema || '';
         try {
           const bloque = await marcaBloque(body.marca);
-          const system = 'Eres el director de contenido de Versus Studio, experto en captions que venden. Escribes en español, sin relleno ni frases genéricas. Respondes SOLO con JSON válido.';
-          const prompt = `Escribe 3 captions PROFESIONALES y distintos entre sí para ${body.platform || 'instagram'} sobre "${tema}".${bloque}${platGuide(body.platform)}\nCada uno con un ángulo diferente y adaptado a esta plataforma. Devuelve SOLO JSON: {"captions":[{"angulo":"nombre corto","primera_linea":"gancho","texto":"caption completo listo para pegar","hashtags":["#.."],"que_aporta":"","por_que_funciona":""}]}`;
+          const system = 'Eres el director de contenido de Versus Studio, experto en captions que venden. Escribes en español, sin relleno ni frases genéricas. Respondes SOLO con JSON válido.' + JSON_RULE;
+          const prompt = `Escribe 3 captions PROFESIONALES y distintos entre sí para ${body.platform || 'instagram'} sobre "${tema}".${bloque}${platGuide(body.platform)}\nCada uno con un ángulo diferente y adaptado a esta plataforma. Devuelve SOLO JSON: {"captions":[{"angulo":"nombre corto","primera_linea":"gancho","texto":"caption listo para pegar, máx 45 palabras","hashtags":["#.."],"por_que_funciona":"1 frase"}]}`;
           const json = extractJSON(await callGemini(system, prompt));
           if (json && json.captions) return { ok: true, data: { source: 'ia', captions: json.captions.slice(0, 3) } };
         } catch (_) {}
@@ -935,7 +937,7 @@
         const tema = body.tema || body.topic || '';
         try {
           const bloque = await marcaBloque(body.marca);
-          const system = 'Eres estratega de HISTORIAS (stories) de Instagram en Versus Studio. Diseñas secuencias que enganchan, con objetivo por frame y elementos interactivos. Español. SOLO JSON válido.';
+          const system = 'Eres estratega de HISTORIAS (stories) de Instagram en Versus Studio. Diseñas secuencias que enganchan, con objetivo por frame y elementos interactivos. Español. SOLO JSON válido.' + JSON_RULE;
           const prompt = `Diseña una secuencia de 4-6 historias (stories) para ${body.platform || 'instagram'} sobre "${tema}".${bloque}${platGuide(body.platform)}\nEl primer frame frena el dedo; cierra con acción. Devuelve SOLO JSON: {"historias":[{"frame":1,"texto":"lo que va escrito","elemento":"encuesta/pregunta/quiz/link o ''","objetivo":"qué logra"}]}`;
           const json = extractJSON(await callGemini(system, prompt));
           if (json && json.historias) return { ok: true, data: { source: 'ia', historias: json.historias.slice(0, 6) } };
@@ -946,7 +948,7 @@
         const tema = body.topic || body.tema || '';
         try {
           const bloque = await marcaBloque(body.marca);
-          const system = 'Eres estratega de contenido de Versus Studio. Generas ideas de contenido con gancho y estructura. Español. SOLO JSON válido.';
+          const system = 'Eres estratega de contenido de Versus Studio. Generas ideas de contenido con gancho y estructura. Español. SOLO JSON válido.' + JSON_RULE;
           const prompt = `Genera 5 ideas de contenido sobre "${tema}" para ${body.platform || 'instagram'}.${bloque}${platGuide(body.platform)}\nAdapta formato y ángulo a esta plataforma. Devuelve SOLO JSON: {"ideas":[{"titulo":"","hook":"","estructura":"","formato":"Reel/Carrusel/Post","por_que_funciona":"","cta":""}]}`;
           const json = extractJSON(await callGemini(system, prompt));
           if (json && json.ideas) return { ok: true, data: { source: 'ia', ideas: json.ideas.slice(0, 6) } };
@@ -957,7 +959,7 @@
         const tema = body.topic || body.tema || '';
         try {
           const bloque = await marcaBloque(body.marca);
-          const system = 'Eres estratega de hashtags de Versus Studio. Español. SOLO JSON válido.';
+          const system = 'Eres estratega de hashtags de Versus Studio. Español. SOLO JSON válido.' + JSON_RULE;
           const prompt = `Analiza hashtags y palabras clave para "${tema}" (${body.platform || 'instagram'}).${bloque}${platGuide(body.platform)}\nDevuelve SOLO JSON: {"estrategia":"1-2 frases","grupos":{"amplios":[{"tag":"#..","nota":"","alcance":"alto/medio/bajo"}],"nicho":[{"tag":"#..","nota":"","alcance":""}],"longtail":[{"tag":"#..","nota":"","alcance":""}]},"recomendado":["#..","#.."]}`;
           const json = extractJSON(await callGemini(system, prompt));
           if (json && json.grupos) return { ok: true, data: { source: 'ia', ...json } };
