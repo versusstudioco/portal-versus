@@ -172,7 +172,7 @@
     return {
       id: p.id, marca: p.marca, tipo: p.tipo || 'Reel', idea: p.idea || '', guion: p.guion || '',
       caracteristicas: p.caracteristicas || '', etapa: p.etapa || 'idea', responsable: p.responsable || '',
-      numero: p.numero || '',
+      numero: p.numero || '', cycle: p.cycle || '',
       fecha: p.fecha || null, fechaEntrega: p.fechaEntrega || null,
       aprobadoCliente: p.aprobadoCliente || null,
       link: p.link || '', linkIg: p.linkIg || '', linkTiktok: p.linkTiktok || '', linkLinkedin: p.linkLinkedin || '',
@@ -454,12 +454,12 @@
       if (p === '/api/piezas') return { ok: true, data: await board() };
       if (p === '/api/piezas/crear' && method === 'POST') {
         const id = uid();
-        const pieza = { id, marca: String(body.marca || '').trim() || 'Sin marca', tipo: body.tipo || 'Reel', idea: String(body.idea || '').trim() || 'Nueva idea', guion: body.guion || '', caracteristicas: body.caracteristicas || '', etapa: 'idea', responsable: body.responsable || '', numero: body.numero || '', fecha: body.fecha || null, fechaEntrega: body.fechaEntrega || null, refLinks: body.refLinks || '', comentarios: {}, createdAt: new Date().toISOString() };
+        const pieza = { id, marca: String(body.marca || '').trim() || 'Sin marca', tipo: body.tipo || 'Reel', idea: String(body.idea || '').trim() || 'Nueva idea', guion: body.guion || '', caracteristicas: body.caracteristicas || '', etapa: 'idea', responsable: body.responsable || '', numero: body.numero || '', cycle: body.cycle || '', fecha: body.fecha || null, fechaEntrega: body.fechaEntrega || null, refLinks: body.refLinks || '', comentarios: {}, createdAt: new Date().toISOString() };
         await fbPut('gestor/piezas/' + id, pieza);
         return { ok: true, data: { ok: true, pieza } };
       }
       if (p === '/api/piezas/update' && method === 'POST') {
-        const patch = {}; ['idea', 'guion', 'caracteristicas', 'responsable', 'numero', 'tipo', 'fecha', 'fechaEntrega', 'aprobadoCliente', 'link', 'linkIg', 'linkTiktok', 'linkLinkedin', 'refLinks', 'met', 'mViews', 'mLikes', 'mSaved', 'mShared'].forEach(k => { if (body[k] != null) patch[k] = body[k]; });
+        const patch = {}; ['idea', 'guion', 'caracteristicas', 'responsable', 'numero', 'cycle', 'tipo', 'fecha', 'fechaEntrega', 'aprobadoCliente', 'link', 'linkIg', 'linkTiktok', 'linkLinkedin', 'refLinks', 'met', 'mViews', 'mLikes', 'mSaved', 'mShared'].forEach(k => { if (body[k] != null) patch[k] = body[k]; });
         await fbPatch('gestor/piezas/' + body.id, patch);
         return { ok: true, data: { ok: true } };
       }
