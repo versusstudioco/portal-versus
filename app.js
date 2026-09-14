@@ -628,6 +628,11 @@ function openPieza(id, prefill) {
         <div id="pzGuion" class="rte" contenteditable="true" data-ph="El guion del contenido…">${p.guion || ''}</div>
       </div>
  <label class="pz-field"><span>Características</span><textarea id="pzCar" rows="2" placeholder="Formato, duración, música, referencias…">${esc(p.caracteristicas || '')}</textarea></label>
+ <label class="pz-field"><span>Links de referencia <em>(brief, Drive, inspiración… uno por línea)</em></span><textarea id="pzRefLinks" rows="2" placeholder="https://…">${esc(p.refLinks || '')}</textarea></label>
+ <div class="pz-field"><span>Fotos / adjuntos</span>
+ <div id="pzFotos" class="pz-fotos">${id ? '<div class="gw-none">Cargando…</div>' : '<div class="gw-none">Guarda la pieza para poder adjuntar fotos.</div>'}</div>
+ ${id ? '<label class="hub-up pz-foto-add"><input type="file" id="pzFotoInput" accept="image/*" multiple hidden><span>+ Adjuntar foto</span></label>' : ''}
+ </div>
  <div class="pz-field pz-pub"><span> Publicación y métricas <em>(aparece en el portal del cliente al llegar a Editada/Publicada)</em></span>
  ${pubSection}
  </div>
@@ -674,6 +679,7 @@ function openPieza(id, prefill) {
  $('#pzSave').addEventListener('click', async () => {
  const body = { id, marca: $('#pzMarca').value, idea: $('#pzIdea').value, tipo: $('#pzTipo').value, responsable: $('#pzResp').value, numero: $('#pzNum').value, guion: ($('#pzGuion').innerHTML || '').trim(), caracteristicas: $('#pzCar').value,
  fecha: $('#pzFecha').value || null, fechaEntrega: $('#pzFechaEntrega').value || null,
+ refLinks: ($('#pzRefLinks') && $('#pzRefLinks').value) || '',
  linkIg: $('#pzLinkIg').value, linkTiktok: $('#pzLinkTiktok').value, linkLinkedin: $('#pzLinkLinkedin').value };
  const met = {}; $$('.pzm').forEach(inp => { if (inp.value !== '') { const pl = inp.dataset.plat, k = inp.dataset.k; (met[pl] || (met[pl] = {}))[k] = +inp.value || 0; } });
  body.met = met;
@@ -683,6 +689,20 @@ function openPieza(id, prefill) {
  close(); refreshPiezaView();
  });
  if (id) {
+ pzCargarFotos(id); // fotos adjuntas (nodo aparte, no pesa el tablero)
+ const fin = $('#pzFotoInput');
+ if (fin) fin.addEventListener('change', async () => {
+ const files = Array.from(fin.files || []); fin.value = '';
+ for (const f of files) {
+ if (!/^image\//.test(f.type)) continue;
+ try {
+ const dataBase64 = await compressImage(f);
+ const r = await api('/api/pieza/foto', { method: 'POST', body: { id, name: f.name, dataBase64 } });
+ if (!r.ok || (r.data && r.data.error)) alert((r.data && r.data.error) || 'No se pudo subir la foto');
+ } catch (_) { alert('No se pudo procesar la imagen.'); }
+ }
+ pzCargarFotos(id);
+ });
  $('#pzDel').addEventListener('click', async () => {
  if (!confirm('¿Eliminar esta pieza?')) return;
  await api('/api/piezas/remove', { method: 'POST', body: { id } });
@@ -694,6 +714,34 @@ function openPieza(id, prefill) {
  if (data.ok) { state.piezas[id] = data.pieza; close(); openPieza(id); }
  });
  }
+}
+
+// Comprime una imagen en el navegador a JPEG (máx ~1000px) para que quepa y no pese el tablero.
+function compressImage(file, max, q) {
+ max = max || 1000; q = q || 0.72;
+ return new Promise((res, rej) => {
+ const rd = new FileReader();
+ rd.onload = () => { const img = new Image(); img.onload = () => {
+ let w = img.width, h = img.height;
+ if (w > h && w > max) { h = Math.round(h * max / w); w = max; } else if (h > max) { w = Math.round(w * max / h); h = max; }
+ const c = document.createElement('canvas'); c.width = w; c.height = h;
+ c.getContext('2d').drawImage(img, 0, 0, w, h);
+ res(c.toDataURL('image/jpeg', q));
+ }; img.onerror = rej; img.src = rd.result; };
+ rd.onerror = rej; rd.readAsDataURL(file);
+ });
+}
+async function pzCargarFotos(id) {
+ const box = document.getElementById('pzFotos'); if (!box) return;
+ const r = await api('/api/pieza/fotos?id=' + encodeURIComponent(id));
+ const fotos = (r.ok && r.data.fotos) || [];
+ if (!fotos.length) { box.innerHTML = '<div class="gw-none">Sin fotos aún.</div>'; return; }
+ box.innerHTML = fotos.map(f => `<div class="pz-foto"><a href="${f.data}" target="_blank" rel="noopener"><img src="${f.data}" alt="${esc(f.name)}"></a><button type="button" class="pz-foto__del" data-fid="${f.id}" title="Quitar">✕</button></div>`).join('');
+ box.querySelectorAll('.pz-foto__del').forEach(b => b.addEventListener('click', async () => {
+ if (!confirm('¿Quitar esta foto?')) return;
+ await api('/api/pieza/foto/remove', { method: 'POST', body: { id, fid: b.dataset.fid } });
+ pzCargarFotos(id);
+ }));
 }
 
 function openMetas(marca) {
@@ -1563,9 +1611,9 @@ function buildMonthGrid(piezas, refISO) {
  for (let d = 1; d <= dias; d++) {
  const iso = `${ym}-${String(d).padStart(2, '0')}`;
  const items = porDia[iso] || [];
- celdas += `<div class="cal__cell ${iso === hoyISO ? 'cal__cell--hoy' : ''}">
+ celdas += `<div class="cal__cell ${iso === hoyISO ? 'cal__cell--hoy' : ''}" data-iso="${iso}">
  <div class="cal__num">${d}</div>
- ${items.map(p => `<div class="cal__item cal-pz" data-id="${p.id}" title="${esc(p.idea || '')} · ${esc(p.etapa || '')}"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${p.numero ? '#' + esc(p.numero) + ' ' : ''}${esc(p.tipo || '')}</div>`).join('')}
+ ${items.map(p => `<div class="cal__item cal-pz" draggable="true" data-id="${p.id}" title="${esc(p.idea || '')} · ${esc(p.etapa || '')} — arrastra para cambiar la fecha"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${p.numero ? '#' + esc(p.numero) + ' ' : ''}${esc(p.tipo || '')}</div>`).join('')}
  </div>`;
  }
  return { label: `${CAL_MESES[m - 1]} ${y}`, html: `<div class="cal">${celdas}</div>` };
@@ -1614,7 +1662,29 @@ async function marcaCalendario(marca) {
  const addC = $('#addCreativo'); if (addC) addC.addEventListener('click', () => openAgregarCreativo(marca));
  const mcPrev = $('#mcPrev'); if (mcPrev) mcPrev.addEventListener('click', () => { let { y, m } = state.marcaCalYM; m--; if (m < 1) { m = 12; y--; } state.marcaCalYM = { y, m }; render(); });
  const mcNext = $('#mcNext'); if (mcNext) mcNext.addEventListener('click', () => { let { y, m } = state.marcaCalYM; m++; if (m > 12) { m = 1; y++; } state.marcaCalYM = { y, m }; render(); });
- pane.querySelectorAll('.cal-pz, .hub-pieza').forEach(el => el.addEventListener('click', () => openPieza(el.dataset.id)));
+ pane.querySelectorAll('.cal-pz, .hub-pieza').forEach(el => el.addEventListener('click', () => { if (!el._drag) openPieza(el.dataset.id); }));
+ // Arrastrar para cambiar la fecha (se sincroniza con el calendario general y con el portal del cliente).
+ pane.querySelectorAll('.cal-pz').forEach(el => {
+ el.addEventListener('dragstart', e => { el._drag = true; e.dataTransfer.setData('text/plain', el.dataset.id); e.dataTransfer.effectAllowed = 'move'; setTimeout(() => el.classList.add('dragging'), 0); });
+ el.addEventListener('dragend', () => { el.classList.remove('dragging'); setTimeout(() => el._drag = false, 60); });
+ });
+ pane.querySelectorAll('.cal__cell[data-iso]').forEach(cell => {
+ cell.addEventListener('dragover', e => { e.preventDefault(); cell.classList.add('cal__cell--over'); });
+ cell.addEventListener('dragleave', () => cell.classList.remove('cal__cell--over'));
+ cell.addEventListener('drop', e => {
+ e.preventDefault(); cell.classList.remove('cal__cell--over');
+ const id = e.dataTransfer.getData('text/plain'), iso = cell.dataset.iso;
+ if (!id || !iso) return;
+ const p = state.piezas[id]; if (p && p.fecha === iso) return;
+ const card = pane.querySelector('.cal-pz[data-id="' + id + '"]');
+ if (card) { card.classList.remove('dragging'); cell.appendChild(card); } // movimiento instantáneo
+ if (p) p.fecha = iso;
+ // Persistir en gestor/piezas (fuente única): sincroniza team y cliente al recargar.
+ api('/api/piezas/update', { method: 'POST', body: { id, fecha: iso } })
+ .then(r => { if (!r || !r.ok) marcaCalendario(marca); })
+ .catch(() => marcaCalendario(marca));
+ });
+ });
  };
  render();
 }
@@ -1888,6 +1958,7 @@ async function marcaPlataformas(marca) {
  ${row('Instagram', 'Instagram')}${row('TikTok', 'TikTok')}${row('YouTube', 'YouTube')}${row('LinkedIn', 'LinkedIn')}
  </div>
  <label class="np-chk" style="margin-top:.7rem;display:flex;align-items:center;gap:.4rem"><input type="checkbox" id="cfPautaOn" ${data.pauta ? 'checked' : ''}> <b>Esta marca lleva pauta</b> <span class="hub-hint" style="display:inline;margin:0">— muestra el bloque de pauta en su portal</span></label>
+ <label class="select" style="margin-top:.8rem"><span>Carpeta de Drive del cliente <em style="font-weight:400;color:var(--ink-40)">— aparece anclada en su portal para subir archivos</em></span><input id="cfDrive" value="${esc(data.drive || '')}" placeholder="https://drive.google.com/drive/folders/…"></label>
  <button class="btn btn--primary btn--sm" id="cfPlatSave" style="margin-top:.7rem">Guardar plataformas</button>`;
  const save = $('#cfPlatSave');
  if (save) save.addEventListener('click', async () => {
@@ -1895,7 +1966,7 @@ async function marcaPlataformas(marca) {
  const r = await api('/api/marca/plataformas', { method: 'POST', body: {
  marca,
  Instagram: $('#cfPlat_Instagram').checked, TikTok: $('#cfPlat_TikTok').checked, YouTube: $('#cfPlat_YouTube').checked, LinkedIn: $('#cfPlat_LinkedIn').checked,
- pauta: $('#cfPautaOn').checked
+ pauta: $('#cfPautaOn').checked, drive: ($('#cfDrive') && $('#cfDrive').value) || ''
  } });
  save.disabled = false; save.textContent = (r.ok && !r.data.error) ? 'Guardado ✓' : 'Reintentar';
  setTimeout(() => { if (save) save.textContent = 'Guardar plataformas'; }, 1600);

@@ -176,6 +176,7 @@
       fecha: p.fecha || null, fechaEntrega: p.fechaEntrega || null,
       aprobadoCliente: p.aprobadoCliente || null,
       link: p.link || '', linkIg: p.linkIg || '', linkTiktok: p.linkTiktok || '', linkLinkedin: p.linkLinkedin || '',
+      refLinks: p.refLinks || '', nFotos: p.nFotos || 0,
       met: p.met || {},
       mViews: p.mViews || '', mLikes: p.mLikes || '', mSaved: p.mSaved || '', mShared: p.mShared || '',
       comentarios: p.comentarios ? (Array.isArray(p.comentarios) ? p.comentarios : Object.values(p.comentarios)) : []
@@ -453,13 +454,36 @@
       if (p === '/api/piezas') return { ok: true, data: await board() };
       if (p === '/api/piezas/crear' && method === 'POST') {
         const id = uid();
-        const pieza = { id, marca: String(body.marca || '').trim() || 'Sin marca', tipo: body.tipo || 'Reel', idea: String(body.idea || '').trim() || 'Nueva idea', guion: body.guion || '', caracteristicas: body.caracteristicas || '', etapa: 'idea', responsable: body.responsable || '', numero: body.numero || '', fecha: body.fecha || null, fechaEntrega: body.fechaEntrega || null, comentarios: {}, createdAt: new Date().toISOString() };
+        const pieza = { id, marca: String(body.marca || '').trim() || 'Sin marca', tipo: body.tipo || 'Reel', idea: String(body.idea || '').trim() || 'Nueva idea', guion: body.guion || '', caracteristicas: body.caracteristicas || '', etapa: 'idea', responsable: body.responsable || '', numero: body.numero || '', fecha: body.fecha || null, fechaEntrega: body.fechaEntrega || null, refLinks: body.refLinks || '', comentarios: {}, createdAt: new Date().toISOString() };
         await fbPut('gestor/piezas/' + id, pieza);
         return { ok: true, data: { ok: true, pieza } };
       }
       if (p === '/api/piezas/update' && method === 'POST') {
-        const patch = {}; ['idea', 'guion', 'caracteristicas', 'responsable', 'numero', 'tipo', 'fecha', 'fechaEntrega', 'aprobadoCliente', 'link', 'linkIg', 'linkTiktok', 'linkLinkedin', 'met', 'mViews', 'mLikes', 'mSaved', 'mShared'].forEach(k => { if (body[k] != null) patch[k] = body[k]; });
+        const patch = {}; ['idea', 'guion', 'caracteristicas', 'responsable', 'numero', 'tipo', 'fecha', 'fechaEntrega', 'aprobadoCliente', 'link', 'linkIg', 'linkTiktok', 'linkLinkedin', 'refLinks', 'met', 'mViews', 'mLikes', 'mSaved', 'mShared'].forEach(k => { if (body[k] != null) patch[k] = body[k]; });
         await fbPatch('gestor/piezas/' + body.id, patch);
+        return { ok: true, data: { ok: true } };
+      }
+      // Fotos/adjuntos de una pieza — en nodo aparte para no pesar el tablero.
+      if (p === '/api/pieza/fotos') {
+        const o = (await fbGet('gestor/piezasFotos/' + (q.get('id') || body.id)).catch(() => null)) || {};
+        return { ok: true, data: { fotos: Object.entries(o).map(([fid, v]) => ({ id: fid, name: (v && v.name) || '', data: (v && v.data) || '' })) } };
+      }
+      if (p === '/api/pieza/foto' && method === 'POST') {
+        const s = await sesionActual(); if (!s) return { ok: false, status: 403, data: { error: 'Sin sesión' } };
+        if (!body.id || !body.dataBase64) return { ok: false, status: 400, data: { error: 'Falta pieza o imagen' } };
+        if (String(body.dataBase64).length > 900000) return { ok: false, status: 400, data: { error: 'Imagen muy pesada (máx ~650KB). Se comprime sola; intenta una más liviana.' } };
+        const fid = uid();
+        await fbPut('gestor/piezasFotos/' + body.id + '/' + fid, { name: String(body.name || 'foto'), data: String(body.dataBase64), at: new Date().toISOString() });
+        const o = (await fbGet('gestor/piezasFotos/' + body.id).catch(() => null)) || {};
+        await fbPatch('gestor/piezas/' + body.id, { nFotos: Object.keys(o).length }).catch(() => {});
+        _pzBust();
+        return { ok: true, data: { ok: true, id: fid } };
+      }
+      if (p === '/api/pieza/foto/remove' && method === 'POST') {
+        await fbDelete('gestor/piezasFotos/' + body.id + '/' + body.fid).catch(() => {});
+        const o = (await fbGet('gestor/piezasFotos/' + body.id).catch(() => null)) || {};
+        await fbPatch('gestor/piezas/' + body.id, { nFotos: Object.keys(o).length }).catch(() => {});
+        _pzBust();
         return { ok: true, data: { ok: true } };
       }
       if (p === '/api/piezas/etapa' && method === 'POST') {
@@ -813,16 +837,17 @@
         const km = norm(marca);
         let cu = '';
         Object.entries(creds).forEach(([u, v]) => { if (!cu && v && v.type === 'client' && (norm(v.name) === km || norm(u) === km || (km && norm(v.name).indexOf(km) >= 0) || (km && km.indexOf(norm(v.name)) >= 0))) cu = u; });
-        if (!cu) return { ok: true, data: { cu: '', plats: { Instagram: true, TikTok: false, YouTube: false, LinkedIn: false }, pauta: false } };
+        if (!cu) return { ok: true, data: { cu: '', plats: { Instagram: true, TikTok: false, YouTube: false, LinkedIn: false }, pauta: false, drive: '' } };
         if (method === 'POST') {
           const plats = { Instagram: !!body.Instagram, TikTok: !!body.TikTok, YouTube: !!body.YouTube, LinkedIn: !!body.LinkedIn };
           await fbPut('db/platCfg/' + cu, plats);
           await fbPut('db/pautaOn/' + cu, !!body.pauta);
+          if (body.drive != null) await fbPut('db/driveCfg/' + cu, String(body.drive || '').trim());
           return { ok: true, data: { ok: true, cu } };
         }
-        const [platCfg, pautaOn] = await Promise.all([fbGet('db/platCfg').catch(() => null), fbGet('db/pautaOn').catch(() => null)]);
+        const [platCfg, pautaOn, driveCfg] = await Promise.all([fbGet('db/platCfg').catch(() => null), fbGet('db/pautaOn').catch(() => null), fbGet('db/driveCfg').catch(() => null)]);
         const plats = (platCfg && platCfg[cu]) || { Instagram: true, TikTok: false, YouTube: false, LinkedIn: false };
-        return { ok: true, data: { cu, plats: { Instagram: !!plats.Instagram, TikTok: !!plats.TikTok, YouTube: !!plats.YouTube, LinkedIn: !!plats.LinkedIn }, pauta: !!(pautaOn && pautaOn[cu]) } };
+        return { ok: true, data: { cu, plats: { Instagram: !!plats.Instagram, TikTok: !!plats.TikTok, YouTube: !!plats.YouTube, LinkedIn: !!plats.LinkedIn }, pauta: !!(pautaOn && pautaOn[cu]), drive: (driveCfg && driveCfg[cu]) || '' } };
       }
       if (p === '/api/marca/aprendizaje') {
         const marca = q.get('marca') || body.marca || '';

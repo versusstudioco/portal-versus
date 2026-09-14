@@ -2557,7 +2557,15 @@ function vgRenderCal(){
  var help='<p class="tip" style="margin-top:6px">Toca una publicación para ver el detalle y <b>dejar tus comentarios</b> sobre el guion o el texto.</p>';
  var body=nav+grid+leyenda+help+'</div>';
  if(sinF.length){ body+='<div class="card"><div class="card-title">Sin fecha asignada</div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">'+sinF.map(function(p){var e=VG_EST[p.etapa]||VG_EST.idea;return '<div onclick="vgOpenPieza(\''+p.id+'\')" style="cursor:pointer;background:'+e.c+';color:#fff;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600">'+vgEsc(p.tipo||"")+' · '+vgEsc(p.idea||"")+'</div>';}).join("")+'</div></div>'; }
- el.innerHTML=(el._head||"")+body;
+ el.innerHTML=vgDriveCard()+(el._head||"")+body;
+}
+function vgDriveCard(){
+ var url = (DB.driveCfg && DB.driveCfg[CU]) || "";
+ if(!url) return "";
+ return '<div class="card" style="display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap">'
+  +'<div><div class="card-title" style="margin:0">📁 Tu carpeta de Drive</div><div style="font-size:12px;color:var(--t2);margin-top:2px">Sube aquí tus archivos, fotos y material para el equipo.</div></div>'
+  +'<a href="'+vgEsc(url)+'" target="_blank" rel="noopener" style="font-size:13px;font-weight:700;color:#fff;background:var(--red);border-radius:99px;padding:9px 16px;text-decoration:none;white-space:nowrap">Abrir / Subir archivos</a>'
+  +'</div>';
 }
 function vgCalNav(delta){ if(!_vgCalYM)return; var m=_vgCalYM.m+delta, y=_vgCalYM.y; if(m<1){m=12;y--;} if(m>12){m=1;y++;} var v=y*12+m; if(_vgCicloMin&&v<_vgYMval(_vgCicloMin))return; if(_vgCicloMax&&v>_vgYMval(_vgCicloMax))return; _vgCalYM={y:y,m:m}; vgRenderCal(); }
 function vgLinks(p){
