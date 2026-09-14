@@ -1591,6 +1591,8 @@ async function marcaCiclo(marca) {
  CICLO_TIPOS.forEach(([k]) => body[k] = $('#cl_' + k).value);
  const { ok, data } = await api('/api/marca/ciclo', { method: 'POST', body });
  if (!ok || data.error) { alert(data.error || 'No se pudo guardar'); return; }
+ if (data.avisoCliente) alert('⚠ ' + data.avisoCliente);
+ else if (data.cliente) alert('Ciclo guardado y activado en el portal del cliente ✓');
  marcaCiclo(marca);
  });
 }

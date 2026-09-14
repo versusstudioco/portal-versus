@@ -684,7 +684,32 @@
             pactado: { reels: +body.reels || 0, carruseles: +body.carruseles || 0, posts: +body.posts || 0, banners: +body.banners || 0, historias: +body.historias || 0 }
           };
           await fbPut('gestor/marcas/' + fbKey(marca) + '/ciclo', c);
-          return { ok: true, data: { ok: true } };
+          // Puente al PORTAL DEL CLIENTE: crea/activa el ciclo en db/cycles para que el cliente lo vea.
+          let cuActivado = '';
+          try {
+            const norm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+            const [credsTeam, credsCli] = await Promise.all([fbGet('db/creds').catch(() => ({})), fbGet('creds').catch(() => ({}))]);
+            const creds = Object.assign({}, credsCli || {}, credsTeam || {});
+            const km = norm(marca); let cu = '';
+            Object.entries(creds).forEach(([u, v]) => { if (!cu && v && v.type === 'client' && (norm(v.name) === km || norm(u) === km || (km && norm(v.name).indexOf(km) >= 0) || (km && km.indexOf(norm(v.name)) >= 0))) cu = u; });
+            if (cu) {
+              const raw = await fbGet('db/cycles').catch(() => null);
+              let arr = (Array.isArray(raw) ? raw : (raw && typeof raw === 'object' ? Object.values(raw) : [])).filter(Boolean);
+              // Buscar un ciclo del cliente que coincida por nombre/periodo o por fecha de inicio; si no, crear.
+              let cyc = arr.find(x => x.brand === cu && ((x.name && c.periodo && norm(x.name) === norm(c.periodo)) || (x.start && c.inicio && x.start === c.inicio)));
+              arr.forEach(x => { if (x.brand === cu && x.status === 'active') x.status = 'past'; }); // solo uno activo
+              if (!cyc) { cyc = { id: 'cyc_' + uid(), brand: cu, metrics: {} }; arr.push(cyc); }
+              Object.assign(cyc, { brand: cu, name: c.periodo || cyc.name || 'Ciclo', start: c.inicio || cyc.start || '', end: c.fin || cyc.end || '', status: 'active', reels: c.pactado.reels, carruseles: c.pactado.carruseles, posts: c.pactado.posts, historias: c.pactado.historias, banners: c.pactado.banners });
+              await fbPut('db/cycles', arr);
+              // Si el cliente aún no tiene plataformas, deja Instagram activa para que vea contenido.
+              const pc = await fbGet('db/platCfg').catch(() => null);
+              if (!pc || !pc[cu]) await fbPut('db/platCfg/' + cu, { Instagram: true, TikTok: false, YouTube: false, LinkedIn: false });
+              cuActivado = cu;
+            }
+            return { ok: true, data: { ok: true, cliente: cuActivado, avisoCliente: cuActivado ? '' : 'La marca no está enlazada a una cuenta de cliente; el ciclo se guardó para el equipo pero no se activó en ningún portal de cliente. Revisa el usuario del cliente en Configuración.' } };
+          } catch (e) {
+            return { ok: true, data: { ok: true, cliente: '', avisoCliente: 'El ciclo del equipo se guardó, pero no se pudo activar en el portal del cliente: ' + String(e.message || e) } };
+          }
         }
         const cfg = (await fbGet('gestor/marcas/' + fbKey(marca) + '/ciclo').catch(() => null)) || { periodo: '', inicio: '', fin: '', pactado: { reels: 0, carruseles: 0, posts: 0, banners: 0, historias: 0 } };
         const all = await piezasAll();
