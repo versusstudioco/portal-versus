@@ -466,6 +466,29 @@
         await fbPatch('gestor/piezas/' + body.id, patch);
         return { ok: true, data: { ok: true } };
       }
+      // Renumera el consecutivo por marca+ciclo SEGÚN LA FECHA (lo que va primero, va primero).
+      // Creativos e historias se numeran en secuencias separadas.
+      if (p === '/api/marca/renumerar' && method === 'POST') {
+        const marca = body.marca || '';
+        if (!marca) return { ok: false, status: 400, data: { error: 'Falta marca' } };
+        const all = await piezasAll();
+        const mine = all.filter(x => x.marca === marca);
+        const esHist = t => t === 'Historia' || t === 'Historias';
+        const kd = x => (x.fecha || x.fechaEntrega || '9999-12-31') + '|' + String(x.createdAt || '');
+        const groups = {};
+        mine.forEach(x => { const g = x.cycle || ''; (groups[g] || (groups[g] = [])).push(x); });
+        const cambios = [];
+        Object.keys(groups).forEach(g => {
+          const arr = groups[g];
+          const cre = arr.filter(x => !esHist(x.tipo)).sort((a, b) => kd(a).localeCompare(kd(b)));
+          const his = arr.filter(x => esHist(x.tipo)).sort((a, b) => kd(a).localeCompare(kd(b)));
+          cre.forEach((x, i) => { const n = String(i + 1); if (String(x.numero || '') !== n) cambios.push({ id: x.id, numero: n }); });
+          his.forEach((x, i) => { const n = String(i + 1); if (String(x.numero || '') !== n) cambios.push({ id: x.id, numero: n }); });
+        });
+        for (const c of cambios) await fbPatch('gestor/piezas/' + c.id, { numero: c.numero });
+        if (cambios.length) _pzBust();
+        return { ok: true, data: { ok: true, cambios: cambios.length } };
+      }
       // Fotos/adjuntos de una pieza — en nodo aparte para no pesar el tablero.
       if (p === '/api/pieza/fotos') {
         const o = (await fbGet('gestor/piezasFotos/' + (q.get('id') || body.id)).catch(() => null)) || {};

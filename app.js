@@ -341,7 +341,8 @@ function renderGestionStats(d) {
  <div class="g-stat-note">Ciclo <b>${esc((d.ciclo || {}).label || 'Sin ciclo')}</b>${(d.ciclo || {}).dia ? ` · día ${(d.ciclo).dia}/${(d.ciclo).dias || ''}` : ''}</div>`;
 }
 
-const TIPO_ICON = { Reel: '', Post: '', Carrusel: '', Historia: '', Creativos: '', Historias: '' };
+const TIPO_ICON = { Reel: '🎬', Carrusel: '🎠', Post: '🖼️', Banner: '🪧', Historia: '📱', Historias: '📱', Pauta: '📢', Video: '🎥', Short: '⚡', Creativos: '🎬' };
+function tipoIcon(t) { return TIPO_ICON[t] || '📄'; }
 
 const ESTADO_INFO = {
  retrasado: { label: 'Retrasado', cls: 'st-red' },
@@ -777,6 +778,7 @@ function openPieza(id, prefill) {
  const body = buildPiezaBody();
  if (!id) { const r = await api('/api/piezas/crear', { method: 'POST', body }); if (r.data.ok && $('#pzEtapa').value !== 'idea') await api('/api/piezas/etapa', { method: 'POST', body: { id: r.data.pieza.id, etapa: $('#pzEtapa').value } }); }
  else { await api('/api/piezas/update', { method: 'POST', body }); if ($('#pzEtapa').value !== p.etapa) await api('/api/piezas/etapa', { method: 'POST', body: { id, etapa: $('#pzEtapa').value } }); }
+ try { if (body.marca) await api('/api/marca/renumerar', { method: 'POST', body: { marca: body.marca } }); } catch (_) {} // consecutivo por fecha
  close(); refreshPiezaView();
  });
  const btnAV = $('#pzAprobarVersus');
@@ -1728,7 +1730,7 @@ function buildMonthGrid(piezas, refISO) {
  const items = porDia[iso] || [];
  celdas += `<div class="cal__cell ${iso === hoyISO ? 'cal__cell--hoy' : ''}" data-iso="${iso}">
  <div class="cal__num">${d}</div>
- ${items.map(p => `<div class="cal__item cal-pz" draggable="true" data-id="${p.id}" title="${esc(p.idea || '')} · ${esc(p.etapa || '')} — arrastra para cambiar la fecha"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${p.numero ? '#' + esc(p.numero) + ' ' : ''}${esc(p.tipo || '')}</div>`).join('')}
+ ${items.map(p => `<div class="cal__item cal-pz" draggable="true" data-id="${p.id}" title="${esc(p.idea || '')} · ${esc(p.etapa || '')} — arrastra para cambiar la fecha"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span><span class="cal__ico">${tipoIcon(p.tipo)}</span><span class="cal__txt">${p.numero ? '#' + esc(p.numero) + ' ' : ''}${esc(p.tipo || '')}${p.idea ? ' · ' + esc(p.idea) : ''}</span></div>`).join('')}
  </div>`;
  }
  return { label: `${CAL_MESES[m - 1]} ${y}`, html: `<div class="cal">${celdas}</div>` };
@@ -1798,10 +1800,19 @@ async function marcaCalendario(marca) {
  //  · pieza del equipo → gestor/piezas (calendario general, de marca y flujo)
  //  · publicación ya publicada → db/publications (portal del cliente y métricas)
  const esPub = (p && p.historico) || String(id).indexOf('pub_') === 0;
- const req = esPub
- ? api('/api/publicacion', { method: 'POST', body: { id: String(id).replace(/^pub_/, ''), date: iso } })
- : api('/api/piezas/update', { method: 'POST', body: { id, fecha: iso } });
- req.then(r => { if (!r || !r.ok) { alert('No se pudo mover la tarjeta: ' + ((r && r.data && r.data.error) || 'intenta de nuevo')); marcaCalendario(marca); } }).catch(() => { alert('No se pudo mover la tarjeta (revisa tu conexión).'); marcaCalendario(marca); });
+ if (esPub) {
+ api('/api/publicacion', { method: 'POST', body: { id: String(id).replace(/^pub_/, ''), date: iso } })
+ .then(r => { if (!r || !r.ok) { alert('No se pudo mover la tarjeta: ' + ((r && r.data && r.data.error) || 'intenta de nuevo')); marcaCalendario(marca); } })
+ .catch(() => { alert('No se pudo mover la tarjeta (revisa tu conexión).'); marcaCalendario(marca); });
+ } else {
+ api('/api/piezas/update', { method: 'POST', body: { id, fecha: iso } })
+ .then(r => {
+ if (!r || !r.ok) { alert('No se pudo mover la tarjeta: ' + ((r && r.data && r.data.error) || 'intenta de nuevo')); marcaCalendario(marca); return; }
+ // Renumera el consecutivo por fecha (se intercala) y recarga para verlo.
+ api('/api/marca/renumerar', { method: 'POST', body: { marca } }).then(() => marcaCalendario(marca)).catch(() => marcaCalendario(marca));
+ })
+ .catch(() => { alert('No se pudo mover la tarjeta (revisa tu conexión).'); marcaCalendario(marca); });
+ }
  });
  });
  };
@@ -2775,7 +2786,7 @@ async function loadCalendario() {
  const items = porDia[iso] || [];
  celdas += `<div class="cal__cell ${iso === hoyISO ? 'cal__cell--hoy' : ''}" data-iso="${iso}">
  <div class="cal__num">${d}</div>
- ${items.map(p => `<div class="cal__item cal-pz" draggable="true" data-id="${p.id}" title="${esc(p.marca)} · ${esc(p.tipo)} · ${esc(p.etapa)} — arrastra para cambiar la fecha"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${esc(p.marca)}</div>`).join('')}
+ ${items.map(p => `<div class="cal__item cal-pz" draggable="true" data-id="${p.id}" title="${esc(p.marca)} · ${esc(p.tipo)} · ${esc(p.etapa)} — arrastra para cambiar la fecha"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span><span class="cal__ico">${tipoIcon(p.tipo)}</span><span class="cal__txt">${esc(p.marca)}</span></div>`).join('')}
  </div>`;
  }
  out.innerHTML = `<div class="cal-toolbar">
@@ -2803,9 +2814,14 @@ async function loadCalendario() {
      const card = $('#calendarioOut .cal-pz[data-id="' + id + '"]');
      if (card) { card.classList.remove('dragging'); cell.appendChild(card); }
      if (p) p.fecha = iso;
-     // Persistir en segundo plano; solo si falla, recargamos para resincronizar.
+     const _mk = p && p.marca;
+     // Persistir en segundo plano; renumerar la marca por fecha; solo recargamos si algo falla.
      api('/api/piezas/update', { method: 'POST', body: { id, fecha: iso } })
-       .then(r => { if (!r || !r.ok) loadCalendario(); })
+       .then(r => {
+         if (!r || !r.ok) { loadCalendario(); return; }
+         if (_mk) api('/api/marca/renumerar', { method: 'POST', body: { marca: _mk } }).then(() => loadCalendario()).catch(() => loadCalendario());
+         else loadCalendario();
+       })
        .catch(() => loadCalendario());
    });
  });
