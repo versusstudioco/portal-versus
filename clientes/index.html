@@ -2543,7 +2543,7 @@ function vgRenderCal(){
  var _btnPrev=_atMin?'<span class="cpill" style="opacity:.3;cursor:default">Anterior</span>':'<button class="cpill" onclick="vgCalNav(-1)">Anterior</button>';
  var _btnNext=_atMax?'<span class="cpill" style="opacity:.3;cursor:default">Siguiente</span>':'<button class="cpill" onclick="vgCalNav(1)">Siguiente</button>';
  var _rango=(_vgCicloIni||_vgCicloFin)?'<div style="font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Ciclo activo'+(_vgCicloIni?': '+vgEsc(_vgCicloIni):'')+(_vgCicloFin?' → '+vgEsc(_vgCicloFin):'')+'</div>':'';
- var _btnNuevo=(_vgCicloIni||_vgCicloFin)?'<button class="btn btn-red btn-sm" onclick="vgNuevoContenido()" style="white-space:nowrap">+ Proponer contenido</button>':'';
+ var _btnNuevo=(_vgCicloIni||_vgCicloFin)?'<button class="btn btn-red btn-sm" onclick="vgNuevoContenido()" style="white-space:nowrap">+ Agregar contenido</button>':'';
  var nav='<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px"><div style="display:flex;align-items:center;gap:8px">'+_btnPrev+_btnNext+'</div><div style="font-size:15px;font-weight:800;text-transform:capitalize;flex:1;text-align:center">'+VG_MESES[m-1]+" "+y+'</div>'+_btnNuevo+'</div>'+_rango+'<div style="height:10px"></div>';
  var cells=''; VG_DOW.forEach(function(d){ cells+='<div class="vg-dow">'+d+'</div>'; });
  for(var i=0;i<offset;i++) cells+='<div class="vg-cell vg-cell--empty"></div>';
@@ -2657,32 +2657,53 @@ function vgNuevoContenido(){
  var defFecha=(_vgCicloIni&&hoy<_vgCicloIni)?_vgCicloIni:((_vgCicloFin&&hoy>_vgCicloFin)?_vgCicloFin:hoy);
  var minA=_vgCicloIni?(' min="'+_vgCicloIni+'"'):''; var maxA=_vgCicloFin?(' max="'+_vgCicloFin+'"'):'';
  var rango=(_vgCicloIni||_vgCicloFin)?('Tu ciclo: '+vgEsc(_vgCicloIni||'—')+' → '+vgEsc(_vgCicloFin||'—')):'';
- ov.innerHTML='<div style="position:relative;background:var(--card);border-radius:18px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)" onclick="event.stopPropagation()">'
+ var inbase="font-family:var(--fn);border:1.5px solid var(--bd2);border-radius:12px;background:var(--bg2);color:var(--tx);outline:none";
+ var lbl='font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px';
+ var rbtn='border:1px solid var(--bd2);background:var(--bg3);color:var(--tx);border-radius:8px;min-width:32px;height:30px;padding:0 8px;font-size:13px;cursor:pointer';
+ ov.innerHTML='<div style="position:relative;background:var(--card);border-radius:18px;max-width:560px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)" onclick="event.stopPropagation()">'
   +'<button onclick="vgCloseModal()" aria-label="Cerrar" style="position:absolute;top:12px;right:12px;z-index:5;width:34px;height:34px;border-radius:50%;border:none;background:rgba(0,0,0,.06);color:var(--t2);font-size:15px;font-weight:700;cursor:pointer">✕</button>'
-  +'<div style="padding:20px 52px 14px 22px;border-bottom:1px solid var(--bd)"><div style="font-size:19px;font-weight:800">Proponer contenido</div><div style="font-size:12px;color:var(--t3);margin-top:2px">Tu idea entra al equipo de VERSUS para revisarla y producirla.'+(rango?' '+rango:'')+'</div></div>'
+  +'<div style="padding:20px 52px 14px 22px;border-bottom:1px solid var(--bd)"><div style="font-size:19px;font-weight:800">Agregar contenido</div><div style="font-size:12px;color:var(--t3);margin-top:2px">Arma tu contenido; entra al equipo de VERSUS.'+(rango?' '+rango:'')+'</div></div>'
   +'<div style="padding:18px 22px">'
-  +'<div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Categoría</div>'
+  +'<div style="'+lbl+'">Categoría</div>'
   +'<div id="vgNTipos" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">'+tipos.map(function(t){var on=t==="Post";return '<button type="button" data-t="'+t+'" onclick="vgPickTipo(this)" style="border:1.5px solid var(--bd2);background:'+(on?"var(--red)":"var(--bg2)")+';color:'+(on?"#fff":"var(--tx)")+';border-radius:99px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer">'+t+'</button>';}).join("")+'</div>'
-  +'<div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Fecha (dentro de tu ciclo)</div>'
-  +'<input id="vgNFecha" type="date" value="'+defFecha+'"'+minA+maxA+' style="width:100%;font-family:var(--fn);font-size:16px;padding:11px 13px;border:1.5px solid var(--bd2);border-radius:12px;background:var(--bg2);color:var(--tx);outline:none;margin-bottom:16px">'
-  +'<div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Tu idea</div>'
-  +'<textarea id="vgNIdea" placeholder="Cuéntanos la idea: de qué trata, qué quieres mostrar, referencias…" style="width:100%;font-family:var(--fn);font-size:14px;padding:11px 13px;border:1.5px solid var(--bd2);border-radius:12px;background:var(--bg2);color:var(--tx);outline:none;min-height:110px;resize:vertical"></textarea>'
-  +'<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px"><button class="btn btn-ghost" onclick="vgCloseModal()">Cancelar</button><button class="btn btn-red" id="vgNSend" onclick="vgGuardarContenido()">Enviar al equipo</button></div>'
+  +'<div style="'+lbl+'">Título</div>'
+  +'<input id="vgNTitulo" placeholder="Título del contenido" style="width:100%;'+inbase+';font-size:16px;padding:11px 13px;margin-bottom:16px">'
+  +'<div style="'+lbl+'">Fecha (dentro de tu ciclo)</div>'
+  +'<input id="vgNFecha" type="date" value="'+defFecha+'"'+minA+maxA+' style="width:100%;'+inbase+';font-size:16px;padding:11px 13px;margin-bottom:16px">'
+  +'<div style="'+lbl+'">Texto</div>'
+  +'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px">'
+    +'<button type="button" onmousedown="event.preventDefault();vgRte(\'bold\')" title="Negrita" style="'+rbtn+';font-weight:800">B</button>'
+    +'<button type="button" onmousedown="event.preventDefault();vgRte(\'italic\')" title="Cursiva" style="'+rbtn+';font-style:italic">I</button>'
+    +'<button type="button" onmousedown="event.preventDefault();vgRte(\'underline\')" title="Subrayado" style="'+rbtn+';text-decoration:underline">U</button>'
+    +'<select onchange="vgRte(\'fontSize\',this.value);this.selectedIndex=0" style="'+rbtn+'"><option value="">Tamaño</option><option value="2">Pequeño</option><option value="3">Normal</option><option value="5">Grande</option><option value="6">Título</option></select>'
+    +'<input type="color" value="#111111" onchange="vgRte(\'foreColor\',this.value)" title="Color" style="width:34px;height:30px;border:1px solid var(--bd2);border-radius:8px;background:var(--bg3);cursor:pointer;padding:2px">'
+    +'<button type="button" onmousedown="event.preventDefault();vgRte(\'justifyLeft\')" title="Izquierda" style="'+rbtn+'">⯇</button>'
+    +'<button type="button" onmousedown="event.preventDefault();vgRte(\'justifyCenter\')" title="Centrar" style="'+rbtn+'">≡</button>'
+    +'<button type="button" onmousedown="event.preventDefault();vgRte(\'justifyRight\')" title="Derecha" style="'+rbtn+'">⯈</button>'
+    +'<button type="button" onmousedown="event.preventDefault();vgRte(\'insertUnorderedList\')" title="Lista" style="'+rbtn+'">• Lista</button>'
+  +'</div>'
+  +'<div id="vgNTexto" contenteditable="true" data-ph="Escribe el texto del contenido…" style="width:100%;'+inbase+';font-size:14px;line-height:1.5;padding:11px 13px;min-height:130px;overflow-y:auto;margin-bottom:16px"></div>'
+  +'<div style="'+lbl+'">Links (uno por línea, opcional)</div>'
+  +'<textarea id="vgNLinks" placeholder="https://…" style="width:100%;'+inbase+';font-size:14px;padding:11px 13px;min-height:56px;resize:vertical"></textarea>'
+  +'<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px"><button class="btn btn-ghost" onclick="vgCloseModal()">Cancelar</button><button class="btn btn-red" id="vgNSend" onclick="vgGuardarContenido()">Agregar</button></div>'
   +'</div></div>';
 }
 function vgPickTipo(btn){ _vgNuevoTipo=btn.dataset.t; document.querySelectorAll('#vgNTipos button').forEach(function(b){ var on=b===btn; b.style.background=on?"var(--red)":"var(--bg2)"; b.style.color=on?"#fff":"var(--tx)"; }); }
+function vgRte(cmd,val){ var ed=gi("vgNTexto"); if(ed) ed.focus(); try{ document.execCommand(cmd,false,val||null); }catch(e){} }
 function vgGuardarContenido(){
- var idea=(gi("vgNIdea").value||"").trim();
+ var titulo=(gi("vgNTitulo").value||"").trim();
+ var texto=(gi("vgNTexto").innerHTML||"").trim();
+ var links=(gi("vgNLinks").value||"").trim();
  var fecha=gi("vgNFecha").value;
- if(!idea){ gi("vgNIdea").focus(); return; }
+ if(!titulo){ gi("vgNTitulo").focus(); return; }
  if(!fecha){ gi("vgNFecha").focus(); return; }
  if((_vgCicloIni&&fecha<_vgCicloIni)||(_vgCicloFin&&fecha>_vgCicloFin)){ alert("La fecha debe estar dentro de tu ciclo activo ("+(_vgCicloIni||"—")+" → "+(_vgCicloFin||"—")+")."); return; }
- var btn=gi("vgNSend"); if(btn){btn.disabled=true;btn.textContent="Enviando…";}
+ var btn=gi("vgNSend"); if(btn){btn.disabled=true;btn.textContent="Agregando…";}
  var id=uid();
- var pieza={ id:id, marca:(_vgBrandName||CU), tipo:_vgNuevoTipo, idea:idea, guion:"", caracteristicas:"", etapa:"aprobada", responsable:"Cliente", origenCliente:true, cycle:(actCyc[CU]||""), fecha:fecha, createdAt:new Date().toISOString(), comentarios:{} };
+ var pieza={ id:id, marca:(_vgBrandName||CU), tipo:_vgNuevoTipo, idea:titulo, guion:texto, caracteristicas:"", refLinks:links, etapa:"aprobada", responsable:"Cliente", origenCliente:true, cycle:(actCyc[CU]||""), fecha:fecha, createdAt:new Date().toISOString(), comentarios:{} };
  FBDB.ref("vsportal/gestor/piezas/"+vgKey(id)).set(pieza).then(function(){
   _vgPiezas[id]=pieza;
-  try{ waNotify("🟢 Nueva idea de "+(_vgBrandName||"Cliente")+" ("+_vgNuevoTipo+" · "+fecha+"): "+idea.slice(0,140)); }catch(e){}
+  try{ waNotify("🟢 Nuevo contenido de "+(_vgBrandName||"Cliente")+" ("+_vgNuevoTipo+" · "+fecha+"): "+titulo.slice(0,140)); }catch(e){}
   vgCloseModal();
   vgRenderCal();
   try{ if(typeof showToast==="function") showToast("¡Idea enviada al equipo! ✓"); }catch(e){}
