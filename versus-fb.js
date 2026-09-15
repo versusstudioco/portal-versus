@@ -175,6 +175,7 @@
       id: p.id, marca: p.marca, tipo: p.tipo || 'Reel', idea: p.idea || '', guion: p.guion || '',
       caracteristicas: p.caracteristicas || '', etapa: p.etapa || 'idea', responsable: p.responsable || '',
       numero: p.numero || '', cycle: p.cycle || '',
+      origenCliente: p.origenCliente || false,
       fecha: p.fecha || null, fechaEntrega: p.fechaEntrega || null,
       aprobadoCliente: p.aprobadoCliente || null,
       link: p.link || '', linkIg: p.linkIg || '', linkTiktok: p.linkTiktok || '', linkLinkedin: p.linkLinkedin || '',
@@ -715,7 +716,8 @@
         }
         const cfg = (await fbGet('gestor/marcas/' + fbKey(marca) + '/ciclo').catch(() => null)) || { periodo: '', inicio: '', fin: '', pactado: { reels: 0, carruseles: 0, posts: 0, banners: 0, historias: 0 } };
         const all = await piezasAll();
-        const pub = all.filter(x => x.marca === marca && x.etapa === 'publicada');
+        // "Realizado" de Versus: publicadas de la marca, EXCLUYENDO lo que propuso el cliente (eso es contenido del cliente, aparte de lo pactado).
+        const pub = all.filter(x => x.marca === marca && x.etapa === 'publicada' && !x.origenCliente);
         cfg.realizado = {
           reels: pub.filter(x => x.tipo === 'Reel').length, carruseles: pub.filter(x => x.tipo === 'Carrusel').length,
           posts: pub.filter(x => x.tipo === 'Post').length, banners: pub.filter(x => x.tipo === 'Banner').length,

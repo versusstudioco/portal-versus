@@ -416,8 +416,8 @@ function flPieceCard(p) {
   const hoy = new Date().toISOString().slice(0, 10);
   const late = p.fechaEntrega && p.etapa !== 'publicada' && p.fechaEntrega < hoy;
   const cls = late ? ' fl-piece--late' : '';
-  return `<div class="fl-piece${cls}" draggable="true" data-id="${p.id}">
-    <div class="fl-piece__marca">${esc(p.marca)}</div>
+  return `<div class="fl-piece${cls}${p.origenCliente ? ' fl-piece--cli' : ''}" draggable="true" data-id="${p.id}">
+    <div class="fl-piece__marca">${esc(p.marca)}${p.origenCliente ? '<span class="fl-cli">Idea del cliente</span>' : ''}</div>
     <div class="fl-piece__idea">${esc(p.idea)}</div>
     <div class="fl-piece__foot"><span class="tag">${esc(p.tipo)}</span>${p.fechaEntrega ? `<span class="fl-piece__d">entrega ${esc(p.fechaEntrega.slice(5))}</span>` : ''}${p.responsable ? `<span class="fl-piece__resp">${esc(p.responsable)}</span>` : ''}</div>
   </div>`;
@@ -645,6 +645,7 @@ function openPieza(id, prefill) {
  <input id="pzMarca" class="pz-marca" placeholder="Marca" value="${esc(p.marca)}">
  <select id="pzEtapa" class="pz-etapa">${et.map(([v, l]) => `<option value="${v}" ${p.etapa === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
  </div>
+ ${p.origenCliente ? '<div class="pz-cli-banner">🟢 Idea propuesta por el cliente — ya viene aprobada por él. Prodúcela como cualquier pieza; cuenta como contenido del cliente (aparte de lo pactado por Versus).</div>' : ''}
  <input id="pzIdea" class="pz-idea" placeholder="La idea / título" value="${esc(p.idea)}">
  <div class="form-grid" style="margin:.6rem 0">
  <label class="select"><span>Categoría</span><select id="pzTipo">${CATEGORIAS_PIEZA.map(t => `<option ${p.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
