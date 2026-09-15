@@ -123,7 +123,7 @@ img{max-width:100%;display:block;}
 .tgl{width:44px;height:24px;background:var(--bg4);border:1.5px solid var(--bd2);border-radius:99px;cursor:pointer;position:relative;flex-shrink:0;}
 .tgl::after{content:"";position:absolute;width:16px;height:16px;background:var(--t2);border-radius:50%;top:2px;left:2px;transition:.3s;}
 .dark .tgl::after{left:calc(100% - 18px);background:var(--red);}
-.main{margin-left:var(--sb);flex:1;min-height:100vh;padding:28px 28px 80px;overflow-y:visible;}
+.main{margin-left:var(--sb);flex:1;min-width:0;min-height:100vh;padding:28px 28px 80px;overflow-y:visible;}
 .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;gap:12px;}
 .tb-left h1{font-size:22px;font-weight:800;letter-spacing:-.5px;}
 .tb-left .sub{font-size:11px;color:var(--t2);margin-top:2px;}
@@ -278,7 +278,7 @@ img{max-width:100%;display:block;}
 /* ── RESPONSIVE ── */
 @media print{.sidebar,.hbg,.sb-ov,.toast,.btn-ghost,.bdl,.edb{display:none !important;}.main{margin-left:0 !important;padding:10px !important;}.card,.chart-card{box-shadow:none !important;}body{background:#fff !important;color:#000 !important;}}
 @media(max-width:1024px){:root{--sb:210px;}.g4{grid-template-columns:1fr 1fr;}.g3{grid-template-columns:1fr 1fr;}.fr.t4{grid-template-columns:1fr 1fr;}.pv-stats{grid-template-columns:1fr 1fr;}}
-@media(max-width:768px){:root{--sb:260px;}.hbg{display:flex;}.sidebar{transform:translateX(-100%);box-shadow:none;}.sidebar.open{transform:translateX(0);box-shadow:4px 0 32px rgba(0,0,0,.4);}.main{margin-left:0;padding:70px 16px 64px;}.g2{grid-template-columns:1fr;}.g3{grid-template-columns:1fr 1fr;}.g4{grid-template-columns:1fr 1fr;}.fr{grid-template-columns:1fr 1fr;}.fr.t3{grid-template-columns:1fr 1fr;}.fr.t4{grid-template-columns:1fr 1fr;}.ch-name{font-size:16px;}.stat-val{font-size:22px;}.pr-grid{grid-template-columns:1fr 1fr;}.pv-stats{grid-template-columns:1fr 1fr;}}
+@media(max-width:768px){:root{--sb:260px;}.hbg{display:flex;}.sidebar{position:fixed;top:0;left:0;height:100dvh;transform:translateX(-100%);box-shadow:none;}.sidebar.open{transform:translateX(0);box-shadow:4px 0 32px rgba(0,0,0,.4);}.main{margin-left:0;padding:70px 16px 64px;}.g2{grid-template-columns:1fr;}.g3{grid-template-columns:1fr 1fr;}.g4{grid-template-columns:1fr 1fr;}.fr{grid-template-columns:1fr 1fr;}.fr.t3{grid-template-columns:1fr 1fr;}.fr.t4{grid-template-columns:1fr 1fr;}.ch-name{font-size:16px;}.stat-val{font-size:22px;}.pr-grid{grid-template-columns:1fr 1fr;}.pv-stats{grid-template-columns:1fr 1fr;}}
 @media(max-width:480px){.main{padding:64px 12px 56px;}.g2,.g3,.g4{grid-template-columns:1fr;}.fr,.fr.t3,.fr.t4{grid-template-columns:1fr;}.stat-val{font-size:20px;}.pr-grid{grid-template-columns:1fr;}.toast{bottom:16px;right:16px;left:16px;text-align:center;}}
 
 /* Engagement score badges */
@@ -2315,6 +2315,15 @@ document.addEventListener("DOMContentLoaded", function(){
  });
  } catch(e){}
 });
+
+// La barra lateral es fija; si giras la rueda sobre ella, scrollea la página (algunos navegadores no lo hacen solos).
+document.addEventListener("wheel", function(e){
+ var sb = e.target && e.target.closest && e.target.closest(".sidebar");
+ if(!sb) return;
+ if(sb.scrollHeight > sb.clientHeight + 2) return; // si la barra tuviera scroll propio, respétalo
+ var dy = e.deltaY * (e.deltaMode===1 ? 16 : (e.deltaMode===2 ? window.innerHeight : 1));
+ if(dy){ window.scrollBy(0, dy); e.preventDefault(); }
+}, { passive:false });
 
 function doLogout() {
  // Asegura que cualquier cambio pendiente se escriba antes de cortar la sesion
