@@ -819,7 +819,7 @@
           const cobjs = objectives.filter(o => o.brand === cu && o.cycle === cyc.id);
           if (cobjs.length) { const s = { reels: 0, carruseles: 0, posts: 0, historias: 0 }; cobjs.forEach(o => { s.reels += +o.reels || 0; s.carruseles += +o.carruseles || 0; s.posts += +o.posts || 0; s.historias += +o.stories || 0; }); if (s.reels) goals.reels = s.reels; if (s.carruseles) goals.carruseles = s.carruseles; if (s.posts) goals.posts = s.posts; if (s.historias) goals.historias = s.historias; }
           const metaCreativos = goals.reels + goals.carruseles + goals.posts + goals.videos + goals.shorts;
-          const cpubs = pubs.filter(x => x.cycle === cyc.id);
+          const cpubs = pubs.filter(x => x.cycle === cyc.id && !x.origenCliente);
           const creativosPub = cpubs.filter(x => x.type !== 'Historia' && x.type !== 'Historias').length;
           const histPub = cpubs.filter(x => x.type === 'Historia' || x.type === 'Historias').length;
           const pct = metaCreativos ? Math.min(100, Math.round(creativosPub / metaCreativos * 100)) : (creativosPub ? 100 : 0);
@@ -987,7 +987,7 @@
           const cobjs = objectives.filter(o => o.brand === slug && o.cycle === cyc.id);
           if (cobjs.length) { const s = { reels: 0, carruseles: 0, posts: 0, historias: 0 }; cobjs.forEach(o => { s.reels += +o.reels || 0; s.carruseles += +o.carruseles || 0; s.posts += +o.posts || 0; s.historias += +o.stories || 0; }); if (s.reels) goals.reels = s.reels; if (s.carruseles) goals.carruseles = s.carruseles; if (s.posts) goals.posts = s.posts; if (s.historias) goals.historias = s.historias; }
           const metaCreativos = goals.reels + goals.carruseles + goals.posts + goals.videos + goals.shorts;
-          const cpubs = pubs.filter(x => x.brand === slug && x.cycle === cyc.id && x.status === 'published');
+          const cpubs = pubs.filter(x => x.brand === slug && x.cycle === cyc.id && x.status === 'published' && !x.origenCliente);
           const creativosPub = cpubs.filter(x => x.type !== 'Historia' && x.type !== 'Historias').length;
           const histPub = cpubs.filter(x => x.type === 'Historia' || x.type === 'Historias').length;
           const pct = metaCreativos ? creativosPub / metaCreativos : (creativosPub ? 1 : 0);
