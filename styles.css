@@ -1403,3 +1403,7 @@ body { overflow-x: hidden; }
 /* Novedad: contenido adicional sobre lo pactado */
 .pz-extra-badge{display:inline-block;margin-top:.35rem;font-size:10px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;padding:3px 8px;border-radius:9px;background:rgba(108,0,255,.12);color:#6C00FF}
 .cic-extra{font-size:12px;font-weight:700;color:#15803d;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);border-radius:9px;padding:6px 10px;margin:.35rem 0}
+
+/* Aviso breve (toast) del Team — p. ej. "Guardado como borrador" */
+.vs-flash{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(12px);background:var(--ink,#111);color:#fff;font-size:13px;font-weight:600;padding:10px 16px;border-radius:12px;box-shadow:0 6px 22px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:9999}
+.vs-flash--on{opacity:1;transform:translateX(-50%) translateY(0)}

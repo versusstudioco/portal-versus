@@ -6,6 +6,16 @@ const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
 
 const state = { meta: null };
 
+// Aviso breve tipo toast (el Team no tenía uno). Se usa, p. ej., al guardar un borrador.
+function flash(msg) {
+ try {
+   let t = document.getElementById('vsFlash');
+   if (!t) { t = document.createElement('div'); t.id = 'vsFlash'; t.className = 'vs-flash'; document.body.appendChild(t); }
+   t.textContent = msg; t.classList.add('vs-flash--on');
+   clearTimeout(flash._t); flash._t = setTimeout(() => { t.classList.remove('vs-flash--on'); }, 2200);
+ } catch (_) {}
+}
+
 const PLATFORM_LABEL = { instagram: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube', linkedin: 'LinkedIn' };
 
 async function api(path, opts = {}) {
@@ -676,7 +686,32 @@ function openPieza(id, prefill) {
  </div>
  </div></div>`;
  document.body.insertAdjacentHTML('beforeend', html);
- const close = () => $('#pzModal').remove();
+ // Arma el cuerpo de la pieza desde el formulario (se reusa para guardar y para el borrador).
+ const buildPiezaBody = () => {
+   const body = { id, marca: $('#pzMarca').value, idea: $('#pzIdea').value, tipo: $('#pzTipo').value, responsable: $('#pzResp').value, numero: $('#pzNum').value, cycle: ($('#pzCycle') && $('#pzCycle').value) || '', guion: ($('#pzGuion').innerHTML || '').trim(), caracteristicas: $('#pzCar').value,
+     fecha: $('#pzFecha').value || null, fechaEntrega: $('#pzFechaEntrega').value || null,
+     refLinks: ($('#pzRefLinks') && $('#pzRefLinks').value) || '',
+     linkIg: $('#pzLinkIg').value, linkTiktok: $('#pzLinkTiktok').value, linkLinkedin: $('#pzLinkLinkedin').value };
+   const met = {}; $$('.pzm').forEach(inp => { if (inp.value !== '') { const pl = inp.dataset.plat, k = inp.dataset.k; (met[pl] || (met[pl] = {}))[k] = +inp.value || 0; } });
+   body.met = met;
+   body.mViews = (met.ig && met.ig.views) || ''; body.mLikes = (met.ig && met.ig.likes) || ''; body.mSaved = (met.ig && met.ig.saved) || ''; body.mShared = (met.ig && met.ig.shared) || '';
+   return body;
+ };
+ const pzTieneContenido = b => !!((b.idea && b.idea.trim()) || (b.guion && b.guion.replace(/<[^>]*>/g, '').trim()) || (b.caracteristicas && b.caracteristicas.trim()) || b.fecha || b.fechaEntrega || (b.refLinks && b.refLinks.trim()) || b.linkIg || b.linkTiktok || b.linkLinkedin);
+ let pzGuardado = false;
+ // Al cerrar una pieza NUEVA sin guardar: si escribiste algo, se guarda solo como BORRADOR (sin asignar) para no perderlo.
+ const close = () => {
+   const modal = $('#pzModal'); if (!modal) return;
+   if (!id && !pzGuardado) {
+     const b = buildPiezaBody();
+     if (pzTieneContenido(b)) {
+       pzGuardado = true;
+       api('/api/piezas/crear', { method: 'POST', body: b }).then(() => { refreshPiezaView(); }).catch(() => {});
+       flash('Guardado como borrador ✓');
+     }
+   }
+   modal.remove();
+ };
  $('#pzCancel').addEventListener('click', close);
  $('#pzX').addEventListener('click', close);
  // Cerrar SOLO si el clic empieza y termina en el fondo (no cuando arrastras texto y sueltas fuera).
@@ -737,13 +772,8 @@ function openPieza(id, prefill) {
  }));
  (function(){ const pzF = $('#pzFecha'), pzE = $('#pzFechaEntrega'); if (pzF && pzE) pzF.addEventListener('change', () => { if (pzF.value && !pzE.value) { const d = new Date(pzF.value + 'T00:00:00'); d.setDate(d.getDate() - 2); pzE.value = d.toISOString().slice(0, 10); } }); })();
  $('#pzSave').addEventListener('click', async () => {
- const body = { id, marca: $('#pzMarca').value, idea: $('#pzIdea').value, tipo: $('#pzTipo').value, responsable: $('#pzResp').value, numero: $('#pzNum').value, cycle: ($('#pzCycle') && $('#pzCycle').value) || '', guion: ($('#pzGuion').innerHTML || '').trim(), caracteristicas: $('#pzCar').value,
- fecha: $('#pzFecha').value || null, fechaEntrega: $('#pzFechaEntrega').value || null,
- refLinks: ($('#pzRefLinks') && $('#pzRefLinks').value) || '',
- linkIg: $('#pzLinkIg').value, linkTiktok: $('#pzLinkTiktok').value, linkLinkedin: $('#pzLinkLinkedin').value };
- const met = {}; $$('.pzm').forEach(inp => { if (inp.value !== '') { const pl = inp.dataset.plat, k = inp.dataset.k; (met[pl] || (met[pl] = {}))[k] = +inp.value || 0; } });
- body.met = met;
- body.mViews = (met.ig && met.ig.views) || ''; body.mLikes = (met.ig && met.ig.likes) || ''; body.mSaved = (met.ig && met.ig.saved) || ''; body.mShared = (met.ig && met.ig.shared) || '';
+ pzGuardado = true; // evita que close() cree además un borrador
+ const body = buildPiezaBody();
  if (!id) { const r = await api('/api/piezas/crear', { method: 'POST', body }); if (r.data.ok && $('#pzEtapa').value !== 'idea') await api('/api/piezas/etapa', { method: 'POST', body: { id: r.data.pieza.id, etapa: $('#pzEtapa').value } }); }
  else { await api('/api/piezas/update', { method: 'POST', body }); if ($('#pzEtapa').value !== p.etapa) await api('/api/piezas/etapa', { method: 'POST', body: { id, etapa: $('#pzEtapa').value } }); }
  close(); refreshPiezaView();
@@ -2686,12 +2716,19 @@ function openTarea() {
     <div class="g-modal__actions"><button class="btn btn--ghost btn--sm" id="tkCancel">Cancelar</button><button class="btn btn--primary btn--sm" id="tkSave">Crear tarea</button></div>
   </div></div>`;
   document.body.insertAdjacentHTML('beforeend', html);
-  const close = () => $('#tkModal').remove();
+  let tkGuardado = false;
+  const tkBody = () => ({ title: $('#tkTitle').value.trim(), assignedTo: $('#tkWho').value, colaboradores: $$('.tkColab').filter(c => c.checked).map(c => c.value), categoria: $('#tkCat').value, dueDate: $('#tkDue').value, horaInicio: $('#tkHi').value, horaFin: $('#tkHf').value, priority: $('#tkPrio').value });
+  // Al cerrar sin guardar: si ya escribiste el título, la tarea se guarda sola (no se pierde).
+  const close = () => {
+    const modal = $('#tkModal'); if (!modal) return;
+    if (!tkGuardado) { const b = tkBody(); if (b.title) { tkGuardado = true; api('/api/team/task-crear', { method: 'POST', body: b }).then(r => { if (r.ok) loadInicio(); }).catch(() => {}); flash('Tarea guardada ✓'); } }
+    modal.remove();
+  };
   $('#tkCancel').onclick = close; $('#tkX').onclick = close; $('#tkModal').onclick = e => { if (e.target.id === 'tkModal') close(); };
   $('#tkSave').onclick = () => {
     const title = $('#tkTitle').value.trim(); if (!title) { $('#tkTitle').focus(); return; }
-    const colaboradores = $$('.tkColab').filter(c => c.checked).map(c => c.value);
-    const body = { title, assignedTo: $('#tkWho').value, colaboradores, categoria: $('#tkCat').value, dueDate: $('#tkDue').value, horaInicio: $('#tkHi').value, horaFin: $('#tkHf').value, priority: $('#tkPrio').value };
+    tkGuardado = true; // evita doble creación desde close()
+    const body = tkBody();
     close(); // se cierra al instante; se crea y refresca en segundo plano
     api('/api/team/task-crear', { method: 'POST', body })
       .then(r => { if (r.ok) loadInicio(); else alert((r.data && r.data.error) || 'No se pudo crear la tarea'); })
