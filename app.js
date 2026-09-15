@@ -645,7 +645,7 @@ function openPieza(id, prefill) {
  <input id="pzMarca" class="pz-marca" placeholder="Marca" value="${esc(p.marca)}">
  <select id="pzEtapa" class="pz-etapa">${et.map(([v, l]) => `<option value="${v}" ${p.etapa === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
  </div>
- ${p.origenCliente ? '<div class="pz-cli-banner">🟢 Idea propuesta por el cliente — ya viene aprobada por él. Prodúcela como cualquier pieza; cuenta como contenido del cliente (aparte de lo pactado por Versus).</div>' : ''}
+ ${p.origenCliente ? '<div class="pz-cli-banner">🟢 <b>Idea propuesta por el cliente.</b> Por ahora es solo para su parrilla y <b>no cuenta</b> en las metas. Si la tomamos, apruébala como contenido de Versus y entra al flujo normal.<div style="margin-top:.5rem"><button type="button" class="btn btn--primary btn--sm" id="pzAprobarVersus">✓ Aprobar como contenido de Versus</button></div></div>' : ''}
  <input id="pzIdea" class="pz-idea" placeholder="La idea / título" value="${esc(p.idea)}">
  <div class="form-grid" style="margin:.6rem 0">
  <label class="select"><span>Categoría</span><select id="pzTipo">${CATEGORIAS_PIEZA.map(t => `<option ${p.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
@@ -778,6 +778,16 @@ function openPieza(id, prefill) {
  if (!id) { const r = await api('/api/piezas/crear', { method: 'POST', body }); if (r.data.ok && $('#pzEtapa').value !== 'idea') await api('/api/piezas/etapa', { method: 'POST', body: { id: r.data.pieza.id, etapa: $('#pzEtapa').value } }); }
  else { await api('/api/piezas/update', { method: 'POST', body }); if ($('#pzEtapa').value !== p.etapa) await api('/api/piezas/etapa', { method: 'POST', body: { id, etapa: $('#pzEtapa').value } }); }
  close(); refreshPiezaView();
+ });
+ const btnAV = $('#pzAprobarVersus');
+ if (btnAV) btnAV.addEventListener('click', async () => {
+   btnAV.disabled = true; btnAV.textContent = 'Aprobando…';
+   const r = await api('/api/piezas/update', { method: 'POST', body: { id, origenCliente: false } });
+   if (r.ok && !(r.data && r.data.error)) {
+     if (state.piezas[id]) state.piezas[id].origenCliente = false;
+     flash('Aprobada como contenido de Versus ✓ · ya cuenta y sigue el flujo');
+     close(); refreshPiezaView();
+   } else { btnAV.disabled = false; btnAV.textContent = '✓ Aprobar como contenido de Versus'; alert((r.data && r.data.error) || 'No se pudo aprobar'); }
  });
  if (id) {
  pzCargarFotos(id); // fotos adjuntas (nodo aparte, no pesa el tablero)
