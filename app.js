@@ -341,8 +341,20 @@ function renderGestionStats(d) {
  <div class="g-stat-note">Ciclo <b>${esc((d.ciclo || {}).label || 'Sin ciclo')}</b>${(d.ciclo || {}).dia ? ` · día ${(d.ciclo).dia}/${(d.ciclo).dias || ''}` : ''}</div>`;
 }
 
-const TIPO_ICON = { Reel: '🎬', Carrusel: '🎠', Post: '🖼️', Banner: '🪧', Historia: '📱', Historias: '📱', Pauta: '📢', Video: '🎥', Short: '⚡', Creativos: '🎬' };
-function tipoIcon(t) { return TIPO_ICON[t] || '📄'; }
+// Iconos de línea (estilo del menú lateral), pequeños, para las tarjetas del calendario.
+const _svg = p => '<svg class="cal-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
+const TIPO_SVG = {
+ Reel: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/>',
+ Video: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/>',
+ Carrusel: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+ Post: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>',
+ Banner: '<rect x="3" y="5" width="18" height="10" rx="1"/><path d="M12 15v4M8 19h8"/>',
+ Historia: '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M10.5 18h3"/>',
+ Historias: '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M10.5 18h3"/>',
+ Pauta: '<path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 4-6"/>',
+ Short: '<path d="M13 3L5 13h5l-1 8 8-11h-5z"/>'
+};
+function tipoIcon(t) { return _svg(TIPO_SVG[t] || '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h4"/>'); }
 
 const ESTADO_INFO = {
  retrasado: { label: 'Retrasado', cls: 'st-red' },
@@ -1730,7 +1742,7 @@ function buildMonthGrid(piezas, refISO) {
  const items = porDia[iso] || [];
  celdas += `<div class="cal__cell ${iso === hoyISO ? 'cal__cell--hoy' : ''}" data-iso="${iso}">
  <div class="cal__num">${d}</div>
- ${items.map(p => `<div class="cal__item cal-pz" draggable="true" data-id="${p.id}" title="${esc(p.idea || '')} · ${esc(p.etapa || '')} — arrastra para cambiar la fecha"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span><span class="cal__ico">${tipoIcon(p.tipo)}</span><span class="cal__txt">${p.numero ? '#' + esc(p.numero) + ' ' : ''}${esc(p.tipo || '')}${p.idea ? ' · ' + esc(p.idea) : ''}</span></div>`).join('')}
+ ${items.map(p => `<div class="cal__item cal-pz" draggable="true" data-id="${p.id}" title="${esc(p.idea || '')} · ${esc(p.tipo || '')} · ${esc(p.etapa || '')} — arrastra para cambiar la fecha"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${tipoIcon(p.tipo)}<span class="cal__txt">${p.numero ? '#' + esc(p.numero) + ' ' : ''}${esc(p.tipo || '')}</span></div>`).join('')}
  </div>`;
  }
  return { label: `${CAL_MESES[m - 1]} ${y}`, html: `<div class="cal">${celdas}</div>` };
@@ -2786,7 +2798,7 @@ async function loadCalendario() {
  const items = porDia[iso] || [];
  celdas += `<div class="cal__cell ${iso === hoyISO ? 'cal__cell--hoy' : ''}" data-iso="${iso}">
  <div class="cal__num">${d}</div>
- ${items.map(p => `<div class="cal__item cal-pz" draggable="true" data-id="${p.id}" title="${esc(p.marca)} · ${esc(p.tipo)} · ${esc(p.etapa)} — arrastra para cambiar la fecha"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span><span class="cal__ico">${tipoIcon(p.tipo)}</span><span class="cal__txt">${esc(p.marca)}</span></div>`).join('')}
+ ${items.map(p => `<div class="cal__item cal-pz" draggable="true" data-id="${p.id}" title="${esc(p.marca)} · ${esc(p.tipo)} · ${esc(p.etapa)} — arrastra para cambiar la fecha"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${tipoIcon(p.tipo)}<span class="cal__txt">${esc(p.marca)}</span></div>`).join('')}
  </div>`;
  }
  out.innerHTML = `<div class="cal-toolbar">
