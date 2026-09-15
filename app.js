@@ -286,6 +286,7 @@ const VIEW_META = {
 $$('.nav__item').forEach(btn => {
  btn.addEventListener('click', () => {
  const view = btn.dataset.view;
+ hideTopbarLogo(); // el logo de marca solo se muestra dentro de una marca
  $$('.nav__item').forEach(b => b.classList.toggle('active', b === btn));
  $$('.view').forEach(v => v.classList.add('hidden'));
  $('#view-' + view).classList.remove('hidden');
@@ -1469,6 +1470,7 @@ function marcaLogoHTML(marca, cls) {
  ? `<div class="${cls} ${cls}--img"><img src="${src}" alt="${esc(marca)}"></div>`
  : `<div class="${cls}">${esc((marca.trim()[0] || '?').toUpperCase())}</div>`;
 }
+function hideTopbarLogo() { const tl = $('#topbarLogo'); if (tl) { tl.hidden = true; tl.innerHTML = ''; } }
 // Un logo claro (para fondo oscuro) es invisible sobre la caja blanca: le ponemos fondo oscuro.
 function fitLogoBg(img) {
  try {
@@ -1481,7 +1483,7 @@ function fitLogoBg(img) {
  } catch (e) {}
 }
 function bindLogoFit(scope) {
- (scope || document).querySelectorAll('.marca-card__logo--img img, .marca-uni-logo--img img, .bcard-av--img img').forEach(img => {
+ (scope || document).querySelectorAll('.marca-card__logo--img img, .marca-uni-logo--img img, .bcard-av--img img, .tl-logo--img img').forEach(img => {
  if (img.complete && img.naturalWidth) fitLogoBg(img);
  else img.addEventListener('load', () => fitLogoBg(img));
  });
@@ -1500,6 +1502,7 @@ async function loadArchivos() {
 function renderMarcasGrid() {
  const out = $('#archivosOut');
  const admin = (state.me || {}).role === 'admin';
+ hideTopbarLogo(); // volvimos a la grilla de marcas: sin logo en el título
  $('#viewTitle').textContent = 'Marcas';
  $('#viewSub').textContent = 'Cada marca es su universo: calendario, métricas, estrategia y archivos';
  const handle = s => '@' + normStr(s).replace(/[^a-z0-9]+/g, '');
@@ -1546,10 +1549,9 @@ function openMarca(marca, sector) {
  const out = $('#archivosOut');
  $('#viewTitle').textContent = marca;
  $('#viewSub').textContent = (sector || '') + ' · su universo completo';
+ // Logo junto al título de arriba (sin repetir el nombre abajo).
+ const _tl = $('#topbarLogo'); if (_tl) { _tl.innerHTML = marcaLogoHTML(marca, 'tl-logo'); _tl.hidden = false; bindLogoFit(_tl); }
  out.innerHTML = `<button class="marca-back" id="marcaBack">← Todas las marcas</button>
- <div class="marca-uni-head">${marcaLogoHTML(marca, 'marca-uni-logo')}
- <div><div class="marca-uni-name">${esc(marca)}</div><div class="marca-uni-sector">${esc(sector || '')}</div></div>
- </div>
  <div class="hub-tabs">
  <button class="hub-tab active" data-tab="calendario"> Calendario</button>
  <button class="hub-tab" data-tab="ciclo"> Ciclo</button>
