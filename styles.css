@@ -1418,7 +1418,7 @@ body { overflow-x: hidden; }
 /* Logo de la marca junto al título (arriba) — reemplaza el bloque repetido */
 .topbar__logo { flex: 0 0 auto; display: flex; align-items: center; margin-right: .7rem; }
 .topbar__head { flex: 1 1 auto; min-width: 0; }
-.tl-logo { width: 46px; height: 46px; border-radius: 11px; display: grid; place-items: center; background: var(--ink); color: #fff; font-size: 1.15rem; font-weight: 800; flex: 0 0 auto; overflow: hidden; }
-.tl-logo--img { background: #fff; border: 1px solid var(--line); padding: 3px; }
-.tl-logo--img img { max-width: 100%; max-height: 100%; width: 100%; height: 100%; object-fit: contain; display: block; }
-.tl-logo.logo--ondark { background: #1d1d1d; }
+.tb-logo { width: 46px; height: 46px; border-radius: 11px; display: grid; place-items: center; background: var(--ink); color: #fff; font-size: 1.15rem; font-weight: 800; flex: 0 0 auto; overflow: hidden; }
+.tb-logo--img { background: #fff; border: 1px solid var(--line); padding: 3px; }
+.tb-logo--img img { max-width: 100%; max-height: 100%; width: 100%; height: 100%; object-fit: contain; display: block; }
+.tb-logo.logo--ondark { background: #1d1d1d; }

@@ -1483,7 +1483,7 @@ function fitLogoBg(img) {
  } catch (e) {}
 }
 function bindLogoFit(scope) {
- (scope || document).querySelectorAll('.marca-card__logo--img img, .marca-uni-logo--img img, .bcard-av--img img, .tl-logo--img img').forEach(img => {
+ (scope || document).querySelectorAll('.marca-card__logo--img img, .marca-uni-logo--img img, .bcard-av--img img, .tb-logo--img img').forEach(img => {
  if (img.complete && img.naturalWidth) fitLogoBg(img);
  else img.addEventListener('load', () => fitLogoBg(img));
  });
@@ -1550,7 +1550,7 @@ function openMarca(marca, sector) {
  $('#viewTitle').textContent = marca;
  $('#viewSub').textContent = (sector || '') + ' · su universo completo';
  // Logo junto al título de arriba (sin repetir el nombre abajo).
- const _tl = $('#topbarLogo'); if (_tl) { _tl.innerHTML = marcaLogoHTML(marca, 'tl-logo'); _tl.hidden = false; bindLogoFit(_tl); }
+ const _tl = $('#topbarLogo'); if (_tl) { _tl.innerHTML = marcaLogoHTML(marca, 'tb-logo'); _tl.hidden = false; bindLogoFit(_tl); }
  out.innerHTML = `<button class="marca-back" id="marcaBack">← Todas las marcas</button>
  <div class="hub-tabs">
  <button class="hub-tab active" data-tab="calendario"> Calendario</button>
