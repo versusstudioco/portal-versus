@@ -477,17 +477,17 @@
         const kd = x => (x.fecha || x.fechaEntrega || '9999-12-31') + '|' + String(x.createdAt || '');
         const groups = {};
         mine.forEach(x => { const g = x.cycle || ''; (groups[g] || (groups[g] = [])).push(x); });
-        const cambios = [];
+        const cambios = []; const numeros = {};
         Object.keys(groups).forEach(g => {
           const arr = groups[g];
           const cre = arr.filter(x => !esHist(x.tipo)).sort((a, b) => kd(a).localeCompare(kd(b)));
           const his = arr.filter(x => esHist(x.tipo)).sort((a, b) => kd(a).localeCompare(kd(b)));
-          cre.forEach((x, i) => { const n = String(i + 1); if (String(x.numero || '') !== n) cambios.push({ id: x.id, numero: n }); });
-          his.forEach((x, i) => { const n = String(i + 1); if (String(x.numero || '') !== n) cambios.push({ id: x.id, numero: n }); });
+          cre.forEach((x, i) => { const n = String(i + 1); numeros[x.id] = n; if (String(x.numero || '') !== n) cambios.push({ id: x.id, numero: n }); });
+          his.forEach((x, i) => { const n = String(i + 1); numeros[x.id] = n; if (String(x.numero || '') !== n) cambios.push({ id: x.id, numero: n }); });
         });
         for (const c of cambios) await fbPatch('gestor/piezas/' + c.id, { numero: c.numero });
         if (cambios.length) _pzBust();
-        return { ok: true, data: { ok: true, cambios: cambios.length } };
+        return { ok: true, data: { ok: true, cambios: cambios.length, numeros: numeros } };
       }
       // Fotos/adjuntos de una pieza — en nodo aparte para no pesar el tablero.
       if (p === '/api/pieza/fotos') {

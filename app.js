@@ -1471,6 +1471,16 @@ function marcaLogoHTML(marca, cls) {
  : `<div class="${cls}">${esc((marca.trim()[0] || '?').toUpperCase())}</div>`;
 }
 function hideTopbarLogo() { const tl = $('#topbarLogo'); if (tl) { tl.hidden = true; tl.innerHTML = ''; } }
+// Actualiza el consecutivo (#n) de las tarjetas visibles sin recargar el calendario (arrastre fluido).
+function aplicarNumeros(scope, mapa) {
+ if (!scope || !mapa) return;
+ Object.keys(mapa).forEach(id => {
+   if (state.piezas && state.piezas[id]) state.piezas[id].numero = mapa[id];
+   const card = scope.querySelector('.cal-pz[data-id="' + id + '"] .cal__txt');
+   const p = state.piezas && state.piezas[id];
+   if (card && p) card.textContent = (p.numero ? '#' + p.numero + ' ' : '') + (p.tipo || '');
+ });
+}
 // Un logo claro (para fondo oscuro) es invisible sobre la caja blanca: le ponemos fondo oscuro.
 function fitLogoBg(img) {
  try {
@@ -1822,8 +1832,8 @@ async function marcaCalendario(marca) {
  api('/api/piezas/update', { method: 'POST', body: { id, fecha: iso } })
  .then(r => {
  if (!r || !r.ok) { alert('No se pudo mover la tarjeta: ' + ((r && r.data && r.data.error) || 'intenta de nuevo')); marcaCalendario(marca); return; }
- // Renumera el consecutivo por fecha (se intercala) y recarga para verlo.
- api('/api/marca/renumerar', { method: 'POST', body: { marca } }).then(() => marcaCalendario(marca)).catch(() => marcaCalendario(marca));
+ // Renumera por fecha y actualiza SOLO los números en su lugar (sin recargar → fluido).
+ api('/api/marca/renumerar', { method: 'POST', body: { marca } }).then(rr => { if (rr && rr.ok && rr.data && rr.data.numeros) aplicarNumeros(pane, rr.data.numeros); }).catch(() => {});
  })
  .catch(() => { alert('No se pudo mover la tarjeta (revisa tu conexión).'); marcaCalendario(marca); });
  }
@@ -2829,12 +2839,12 @@ async function loadCalendario() {
      if (card) { card.classList.remove('dragging'); cell.appendChild(card); }
      if (p) p.fecha = iso;
      const _mk = p && p.marca;
-     // Persistir en segundo plano; renumerar la marca por fecha; solo recargamos si algo falla.
+     // Guardar en segundo plano. NO recargamos (la tarjeta ya se movió sola → fluido).
+     // El renumerado corre aparte; el calendario general muestra la marca, no el número.
      api('/api/piezas/update', { method: 'POST', body: { id, fecha: iso } })
        .then(r => {
          if (!r || !r.ok) { loadCalendario(); return; }
-         if (_mk) api('/api/marca/renumerar', { method: 'POST', body: { marca: _mk } }).then(() => loadCalendario()).catch(() => loadCalendario());
-         else loadCalendario();
+         if (_mk) api('/api/marca/renumerar', { method: 'POST', body: { marca: _mk } }).catch(() => {});
        })
        .catch(() => loadCalendario());
    });
