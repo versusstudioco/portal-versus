@@ -1450,7 +1450,7 @@ var PLATS = ["Instagram","YouTube","TikTok","LinkedIn"];
 var TCLS = {Reel:"t-reel",Carrusel:"t-carr",Post:"t-post",Historia:"t-hist",Video:"t-vid",Short:"t-sho",Pauta:"t-pauta",Banner:"t-banner"};
 
 // ===== AUTO-ACTUALIZACIÓN (evita quedarse con una versión vieja en caché) =====
-var VS_BUILD = '20260915h';
+var VS_BUILD = '20260915i';
 (function(){
  try{
   if(new URLSearchParams(location.search).get('v') === VS_BUILD) return; // ya estamos en la versión fresca
@@ -2328,11 +2328,18 @@ document.addEventListener("DOMContentLoaded", function(){
  } catch(e){}
 });
 
-// La barra lateral es fija; si giras la rueda sobre ella, scrollea la página (algunos navegadores no lo hacen solos).
+// Scroll desde cualquier parte: si giras la rueda sobre una zona FIJA (barra lateral, etc.)
+// que no tiene scroll propio, se scrollea la página. El contenido normal y los modales
+// conservan su scroll nativo (con inercia).
 document.addEventListener("wheel", function(e){
- var sb = e.target && e.target.closest && e.target.closest(".sidebar");
- if(!sb) return;
- if(sb.scrollHeight > sb.clientHeight + 2) return; // si la barra tuviera scroll propio, respétalo
+ var el = e.target, bajoFijo = false;
+ while(el && el.nodeType===1 && el!==document.body && el!==document.documentElement){
+  var s = getComputedStyle(el);
+  if(/(auto|scroll)/.test(s.overflowY) && el.scrollHeight > el.clientHeight + 2) return; // scroller propio → nativo
+  if(s.position==="fixed" || s.position==="sticky") bajoFijo = true;
+  el = el.parentElement;
+ }
+ if(!bajoFijo) return; // contenido normal → el documento scrollea nativo
  var dy = e.deltaY * (e.deltaMode===1 ? 16 : (e.deltaMode===2 ? window.innerHeight : 1));
  if(dy){ window.scrollBy(0, dy); e.preventDefault(); }
 }, { passive:false });
@@ -2507,7 +2514,8 @@ function vgTipoIcon(t){
   Pauta:'<path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 4-6"/>'};
  P.Historias=P.Historia; P.Video=P.Reel;
  var p=P[t]||'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h4"/>';
- return '<svg class="vg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>';
+ var sz=arguments[1]?(' style="width:'+arguments[1]+'px;height:'+arguments[1]+'px"'):'';
+ return '<svg class="vg-ico"'+sz+' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>';
 }
 var VG_EST = { idea:{l:"Por aprobar",c:"#f59e0b"}, aprobada:{l:"Aprobado",c:"#1e8e3e"}, grabada:{l:"En producción",c:"#1a73e8"}, editada:{l:"En edición",c:"#d19100"}, publicada:{l:"Publicado",c:"#7b3ff2"} };
 function vgKey(s){ return String(s||"").replace(/[.#$/\[\]]/g,"_"); }
@@ -2644,7 +2652,18 @@ function vgDay(iso){
  var ov=gi("vgModal"); if(!ov){ov=document.createElement("div");ov.id="vgModal";document.body.appendChild(ov);}
  ov.style.cssText="position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px";
  ov.onclick=function(ev){if(ev.target===ov)vgCloseModal();};
- ov.innerHTML='<div style="background:var(--card);border-radius:18px;max-width:440px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)" onclick="event.stopPropagation()"><div style="padding:18px 20px;border-bottom:1px solid var(--bd);font-weight:800;font-size:16px">'+iso+'</div><div style="padding:10px">'+arr.map(function(p){var e=VG_EST[p.etapa]||VG_EST.editada;return '<div onclick="vgOpenPieza(\''+p.id+'\')" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:12px;cursor:pointer"><span style="width:8px;height:8px;border-radius:50%;background:'+e.c+';flex-shrink:0"></span><div><div style="font-weight:700;font-size:14px">'+vgEsc(p.tipo||"")+' · '+vgEsc(p.idea||"")+'</div><div style="font-size:11px;color:var(--t3)">'+e.l+'</div></div></div>';}).join("")+'</div><div style="padding:0 20px 16px;text-align:right"><button class="btn btn-ghost" onclick="vgCloseModal()">Cerrar</button></div></div>';
+ var fechaLbl=(function(){try{var d=parseDate(iso);return d.toLocaleDateString("es",{weekday:"long",day:"numeric",month:"long"});}catch(e){return iso;}})();
+ var cards=arr.map(function(p){
+  var e=VG_EST[p.etapa]||VG_EST.editada;
+  var esHist=(p.tipo==="Historia"||p.tipo==="Historias"); var col=esHist?"#e0218a":e.c;
+  return '<div onclick="vgOpenPieza(\''+p.id+'\')" style="display:flex;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--bd);border-radius:14px;margin-bottom:9px;cursor:pointer;background:var(--bg2);transition:border-color .15s,transform .1s" onmouseover="this.style.borderColor=\''+col+'\'" onmouseout="this.style.borderColor=\'var(--bd)\'">'
+   +'<span style="width:38px;height:38px;border-radius:10px;display:grid;place-items:center;color:#fff;flex-shrink:0;background:'+col+'">'+vgTipoIcon(p.tipo,20)+'</span>'
+   +'<div style="min-width:0;flex:1"><div style="font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--t3)">'+vgEsc(p.tipo||"")+'</div>'
+   +'<div style="font-weight:700;font-size:14px;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+vgEsc(p.idea||"Contenido")+'</div>'
+   +'<div style="font-size:11px;color:'+col+';font-weight:600;margin-top:1px">'+vgEsc(e.l)+'</div></div>'
+   +'<span style="color:var(--t3);font-size:20px;flex-shrink:0">›</span></div>';
+ }).join("");
+ ov.innerHTML='<div style="background:var(--card);border-radius:18px;max-width:460px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)" onclick="event.stopPropagation()"><div style="padding:18px 20px 12px;border-bottom:1px solid var(--bd)"><div style="font-weight:800;font-size:17px;text-transform:capitalize">'+vgEsc(fechaLbl)+'</div><div style="font-size:12px;color:var(--t3);margin-top:2px">'+arr.length+' contenido'+(arr.length!==1?'s':'')+'</div></div><div style="padding:14px 16px">'+(cards||'<div style="color:var(--t3);font-size:13px;padding:8px">Sin contenido este día.</div>')+'</div><div style="padding:0 20px 16px;text-align:right"><button class="btn btn-ghost" onclick="vgCloseModal()">Cerrar</button></div></div>';
 }
 function vgOpenPieza(id){
  var p=_vgPiezas[id]; if(!p) return;
