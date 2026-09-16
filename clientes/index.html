@@ -1450,7 +1450,7 @@ var PLATS = ["Instagram","YouTube","TikTok","LinkedIn"];
 var TCLS = {Reel:"t-reel",Carrusel:"t-carr",Post:"t-post",Historia:"t-hist",Video:"t-vid",Short:"t-sho",Pauta:"t-pauta",Banner:"t-banner"};
 
 // ===== AUTO-ACTUALIZACIÓN (evita quedarse con una versión vieja en caché) =====
-var VS_BUILD = '20260915k';
+var VS_BUILD = '20260916b';
 (function(){
  try{
   if(new URLSearchParams(location.search).get('v') === VS_BUILD) return; // ya estamos en la versión fresca
@@ -2563,7 +2563,7 @@ function renderGestorContenido(){
  }
  var pub = mine.filter(function(p){ if(p.origenCliente) return false; if(p.etapa!=="publicada") return false; if(_ini&&p.fecha&&p.fecha<_ini) return false; if(_fin&&p.fecha&&p.fecha>_fin) return false; return true; });
  var pac=ciclo.pactado||{}, totP=0, totR=0;
- var barras = VG_TIPOS.map(function(t){ var p=+pac[t[1]]||0, r=pub.filter(function(x){return x.tipo===t[0];}).length; totP+=p; totR+=r; if(!p&&!r) return ""; var pct=p?Math.min(100,Math.round(r/p*100)):(r?100:0); return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><b>'+t[0]+'s</b><span>'+r+" / "+(p||"—")+(p&&r>=p?" ":"")+'</span></div><div style="height:8px;background:var(--bg3);border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+(p&&r>=p?"#1e8e3e":"var(--red)")+';border-radius:99px"></div></div></div>'; }).join("");
+ var barras = VG_TIPOS.map(function(t){ var p=+pac[t[1]]||0, r=pub.filter(function(x){return x.tipo===t[0];}).length; totP+=p; totR+=r; if(!p&&!r) return ""; var pct=p?Math.min(100,Math.round(r/p*100)):(r?100:0); return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><b>'+t[0]+'s</b><span style="color:var(--t2)">'+r+" / "+(p||"—")+(p&&r>=p?" ✓":"")+'</span></div><div style="height:8px;background:var(--bg3);border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pct+'%;border-radius:99px;background:linear-gradient(90deg,var(--red),var(--pur));transition:width .6s ease"></div></div></div>'; }).join("");
  var head='<div class="card"><div class="card-title">'+(ciclo.periodo?vgEsc(ciclo.periodo):"Ciclo actual")+' · Pactado vs. Realizado <span style="font-weight:400;color:var(--t3)">('+totR+"/"+totP+')</span></div>'+(barras||'<div style="color:var(--t3);font-size:13px;margin-top:6px">El equipo aún no ha configurado el ciclo.</div>')+'</div>';
  el._head=head;
  // Mes inicial: hoy si cae dentro del ciclo; si no, el inicio/fin del ciclo; si no hay ciclo, el mes actual.
