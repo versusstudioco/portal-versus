@@ -1449,6 +1449,18 @@ var BRANDS = Object.keys(CREDS).filter(function(k){ return CREDS[k] && CREDS[k].
 var PLATS = ["Instagram","YouTube","TikTok","LinkedIn"];
 var TCLS = {Reel:"t-reel",Carrusel:"t-carr",Post:"t-post",Historia:"t-hist",Video:"t-vid",Short:"t-sho",Pauta:"t-pauta",Banner:"t-banner"};
 
+// ===== AUTO-ACTUALIZACIÓN (evita quedarse con una versión vieja en caché) =====
+var VS_BUILD = '20260915h';
+(function(){
+ try{
+  if(new URLSearchParams(location.search).get('v') === VS_BUILD) return; // ya estamos en la versión fresca
+  fetch(location.pathname+'?cb='+Date.now(),{cache:'no-store'}).then(function(r){return r.text();}).then(function(t){
+   var m=t.match(/VS_BUILD\s*=\s*'([^']+)'/);
+   if(m && m[1] && m[1]!==VS_BUILD){ location.replace(location.pathname+'?v='+m[1]); }
+  }).catch(function(){});
+ }catch(e){}
+})();
+
 // ===== STATE =====
 var CU = null;
 var dark = false;
@@ -2486,6 +2498,17 @@ function showDT(el, tab) {
 // Sincronización con el gestor (Team): contenido Editado/Publicado con link + métricas.
 function vgNorm(s){ return String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]/g,""); }
 function vgEsc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];}); }
+function vgTipoIcon(t){
+ var P={Reel:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/>',
+  Carrusel:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+  Post:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>',
+  Banner:'<rect x="3" y="5" width="18" height="10" rx="1"/><path d="M12 15v4M8 19h8"/>',
+  Historia:'<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M10.5 18h3"/>',
+  Pauta:'<path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 4-6"/>'};
+ P.Historias=P.Historia; P.Video=P.Reel;
+ var p=P[t]||'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h4"/>';
+ return '<svg class="vg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>';
+}
 var VG_EST = { idea:{l:"Por aprobar",c:"#f59e0b"}, aprobada:{l:"Aprobado",c:"#1e8e3e"}, grabada:{l:"En producción",c:"#1a73e8"}, editada:{l:"En edición",c:"#d19100"}, publicada:{l:"Publicado",c:"#7b3ff2"} };
 function vgKey(s){ return String(s||"").replace(/[.#$/\[\]]/g,"_"); }
 function vgNum(v){ var n=parseInt(String(v||"").replace(/[^\d-]/g,""),10); return isFinite(n)?n:0; }
@@ -2558,11 +2581,11 @@ function vgRenderCal(){
  for(var i=0;i<offset;i++) cells+='<div class="vg-cell vg-cell--empty"></div>';
  for(var d=1;d<=dias;d++){
  var iso=y+"-"+String(m).padStart(2,"0")+"-"+String(d).padStart(2,"0"); var arr=porDia[iso]||[]; var esHoy=iso===hoy;
- var chips=arr.slice(0,2).map(function(p){ var e=VG_EST[p.etapa]||VG_EST.editada; var esHist=(p.tipo==="Historia"||p.tipo==="Historias"); var col=esHist?"#e0218a":e.c; return '<div class="vg-chip'+(esHist?" vg-chip--hist":"")+'" onclick="vgOpenPieza(\''+p.id+'\')" style="background:'+col+'" title="'+vgEsc(p.idea||"")+'">'+vgEsc(p.tipo||"")+' · '+vgEsc(p.idea||"")+'</div>'; }).join("");
+ var chips=arr.slice(0,2).map(function(p){ var e=VG_EST[p.etapa]||VG_EST.editada; var esHist=(p.tipo==="Historia"||p.tipo==="Historias"); var col=esHist?"#e0218a":e.c; return '<div class="vg-chip'+(esHist?" vg-chip--hist":"")+'" onclick="vgOpenPieza(\''+p.id+'\')" style="background:'+col+'" title="'+vgEsc(p.tipo||"")+' · '+vgEsc(p.idea||"")+'">'+vgTipoIcon(p.tipo)+'<span class="vg-chip__t">'+vgEsc(p.tipo||"")+(p.idea?" · "+vgEsc(p.idea):"")+'</span></div>'; }).join("");
  if(arr.length>2) chips+='<div class="vg-more" onclick="vgDay(\''+iso+'\')">+'+(arr.length-2)+' más</div>';
  cells+='<div class="vg-cell'+(esHoy?' vg-cell--hoy':'')+'"><div class="vg-cell__n">'+d+'</div>'+chips+'</div>';
  }
- var grid='<style>.vg-dow{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;text-align:center;padding:4px 0}.vg-cell{height:96px;border:1px solid var(--bd);border-radius:10px;padding:5px 6px;overflow:hidden;background:var(--bg2)}.vg-cell--empty{border:0;background:transparent}.vg-cell--hoy{background:rgba(249,0,0,.05);border-color:rgba(249,0,0,.35)}.vg-cell__n{font-size:11px;font-weight:700;color:var(--t2);margin-bottom:4px}.vg-cell--hoy .vg-cell__n{color:var(--red)}.vg-chip{cursor:pointer;color:#fff;border-radius:6px;padding:3px 6px;margin-bottom:3px;font-size:10px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.vg-more{cursor:pointer;font-size:10px;font-weight:700;color:var(--t2)}@media(max-width:640px){.vg-cell{height:60px;padding:3px}.vg-cell__n{font-size:10px;margin-bottom:2px}.vg-chip{font-size:0;padding:0;height:7px;margin-bottom:2px;border-radius:3px}.vg-more{font-size:9px}.vg-dow{font-size:8px}}</style><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">'+cells+'</div>';
+ var grid='<style>.vg-dow{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;text-align:center;padding:4px 0}.vg-cell{height:96px;border:1px solid var(--bd);border-radius:10px;padding:5px 6px;overflow:hidden;background:var(--bg2)}.vg-cell--empty{border:0;background:transparent}.vg-cell--hoy{background:rgba(249,0,0,.05);border-color:rgba(249,0,0,.35)}.vg-cell__n{font-size:11px;font-weight:700;color:var(--t2);margin-bottom:4px}.vg-cell--hoy .vg-cell__n{color:var(--red)}.vg-chip{cursor:pointer;color:#fff;border-radius:6px;padding:3px 6px;margin-bottom:3px;font-size:10px;font-weight:600;display:flex;align-items:center;gap:3px;overflow:hidden}.vg-ico{width:11px;height:11px;flex:0 0 auto}.vg-chip__t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.vg-more{cursor:pointer;font-size:10px;font-weight:700;color:var(--t2)}@media(max-width:640px){.vg-cell{height:60px;padding:3px}.vg-cell__n{font-size:10px;margin-bottom:2px}.vg-chip{font-size:0;padding:0;height:7px;margin-bottom:2px;border-radius:3px;gap:0}.vg-chip .vg-ico{display:none}.vg-more{font-size:9px}.vg-dow{font-size:8px}}</style><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">'+cells+'</div>';
  var leyenda='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--t2)">'+Object.keys(VG_EST).map(function(k){return '<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:3px;background:'+VG_EST[k].c+';display:inline-block"></span>'+VG_EST[k].l+'</span>';}).join("")+'<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:3px;background:#e0218a;display:inline-block"></span>Historia</span></div>';
  var help='<p class="tip" style="margin-top:6px">Toca una publicación para ver el detalle y <b>dejar tus comentarios</b> sobre el guion o el texto.</p>';
  var body=nav+grid+leyenda+help+'</div>';
