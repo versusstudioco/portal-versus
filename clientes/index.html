@@ -1450,7 +1450,7 @@ var PLATS = ["Instagram","YouTube","TikTok","LinkedIn"];
 var TCLS = {Reel:"t-reel",Carrusel:"t-carr",Post:"t-post",Historia:"t-hist",Video:"t-vid",Short:"t-sho",Pauta:"t-pauta",Banner:"t-banner"};
 
 // ===== AUTO-ACTUALIZACIÓN (evita quedarse con una versión vieja en caché) =====
-var VS_BUILD = '20260915i';
+var VS_BUILD = '20260915j';
 (function(){
  try{
   if(new URLSearchParams(location.search).get('v') === VS_BUILD) return; // ya estamos en la versión fresca
@@ -2328,18 +2328,21 @@ document.addEventListener("DOMContentLoaded", function(){
  } catch(e){}
 });
 
-// Scroll desde cualquier parte: si giras la rueda sobre una zona FIJA (barra lateral, etc.)
-// que no tiene scroll propio, se scrollea la página. El contenido normal y los modales
-// conservan su scroll nativo (con inercia).
+// Scroll desde CUALQUIER punto de la pantalla: la rueda siempre baja/sube la página,
+// salvo que el cursor esté sobre un elemento que REALMENTE pueda desplazarse en esa
+// dirección (p. ej. un modal con scroll interno) — ahí se respeta su scroll.
 document.addEventListener("wheel", function(e){
- var el = e.target, bajoFijo = false;
+ if(e.ctrlKey) return; // zoom del navegador
+ var el = e.target, up = e.deltaY < 0;
  while(el && el.nodeType===1 && el!==document.body && el!==document.documentElement){
   var s = getComputedStyle(el);
-  if(/(auto|scroll)/.test(s.overflowY) && el.scrollHeight > el.clientHeight + 2) return; // scroller propio → nativo
-  if(s.position==="fixed" || s.position==="sticky") bajoFijo = true;
+  if(/(auto|scroll)/.test(s.overflowY) && el.scrollHeight > el.clientHeight + 2){
+   var canUp = el.scrollTop > 0, canDown = el.scrollTop + el.clientHeight < el.scrollHeight - 1;
+   if((up && canUp) || (!up && canDown)) return; // este elemento sí absorbe el scroll vertical
+  }
   el = el.parentElement;
  }
- if(!bajoFijo) return; // contenido normal → el documento scrollea nativo
+ // Nadie lo absorbe → mueve el documento desde donde esté el cursor.
  var dy = e.deltaY * (e.deltaMode===1 ? 16 : (e.deltaMode===2 ? window.innerHeight : 1));
  if(dy){ window.scrollBy(0, dy); e.preventDefault(); }
 }, { passive:false });
