@@ -666,10 +666,10 @@ function openPieza(id, prefill) {
  <label class="select"><span>N.º de publicación <em style="font-weight:400;color:var(--ink-40)">(del ciclo)</em></span><input id="pzNum" type="text" value="${esc(p.numero || '')}" placeholder="1"><span id="pzExtraBadge" class="pz-extra-badge" hidden></span></label>
  <label class="select select--grow"><span>Responsable</span>
  <select id="pzResp"><option value="">— Sin asignar —</option>${people.map(n => `<option ${p.responsable === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}<option value="Cliente" ${p.responsable === 'Cliente' ? 'selected' : ''}>Cliente (pendiente de aprobación)</option>${(p.responsable && !people.includes(p.responsable) && p.responsable !== 'Cliente') ? `<option selected>${esc(p.responsable)}</option>` : ''}</select></label>
- <label class="select"><span> Fecha de entrega <em style="font-weight:400;color:var(--ink-40)">(para aprobación)</em></span><input id="pzFechaEntrega" type="date" value="${esc(p.fechaEntrega || '')}"></label>
+ <label class="select"><span> Fecha de entrega</span><input id="pzFechaEntrega" type="date" value="${esc(p.fechaEntrega || '')}"></label>
  <label class="select"><span> Fecha de publicación</span><input id="pzFecha" type="date" value="${esc(p.fecha || '')}"></label>
- <label class="select select--grow"><span> Ciclo al que pertenece <em style="font-weight:400;color:var(--ink-40)">(el número es la guía; puedes corregirlo aquí)</em></span><select id="pzCycle"><option value="${esc(p.cycle || '')}">${p.cycle ? 'Ciclo actual' : '— Automático (ciclo activo) —'}</option></select></label>
  </div>
+ <div class="pz-cycrow"><span class="pz-cyclbl">Ciclo</span><select id="pzCycle" class="pz-cycsel"><option value="${esc(p.cycle || '')}">${p.cycle ? 'Cargando…' : 'Ciclo activo (automático)'}</option></select></div>
  <div class="pz-count">En este ciclo de <b>${esc(p.marca || 'la marca')}</b>: ${nCreativos} creativo(s) · ${nHistorias} historia(s)${id ? '' : ' — esta sería la #' + esc(p.numero || '?')}</div>
  <div class="pz-field"><span>Guion</span>
         <div class="rte-bar">
@@ -703,7 +703,7 @@ function openPieza(id, prefill) {
  document.body.insertAdjacentHTML('beforeend', html);
  // Arma el cuerpo de la pieza desde el formulario (se reusa para guardar y para el borrador).
  const buildPiezaBody = () => {
-   const body = { id, marca: $('#pzMarca').value, idea: $('#pzIdea').value, tipo: $('#pzTipo').value, responsable: $('#pzResp').value, numero: $('#pzNum').value, cycle: ($('#pzCycle') && $('#pzCycle').value) || '', guion: ($('#pzGuion').innerHTML || '').trim(), caracteristicas: $('#pzCar').value,
+   const body = { id, marca: $('#pzMarca').value, idea: $('#pzIdea').value, tipo: $('#pzTipo').value, responsable: $('#pzResp').value, numero: $('#pzNum').value, cycle: (($('#pzCycle') && $('#pzCycle').value) || _pzCicloActivo || ''), guion: ($('#pzGuion').innerHTML || '').trim(), caracteristicas: $('#pzCar').value,
      fecha: $('#pzFecha').value || null, fechaEntrega: $('#pzFechaEntrega').value || null,
      refLinks: ($('#pzRefLinks') && $('#pzRefLinks').value) || '',
      linkIg: $('#pzLinkIg').value, linkTiktok: $('#pzLinkTiktok').value, linkLinkedin: $('#pzLinkLinkedin').value };
@@ -768,14 +768,17 @@ function openPieza(id, prefill) {
      state._cicloMeta = { marca: p.marca, creativos: metaCre }; calcExtra();
    }).catch(() => {});
  } else calcExtra();
- // Selector de CICLO: el número guía, pero aquí se corrige a qué ciclo pertenece (aunque ya esté editado/publicado).
+ // Selector de CICLO: a qué ciclo pertenece (manda la etiqueta, no la fecha — los ciclos se extienden).
+ // Guardamos el ciclo activo para que "automático" quede fijado a un ciclo real al guardar.
+ let _pzCicloActivo = '';
  if (p.marca) getCiclos(p.marca).then(r => {
    const sel = $('#pzCycle'); if (!sel || !document.getElementById('pzModal')) return;
    const cycles = (r.ok && r.data.cycles) || [];
+   const act = cycles.find(c => c.activo); _pzCicloActivo = act ? act.id : '';
    const fD = s => { if (!s) return ''; const p2 = s.split('-'); return p2[2] + '/' + p2[1]; };
-   const opts = ['<option value="">— Automático (ciclo activo) —</option>'].concat(cycles.map(c =>
-     `<option value="${esc(c.id)}" ${p.cycle === c.id ? 'selected' : ''}>${esc(c.name)}${c.start ? ' (' + fD(c.start) + '–' + fD(c.end) + ')' : ''}${c.activo ? ' · activo' : ''}</option>`));
-   if (p.cycle && !cycles.some(c => c.id === p.cycle)) opts.push(`<option value="${esc(p.cycle)}" selected>${esc(p.cycle)} (actual)</option>`);
+   const opts = ['<option value="">Ciclo activo (automático)</option>'].concat(cycles.map(c =>
+     `<option value="${esc(c.id)}" ${p.cycle === c.id ? 'selected' : ''}>${esc(c.name)}${c.start ? ' · ' + fD(c.start) + '–' + fD(c.end) : ''}${c.activo ? ' · activo' : ''}</option>`));
+   if (p.cycle && !cycles.some(c => c.id === p.cycle)) opts.push(`<option value="${esc(p.cycle)}" selected>${esc(p.cycle)}</option>`);
    sel.innerHTML = opts.join('');
  }).catch(() => {});
  const rteSize = $('#rteSize'); if (rteSize) rteSize.addEventListener('change', () => { if (rteSize.value) { $('#pzGuion').focus(); document.execCommand('fontSize', false, rteSize.value); rteSize.value = ''; } });
