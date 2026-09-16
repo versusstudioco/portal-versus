@@ -1450,13 +1450,18 @@ var PLATS = ["Instagram","YouTube","TikTok","LinkedIn"];
 var TCLS = {Reel:"t-reel",Carrusel:"t-carr",Post:"t-post",Historia:"t-hist",Video:"t-vid",Short:"t-sho",Pauta:"t-pauta",Banner:"t-banner"};
 
 // ===== AUTO-ACTUALIZACIÓN (evita quedarse con una versión vieja en caché) =====
-var VS_BUILD = '20260915j';
+var VS_BUILD = '20260915k';
 (function(){
  try{
   if(new URLSearchParams(location.search).get('v') === VS_BUILD) return; // ya estamos en la versión fresca
   fetch(location.pathname+'?cb='+Date.now(),{cache:'no-store'}).then(function(r){return r.text();}).then(function(t){
    var m=t.match(/VS_BUILD\s*=\s*'([^']+)'/);
-   if(m && m[1] && m[1]!==VS_BUILD){ location.replace(location.pathname+'?v='+m[1]); }
+   if(m && m[1] && m[1]!==VS_BUILD){
+    // Guardia anti-bucle: recargar como máximo una vez por versión objetivo.
+    var k='vsUpd_'+m[1];
+    try{ if(sessionStorage.getItem(k)) return; sessionStorage.setItem(k,'1'); }catch(e){}
+    location.replace(location.pathname+'?v='+m[1]);
+   }
   }).catch(function(){});
  }catch(e){}
 })();
