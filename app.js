@@ -16,6 +16,53 @@ function flash(msg) {
  } catch (_) {}
 }
 
+// ===== AVISO DE VERSIÓN =====
+// El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
+// Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
+// puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
+const VS_TEAM_BUILD = '20260917c';
+(function () {
+  let nueva = ''; // build nuevo detectado (si lo hay)
+  const chip = () => document.getElementById('vsVerChip');
+  const pintar = (estado) => {
+    const el = chip(); if (!el) return;
+    if (estado === 'nueva') {
+      el.textContent = '🔄 Actualizar';
+      el.title = 'Hay una versión nueva del portal (' + nueva + '). Toca para actualizar.';
+      el.classList.add('vs-ver--nueva'); el.style.cursor = 'pointer';
+    } else if (estado === 'aldia') {
+      el.textContent = '✓ v' + VS_TEAM_BUILD;
+      el.title = 'Estás en la última versión del portal.';
+      el.classList.remove('vs-ver--nueva'); el.style.cursor = 'default';
+    } else {
+      el.textContent = 'v' + VS_TEAM_BUILD; el.title = 'Versión del portal';
+    }
+  };
+  const actualizar = () => { try { location.replace(location.pathname + '?u=' + (nueva || Date.now())); } catch (_) { location.reload(); } };
+  const revisar = () => {
+    fetch('/team/index.html?cb=' + Date.now(), { cache: 'no-store' })
+      .then(r => r.text())
+      .then(t => {
+        const m = t.match(/app\.js\?v=([0-9a-z]+)/i);
+        if (m && m[1] && m[1] !== VS_TEAM_BUILD) {
+          const yaAvisado = nueva === m[1];
+          nueva = m[1]; pintar('nueva');
+          if (!yaAvisado) flash('Hay una versión nueva del portal · toca "Actualizar" abajo a la izquierda');
+        } else { pintar('aldia'); }
+      })
+      .catch(() => {});
+  };
+  document.addEventListener('DOMContentLoaded', () => {
+    pintar('aldia');
+    const el = chip();
+    if (el) el.addEventListener('click', () => { if (nueva) actualizar(); });
+    setTimeout(revisar, 4000);            // primera comprobación al entrar
+    setInterval(revisar, 3 * 60 * 1000);  // y cada 3 minutos
+    // Al volver a la pestaña, revisa de una.
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) revisar(); });
+  });
+})();
+
 const PLATFORM_LABEL = { instagram: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube', linkedin: 'LinkedIn' };
 
 async function api(path, opts = {}) {

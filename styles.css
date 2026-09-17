@@ -166,6 +166,16 @@ input, select, textarea { max-width: 100%; }
 }
 .ai-badge.on { background: rgba(52,199,89,.14); color: #1e8e3e; }
 .ai-badge.demo { background: rgba(249,0,0,.10); color: var(--red); }
+.vs-ver {
+  font-size: .68rem; font-weight: 600; text-align: center; padding: .3rem .6rem;
+  border-radius: 999px; background: rgba(29,29,29,.05); color: var(--ink-40);
+  letter-spacing: .2px; user-select: none;
+}
+.vs-ver--nueva {
+  background: rgba(108,0,255,.12); color: #6C00FF; font-weight: 800;
+  animation: vsVerPulse 1.8s ease-in-out infinite;
+}
+@keyframes vsVerPulse { 0%,100% { opacity: 1; } 50% { opacity: .6; } }
 
 /* Content */
 .content { display: flex; flex-direction: column; gap: 1.2rem; overflow: hidden; }
