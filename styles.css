@@ -669,6 +669,8 @@ a.tag--platform { text-decoration: none; }
 .cal__item { font-size: .72rem; display: flex; align-items: center; gap: .3rem; padding: .22rem .32rem; border-radius: 5px; background: var(--bg); margin-bottom: .25rem; min-width: 0; }
 .cal-svg { width: 13px; height: 13px; flex: 0 0 auto; color: var(--ink-60); }
 .cal__txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal__pnum--fijo { color: #6C00FF; font-weight: 800; }
+.cal__pnum--fijo::before { content: "\1F4CC"; font-size: .62em; margin-right: 1px; vertical-align: .12em; }
 .cal__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-40); flex: 0 0 auto; }
 .cal__dot--idea { background: var(--ink-40); }
 .cal__dot--aprobada { background: #3b82f6; }

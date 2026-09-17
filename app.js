@@ -1485,9 +1485,18 @@ function aplicarNumeros(scope, mapa) {
  if (!scope || !mapa) return;
  Object.keys(mapa).forEach(id => {
    if (state.piezas && state.piezas[id]) state.piezas[id].numero = mapa[id];
-   const card = scope.querySelector('.cal-pz[data-id="' + id + '"] .cal__txt');
+   const item = scope.querySelector('.cal-pz[data-id="' + id + '"]');
    const p = state.piezas && state.piezas[id];
-   if (card && p) card.textContent = (p.numero ? '#' + p.numero + ' ' : '') + (p.tipo || '');
+   if (!item || !p) return;
+   const numEl = item.querySelector('.cal__pnum');
+   if (numEl) {
+     numEl.textContent = p.numero ? '#' + p.numero + ' ' : '';
+     numEl.classList.toggle('cal__pnum--fijo', !!p.numeroManual);
+     numEl.title = p.numeroManual ? 'N.º fijado a mano' : '';
+   } else { // tarjeta vieja sin el span: reconstruye el texto
+     const card = item.querySelector('.cal__txt');
+     if (card) card.textContent = (p.numero ? '#' + p.numero + ' ' : '') + (p.tipo || '');
+   }
  });
 }
 // Un logo claro (para fondo oscuro) es invisible sobre la caja blanca: le ponemos fondo oscuro.
@@ -1774,7 +1783,7 @@ function buildMonthGrid(piezas, refISO) {
  const items = porDia[iso] || [];
  celdas += `<div class="cal__cell ${iso === hoyISO ? 'cal__cell--hoy' : ''}" data-iso="${iso}">
  <div class="cal__num">${d}</div>
- ${items.map(p => `<div class="cal__item cal-pz" draggable="true" data-id="${p.id}" title="${esc(p.idea || '')} · ${esc(p.tipo || '')} · ${esc(p.etapa || '')} — arrastra para cambiar la fecha"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${tipoIcon(p.tipo)}<span class="cal__txt">${p.numero ? '#' + esc(p.numero) + ' ' : ''}${esc(p.tipo || '')}</span></div>`).join('')}
+ ${items.map(p => `<div class="cal__item cal-pz" draggable="true" data-id="${p.id}" title="${esc(p.idea || '')} · ${esc(p.tipo || '')} · ${esc(p.etapa || '')} — arrastra para cambiar la fecha"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${tipoIcon(p.tipo)}<span class="cal__txt"><span class="cal__pnum${p.numeroManual ? ' cal__pnum--fijo' : ''}"${p.numeroManual ? ' title="N.º fijado a mano"' : ''}>${p.numero ? '#' + esc(p.numero) + ' ' : ''}</span>${esc(p.tipo || '')}</span></div>`).join('')}
  </div>`;
  }
  return { label: `${CAL_MESES[m - 1]} ${y}`, html: `<div class="cal">${celdas}</div>` };
