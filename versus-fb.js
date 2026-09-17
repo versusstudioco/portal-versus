@@ -174,7 +174,7 @@
     return {
       id: p.id, marca: p.marca, tipo: p.tipo || 'Reel', idea: p.idea || '', guion: p.guion || '',
       caracteristicas: p.caracteristicas || '', etapa: p.etapa || 'idea', responsable: p.responsable || '',
-      numero: p.numero || '', cycle: p.cycle || '',
+      numero: p.numero || '', numeroManual: !!p.numeroManual, cycle: p.cycle || '',
       origenCliente: p.origenCliente || false,
       fecha: p.fecha || null, fechaEntrega: p.fechaEntrega || null,
       aprobadoCliente: p.aprobadoCliente || null,
@@ -457,17 +457,18 @@
       if (p === '/api/piezas') return { ok: true, data: await board() };
       if (p === '/api/piezas/crear' && method === 'POST') {
         const id = uid();
-        const pieza = { id, marca: String(body.marca || '').trim() || 'Sin marca', tipo: body.tipo || 'Reel', idea: String(body.idea || '').trim() || 'Nueva idea', guion: body.guion || '', caracteristicas: body.caracteristicas || '', etapa: 'idea', responsable: body.responsable || '', numero: body.numero || '', cycle: body.cycle || '', fecha: body.fecha || null, fechaEntrega: body.fechaEntrega || null, refLinks: body.refLinks || '', comentarios: {}, createdAt: new Date().toISOString() };
+        const pieza = { id, marca: String(body.marca || '').trim() || 'Sin marca', tipo: body.tipo || 'Reel', idea: String(body.idea || '').trim() || 'Nueva idea', guion: body.guion || '', caracteristicas: body.caracteristicas || '', etapa: 'idea', responsable: body.responsable || '', numero: body.numero || '', numeroManual: !!body.numeroManual, cycle: body.cycle || '', fecha: body.fecha || null, fechaEntrega: body.fechaEntrega || null, refLinks: body.refLinks || '', comentarios: {}, createdAt: new Date().toISOString() };
         await fbPut('gestor/piezas/' + id, pieza);
         return { ok: true, data: { ok: true, pieza } };
       }
       if (p === '/api/piezas/update' && method === 'POST') {
-        const patch = {}; ['idea', 'guion', 'caracteristicas', 'responsable', 'numero', 'cycle', 'tipo', 'fecha', 'fechaEntrega', 'aprobadoCliente', 'origenCliente', 'link', 'linkIg', 'linkTiktok', 'linkLinkedin', 'refLinks', 'met', 'mViews', 'mLikes', 'mSaved', 'mShared'].forEach(k => { if (body[k] != null) patch[k] = body[k]; });
+        const patch = {}; ['idea', 'guion', 'caracteristicas', 'responsable', 'numero', 'numeroManual', 'cycle', 'tipo', 'fecha', 'fechaEntrega', 'aprobadoCliente', 'origenCliente', 'link', 'linkIg', 'linkTiktok', 'linkLinkedin', 'refLinks', 'met', 'mViews', 'mLikes', 'mSaved', 'mShared'].forEach(k => { if (body[k] != null) patch[k] = body[k]; });
         await fbPatch('gestor/piezas/' + body.id, patch);
         return { ok: true, data: { ok: true } };
       }
       // Renumera el consecutivo por marca+ciclo SEGÚN LA FECHA (lo que va primero, va primero).
       // Creativos e historias se numeran en secuencias separadas.
+      // Los números FIJADOS a mano (numeroManual) se respetan: no se tocan y el resto se acomoda alrededor.
       if (p === '/api/marca/renumerar' && method === 'POST') {
         const marca = body.marca || '';
         if (!marca) return { ok: false, status: 400, data: { error: 'Falta marca' } };
@@ -478,12 +479,24 @@
         const groups = {};
         mine.forEach(x => { const g = x.cycle || ''; (groups[g] || (groups[g] = [])).push(x); });
         const cambios = []; const numeros = {};
+        // Numera una secuencia por fecha, saltando los números que ya tiene tomados un número fijo.
+        const numerar = list => {
+          const ocupados = new Set();
+          list.forEach(x => { if (x.numeroManual && x.numero) { const n = String(x.numero); numeros[x.id] = n; ocupados.add(n); } });
+          let next = 1;
+          list.forEach(x => {
+            if (x.numeroManual && x.numero) return; // fijado a mano → se queda
+            while (ocupados.has(String(next))) next++;
+            const n = String(next); next++;
+            numeros[x.id] = n;
+            if (String(x.numero || '') !== n) cambios.push({ id: x.id, numero: n });
+          });
+        };
         Object.keys(groups).forEach(g => {
           const arr = groups[g];
           const cre = arr.filter(x => !esHist(x.tipo)).sort((a, b) => kd(a).localeCompare(kd(b)));
           const his = arr.filter(x => esHist(x.tipo)).sort((a, b) => kd(a).localeCompare(kd(b)));
-          cre.forEach((x, i) => { const n = String(i + 1); numeros[x.id] = n; if (String(x.numero || '') !== n) cambios.push({ id: x.id, numero: n }); });
-          his.forEach((x, i) => { const n = String(i + 1); numeros[x.id] = n; if (String(x.numero || '') !== n) cambios.push({ id: x.id, numero: n }); });
+          numerar(cre); numerar(his);
         });
         for (const c of cambios) await fbPatch('gestor/piezas/' + c.id, { numero: c.numero });
         if (cambios.length) _pzBust();
@@ -878,6 +891,31 @@
           raw[k] = Object.assign({}, raw[k], upd);
           await fbPut('db/cycles/' + k, raw[k]);
         } else return { ok: false, status: 404, data: { error: 'Sin ciclos' } };
+        return { ok: true, data: { ok: true } };
+      }
+      // Elimina un ciclo del cliente (solo Admin o Estrategia). Si era el activo, deja activo el ciclo más reciente restante.
+      if (p === '/api/marca/ciclo/eliminar' && method === 'POST') {
+        const s = await sesionActual();
+        if (!esEstrategiaOAdmin(s)) return { ok: false, status: 403, data: { error: 'Solo Admin o Estrategia eliminan ciclos' } };
+        const marca = body.marca || '';
+        const norm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+        const [credsTeam, credsCli] = await Promise.all([fbGet('db/creds').catch(() => ({})), fbGet('creds').catch(() => ({}))]);
+        const creds = Object.assign({}, credsCli || {}, credsTeam || {});
+        const km = norm(marca); let cu = '';
+        Object.entries(creds).forEach(([u, v]) => { if (!cu && v && v.type === 'client' && (norm(v.name) === km || norm(u) === km || (km && norm(v.name).indexOf(km) >= 0) || (km && km.indexOf(norm(v.name)) >= 0))) cu = u; });
+        if (!cu || !body.id) return { ok: false, status: 400, data: { error: 'Falta cliente o ciclo' } };
+        const raw = await fbGet('db/cycles').catch(() => null);
+        let arr = (Array.isArray(raw) ? raw : (raw && typeof raw === 'object' ? Object.values(raw) : [])).filter(Boolean);
+        const objetivo = arr.find(c => c && c.id === body.id && c.brand === cu);
+        if (!objetivo) return { ok: false, status: 404, data: { error: 'Ciclo no encontrado' } };
+        const eraActivo = objetivo.status === 'active';
+        arr = arr.filter(c => !(c && c.id === body.id && c.brand === cu));
+        // Si borramos el activo, reactivar el ciclo restante más reciente (por fecha de inicio) de esa marca.
+        if (eraActivo) {
+          const restantes = arr.filter(c => c && c.brand === cu).sort((a, b) => String(b.start || '').localeCompare(String(a.start || '')));
+          if (restantes.length) restantes[0].status = 'active';
+        }
+        await fbPut('db/cycles', arr);
         return { ok: true, data: { ok: true } };
       }
       // Plataformas habilitadas + pauta de la marca → lo que VE el cliente en /clientes/

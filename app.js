@@ -663,7 +663,7 @@ function openPieza(id, prefill) {
  <input id="pzIdea" class="pz-idea" placeholder="La idea / título" value="${esc(p.idea)}">
  <div class="form-grid" style="margin:.6rem 0">
  <label class="select"><span>Categoría</span><select id="pzTipo">${CATEGORIAS_PIEZA.map(t => `<option ${p.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
- <label class="select"><span>N.º de publicación <em style="font-weight:400;color:var(--ink-40)">(del ciclo)</em></span><input id="pzNum" type="text" value="${esc(p.numero || '')}" placeholder="1"><span id="pzExtraBadge" class="pz-extra-badge" hidden></span></label>
+ <label class="select"><span>N.º de publicación <em style="font-weight:400;color:var(--ink-40)">(del ciclo)</em></span><input id="pzNum" type="text" value="${esc(p.numero || '')}" placeholder="1"><span id="pzExtraBadge" class="pz-extra-badge" hidden></span><span id="pzNumFijo" class="pz-num-fijo"${p.numeroManual ? '' : ' hidden'}>📌 fijo · <a href="#" id="pzNumAuto">volver a automático</a></span></label>
  <label class="select select--grow"><span>Responsable</span>
  <select id="pzResp"><option value="">— Sin asignar —</option>${people.map(n => `<option ${p.responsable === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}<option value="Cliente" ${p.responsable === 'Cliente' ? 'selected' : ''}>Cliente (pendiente de aprobación)</option>${(p.responsable && !people.includes(p.responsable) && p.responsable !== 'Cliente') ? `<option selected>${esc(p.responsable)}</option>` : ''}</select></label>
  <label class="select"><span> Fecha de entrega</span><input id="pzFechaEntrega" type="date" value="${esc(p.fechaEntrega || '')}"></label>
@@ -701,9 +701,11 @@ function openPieza(id, prefill) {
  </div>
  </div></div>`;
  document.body.insertAdjacentHTML('beforeend', html);
+ // Número FIJADO a mano: si el usuario escribe un N.º, se respeta y el renumerado automático no lo toca.
+ let numFijado = !!p.numeroManual;
  // Arma el cuerpo de la pieza desde el formulario (se reusa para guardar y para el borrador).
  const buildPiezaBody = () => {
-   const body = { id, marca: $('#pzMarca').value, idea: $('#pzIdea').value, tipo: $('#pzTipo').value, responsable: $('#pzResp').value, numero: $('#pzNum').value, cycle: (($('#pzCycle') && $('#pzCycle').value) || _pzCicloActivo || ''), guion: ($('#pzGuion').innerHTML || '').trim(), caracteristicas: $('#pzCar').value,
+   const body = { id, marca: $('#pzMarca').value, idea: $('#pzIdea').value, tipo: $('#pzTipo').value, responsable: $('#pzResp').value, numero: $('#pzNum').value, numeroManual: numFijado, cycle: (($('#pzCycle') && $('#pzCycle').value) || _pzCicloActivo || ''), guion: ($('#pzGuion').innerHTML || '').trim(), caracteristicas: $('#pzCar').value,
      fecha: $('#pzFecha').value || null, fechaEntrega: $('#pzFechaEntrega').value || null,
      refLinks: ($('#pzRefLinks') && $('#pzRefLinks').value) || '',
      linkIg: $('#pzLinkIg').value, linkTiktok: $('#pzLinkTiktok').value, linkLinkedin: $('#pzLinkLinkedin').value };
@@ -735,7 +737,11 @@ function openPieza(id, prefill) {
  $('#pzModal').addEventListener('click', e => { if (e.target.id === 'pzModal' && downOnBackdrop) close(); downOnBackdrop = false; });
  $$('#pzModal .rte-b').forEach(b => b.addEventListener('mousedown', e => { e.preventDefault(); document.execCommand(b.dataset.cmd, false, null); }));
  const pzNum = $('#pzNum'), pzTipo = $('#pzTipo'), pzCount = $('#pzModal .pz-count');
- if (pzNum) pzNum.addEventListener('input', () => { pzNum._touched = true; });
+ const pzNumFijoUI = () => { const el = $('#pzNumFijo'); if (el) el.hidden = !numFijado; };
+ // Si el usuario escribe un número, queda FIJADO (el renumerado por fecha ya no lo cambia).
+ if (pzNum) pzNum.addEventListener('input', () => { pzNum._touched = true; numFijado = true; pzNumFijoUI(); });
+ const pzNumAuto = $('#pzNumAuto');
+ if (pzNumAuto) pzNumAuto.addEventListener('click', e => { e.preventDefault(); numFijado = false; if (pzNum) pzNum._touched = false; pzNumFijoUI(); sugerirNum(); });
  const sugerirNum = () => { if (!pzNum || pzNum._touched) return; pzNum.value = String(((pzTipo && pzTipo.value === 'Historia') ? nHistorias : nCreativos) + 1); if (pzCount) pzCount.innerHTML = `En este ciclo de <b>${esc(($('#pzMarca') && $('#pzMarca').value) || p.marca || 'la marca')}</b>: ${nCreativos} creativo(s) · ${nHistorias} historia(s) — esta sería la #${esc(pzNum.value)}`; };
  if (!id && pzTipo && pzNum) pzTipo.addEventListener('change', sugerirNum);
  // Si el rango del ciclo no estaba cacheado, tráelo y recalcula el # por ciclo.
@@ -1654,11 +1660,22 @@ function editarMarcaCiclo(id) {
      <label class="select"><span>Posts</span><input id="ecPosts" type="number" min="0" value="${num(c.posts)}" placeholder="0"></label>
      <label class="select"><span>Historias</span><input id="ecHist" type="number" min="0" value="${num(c.metaHist)}" placeholder="0"></label>
    </div>
-   <div style="display:flex;gap:.5rem;margin-top:.7rem">
+   <div style="display:flex;gap:.5rem;margin-top:.7rem;align-items:center">
      <button class="btn btn--primary btn--sm" id="ecSave">Guardar ciclo</button>
      <button class="btn btn--ghost btn--sm" id="ecCancel">Cancelar</button>
+     <button class="btn btn--ghost btn--sm" id="ecDel" style="margin-left:auto;color:#c0392b">Eliminar ciclo</button>
    </div></div>`;
  $('#ecCancel').addEventListener('click', () => { det.innerHTML = cicloDetalleHTML(id); });
+ $('#ecDel').addEventListener('click', async () => {
+   if (!confirm('¿Eliminar el ciclo "' + (c.name || '') + '"? Esto lo quita del portal del cliente. Las piezas no se borran, pero quedan sin este ciclo. No se puede deshacer.')) return;
+   const marca = state.marcaActiva && state.marcaActiva.marca;
+   const btn = $('#ecDel'); btn.disabled = true; btn.textContent = 'Eliminando…';
+   const r = await api('/api/marca/ciclo/eliminar', { method: 'POST', body: { marca, id } });
+   if (!r.ok || (r.data && r.data.error)) { btn.disabled = false; btn.textContent = 'Eliminar ciclo'; alert((r.data && r.data.error) || 'No se pudo eliminar'); return; }
+   bustCiclos(marca);
+   state._marcaCicloSel = null;
+   marcaCiclo(marca); // recarga con el ciclo eliminado
+ });
  $('#ecSave').addEventListener('click', async () => {
  const marca = state.marcaActiva && state.marcaActiva.marca;
  const start = $('#ecStart').value, end = $('#ecEnd').value;
