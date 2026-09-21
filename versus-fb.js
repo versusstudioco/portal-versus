@@ -947,6 +947,22 @@
       }
       if (p === '/api/marca/aprendizaje/remove' && method === 'POST') { await fbDelete('gestor/marcas/' + fbKey(body.marca) + '/aprendizaje/' + body.id); return { ok: true, data: { ok: true } }; }
       if (p === '/api/marca/aprendizaje/buscar' && method === 'POST') { return { ok: true, data: { ok: true, agregados: 0, entries: [] } }; } // fase IA
+      // Tarjetas de estrategia: texto libre con formato (HTML) + fotos embebidas. Por marca.
+      if (p === '/api/marca/estnota') {
+        const marca = q.get('marca') || body.marca || '';
+        if (method === 'POST') {
+          const html = String(body.html || '').trim();
+          if (!html) return { ok: false, status: 400, data: { error: 'La tarjeta está vacía' } };
+          const id = body.id || uid();
+          const prev = body.id ? ((await fbGet('gestor/marcas/' + fbKey(marca) + '/estnotas/' + id).catch(() => null)) || {}) : {};
+          const item = { id, html, titulo: String(body.titulo || '').trim(), at: prev.at || new Date().toISOString(), editAt: new Date().toISOString() };
+          await fbPut('gestor/marcas/' + fbKey(marca) + '/estnotas/' + id, item);
+          return { ok: true, data: { ok: true, item } };
+        }
+        const obj = (await fbGet('gestor/marcas/' + fbKey(marca) + '/estnotas').catch(() => null)) || {};
+        return { ok: true, data: { entries: Object.values(obj).sort((a, b) => (b.at || '').localeCompare(a.at || '')) } };
+      }
+      if (p === '/api/marca/estnota/remove' && method === 'POST') { await fbDelete('gestor/marcas/' + fbKey(body.marca) + '/estnotas/' + body.id); return { ok: true, data: { ok: true } }; }
 
       // ---- Métricas / Pauta ----
       if (p === '/api/metricas') return { ok: true, data: await metricas(q.get('refresh') === '1') };

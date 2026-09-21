@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260917c';
+const VS_TEAM_BUILD = '20260921a';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -719,14 +719,7 @@ function openPieza(id, prefill) {
  <div class="pz-cycrow"><span class="pz-cyclbl">Ciclo</span><select id="pzCycle" class="pz-cycsel"><option value="${esc(p.cycle || '')}">${p.cycle ? 'Cargando…' : 'Ciclo activo (automático)'}</option></select></div>
  <div class="pz-count">En este ciclo de <b>${esc(p.marca || 'la marca')}</b>: ${nCreativos} creativo(s) · ${nHistorias} historia(s)${id ? '' : ' — esta sería la #' + esc(p.numero || '?')}</div>
  <div class="pz-field"><span>Guion</span>
-        <div class="rte-bar">
-          <button type="button" class="rte-b" data-cmd="bold" title="Negrita"><b>B</b></button>
-          <button type="button" class="rte-b" data-cmd="italic" title="Cursiva"><i>I</i></button>
-          <button type="button" class="rte-b" data-cmd="underline" title="Subrayado" style="text-decoration:underline">U</button>
-          <select class="rte-sel" id="rteSize" title="Tamaño"><option value="">Tamaño</option><option value="2">Pequeño</option><option value="3">Normal</option><option value="5">Grande</option><option value="6">Título</option></select>
-          <input type="color" class="rte-color" id="rteColor" value="#111111" title="Color">
-          <button type="button" class="rte-b" data-cmd="insertUnorderedList" title="Lista">• Lista</button>
-        </div>
+        ${rteBarHTML()}
         <div id="pzGuion" class="rte" contenteditable="true" data-ph="El guion del contenido…">${p.guion || ''}</div>
       </div>
  <label class="pz-field"><span>Características</span><textarea id="pzCar" rows="2" placeholder="Formato, duración, música, referencias…">${esc(p.caracteristicas || '')}</textarea></label>
@@ -782,7 +775,7 @@ function openPieza(id, prefill) {
  let downOnBackdrop = false;
  $('#pzModal').addEventListener('mousedown', e => { downOnBackdrop = (e.target.id === 'pzModal'); });
  $('#pzModal').addEventListener('click', e => { if (e.target.id === 'pzModal' && downOnBackdrop) close(); downOnBackdrop = false; });
- $$('#pzModal .rte-b').forEach(b => b.addEventListener('mousedown', e => { e.preventDefault(); document.execCommand(b.dataset.cmd, false, null); }));
+ wireRte($('#pzGuion'));
  const pzNum = $('#pzNum'), pzTipo = $('#pzTipo'), pzCount = $('#pzModal .pz-count');
  const pzNumFijoUI = () => { const el = $('#pzNumFijo'); if (el) el.hidden = !numFijado; };
  // Si el usuario escribe un número, queda FIJADO (el renumerado por fecha ya no lo cambia).
@@ -834,8 +827,6 @@ function openPieza(id, prefill) {
    if (p.cycle && !cycles.some(c => c.id === p.cycle)) opts.push(`<option value="${esc(p.cycle)}" selected>${esc(p.cycle)}</option>`);
    sel.innerHTML = opts.join('');
  }).catch(() => {});
- const rteSize = $('#rteSize'); if (rteSize) rteSize.addEventListener('change', () => { if (rteSize.value) { $('#pzGuion').focus(); document.execCommand('fontSize', false, rteSize.value); rteSize.value = ''; } });
- const rteColor = $('#rteColor'); if (rteColor) rteColor.addEventListener('input', () => { $('#pzGuion').focus(); document.execCommand('foreColor', false, rteColor.value); });
  $$('.pz-plattab').forEach(t => t.addEventListener('click', () => {
  const pk = t.dataset.plattab;
  $$('.pz-plattab').forEach(x => x.classList.toggle('active', x === t));
@@ -913,6 +904,62 @@ async function pzCargarFotos(id) {
  if (!confirm('¿Quitar esta foto?')) return;
  await api('/api/pieza/foto/remove', { method: 'POST', body: { id, fid: b.dataset.fid } });
  pzCargarFotos(id);
+ }));
+}
+
+// ===== Editor de texto enriquecido reutilizable (guion, tarjetas de estrategia) =====
+// Barra: negrita/cursiva/subrayado, tamaño, color, lista, INSERTAR FOTO y TAMAÑO de la foto.
+function rteBarHTML() {
+ return `<div class="rte-bar">
+   <button type="button" class="rte-b" data-cmd="bold" title="Negrita"><b>B</b></button>
+   <button type="button" class="rte-b" data-cmd="italic" title="Cursiva"><i>I</i></button>
+   <button type="button" class="rte-b" data-cmd="underline" title="Subrayado" style="text-decoration:underline">U</button>
+   <select class="rte-sel" title="Tamaño del texto"><option value="">Tamaño</option><option value="2">Pequeño</option><option value="3">Normal</option><option value="5">Grande</option><option value="6">Título</option></select>
+   <input type="color" class="rte-color" value="#111111" title="Color del texto">
+   <button type="button" class="rte-b" data-cmd="insertUnorderedList" title="Lista">• Lista</button>
+   <span class="rte-sep"></span>
+   <button type="button" class="rte-img-add" title="Insertar foto">🖼 Foto</button>
+   <span class="rte-imgsize" hidden>Tamaño foto: <button type="button" data-w="30">S</button><button type="button" data-w="50">M</button><button type="button" data-w="75">L</button><button type="button" data-w="100">Full</button></span>
+   <input type="file" class="rte-img-file" accept="image/*" hidden>
+ </div>`;
+}
+// Enlaza una barra .rte-bar con su editor .rte hermano. Maneja formato, insertar foto y REDIMENSIONAR la foto (S/M/L/Full).
+function wireRte(rte) {
+ if (!rte) return;
+ const bar = rte.parentElement && rte.parentElement.querySelector('.rte-bar');
+ if (!bar) return;
+ bar.querySelectorAll('.rte-b').forEach(b => b.addEventListener('mousedown', e => { e.preventDefault(); rte.focus(); document.execCommand(b.dataset.cmd, false, null); }));
+ const sel = bar.querySelector('.rte-sel');
+ if (sel) sel.addEventListener('change', () => { if (sel.value) { rte.focus(); document.execCommand('fontSize', false, sel.value); sel.value = ''; } });
+ const col = bar.querySelector('.rte-color');
+ if (col) col.addEventListener('input', () => { rte.focus(); document.execCommand('foreColor', false, col.value); });
+ // Insertar foto (comprimida) en el punto del cursor.
+ const add = bar.querySelector('.rte-img-add'), file = bar.querySelector('.rte-img-file');
+ if (add && file) {
+   add.addEventListener('mousedown', e => e.preventDefault());
+   add.addEventListener('click', () => file.click());
+   file.addEventListener('change', async () => {
+     const f = file.files && file.files[0]; file.value = '';
+     if (!f || !/^image\//.test(f.type)) return;
+     try { const d = await compressImage(f, 900, 0.62); rte.focus(); document.execCommand('insertHTML', false, '<img class="rte-img" style="width:60%" src="' + d + '">'); }
+     catch (_) { alert('No se pudo insertar la imagen.'); }
+   });
+ }
+ // Seleccionar una foto muestra los botones de tamaño; aplicarlos cambia el ancho.
+ const sizeBox = bar.querySelector('.rte-imgsize');
+ let imgSel = null;
+ rte.addEventListener('click', e => {
+   if (e.target && e.target.tagName === 'IMG') {
+     if (imgSel) imgSel.classList.remove('rte-img--sel');
+     imgSel = e.target; imgSel.classList.add('rte-img--sel');
+     if (sizeBox) sizeBox.hidden = false;
+   } else {
+     if (imgSel) imgSel.classList.remove('rte-img--sel');
+     imgSel = null; if (sizeBox) sizeBox.hidden = true;
+   }
+ });
+ if (sizeBox) sizeBox.querySelectorAll('button').forEach(b => b.addEventListener('mousedown', e => {
+   e.preventDefault(); if (imgSel) { imgSel.style.width = b.dataset.w + '%'; imgSel.style.height = 'auto'; }
  }));
 }
 
@@ -2289,6 +2336,19 @@ async function marcaEstrategia(marca) {
  <div id="apList" class="est-learn-list">${renderAprende()}</div>
  </div>
 
+ <div class="est-cards" id="estCards">
+ <h4> Tarjetas de estrategia <span class="hub-hint" style="display:inline;margin:0">— texto libre con formato y fotos (moodboard, brief, notas…)</span></h4>
+ <div class="est-card-new">
+ ${rteBarHTML()}
+ <div id="estCardRte" class="rte" contenteditable="true" data-ph="Pega o escribe aquí… puedes poner negrita, tamaño, color y agregar fotos."></div>
+ <div class="est-card-new__acts">
+ <button class="btn btn--primary btn--sm" id="estCardSave">Guardar tarjeta</button>
+ <button class="btn btn--ghost btn--sm" id="estCardCancel" hidden>Cancelar edición</button>
+ </div>
+ </div>
+ <div id="estCardList" class="est-card-list"><div class="hub-hint">Cargando tarjetas…</div></div>
+ </div>
+
  <div class="est-gen" id="esAgent">
  <h4 style="margin:0 0 .1rem"> Agente de estrategia de la marca</h4>
  <div class="est-gen-lock" id="esAgentLock"> Guarda el contexto de arriba (Industria, Servicios y Tono) para activar el agente de esta marca.</div>
@@ -2322,6 +2382,48 @@ async function marcaEstrategia(marca) {
  });
  bindAprendeRemove(marca);
  pane.querySelectorAll('.est-run').forEach(b => b.addEventListener('click', () => estGenerar(marca, b.dataset.kind, b)));
+ initEstCards(marca);
+}
+// --- Tarjetas de estrategia (texto libre con formato + fotos) ---
+function initEstCards(marca) {
+ const rte = $('#estCardRte'), save = $('#estCardSave'), cancel = $('#estCardCancel'), list = $('#estCardList');
+ if (!rte || !save || !list) return;
+ wireRte(rte);
+ let editId = ''; // '' = crear nueva
+ const resetForm = () => { rte.innerHTML = ''; editId = ''; if (cancel) cancel.hidden = true; save.textContent = 'Guardar tarjeta'; };
+ const cargar = async () => {
+   const r = await api('/api/marca/estnota?marca=' + encodeURIComponent(marca));
+   const entries = (r.ok && r.data.entries) || [];
+   list.innerHTML = entries.length ? entries.map(c => `<div class="est-card" data-id="${esc(c.id)}">
+     <div class="est-card__body">${c.html || ''}</div>
+     <div class="est-card__acts"><button type="button" class="est-card__edit" title="Editar">Editar</button><button type="button" class="est-card__del" title="Eliminar">Eliminar</button></div>
+   </div>`).join('') : '<div class="hub-empty">Aún no hay tarjetas. Escribe arriba y guarda la primera.</div>';
+   state._estCards = entries;
+   list.querySelectorAll('.est-card__del').forEach(b => b.addEventListener('click', async () => {
+     const id = b.closest('.est-card').dataset.id;
+     if (!confirm('¿Eliminar esta tarjeta de estrategia?')) return;
+     await api('/api/marca/estnota/remove', { method: 'POST', body: { marca, id } });
+     if (editId === id) resetForm();
+     cargar();
+   }));
+   list.querySelectorAll('.est-card__edit').forEach(b => b.addEventListener('click', () => {
+     const id = b.closest('.est-card').dataset.id;
+     const c = (state._estCards || []).find(x => x.id === id); if (!c) return;
+     rte.innerHTML = c.html || ''; editId = id; if (cancel) cancel.hidden = false; save.textContent = 'Guardar cambios';
+     rte.scrollIntoView({ behavior: 'smooth', block: 'center' }); rte.focus();
+   }));
+ };
+ save.addEventListener('click', async () => {
+   const html = (rte.innerHTML || '').trim();
+   if (!html || !rte.textContent.trim() && !rte.querySelector('img')) { flash('Escribe algo o agrega una foto'); return; }
+   save.disabled = true; const prev = save.textContent; save.textContent = 'Guardando…';
+   const r = await api('/api/marca/estnota', { method: 'POST', body: { marca, id: editId, html } });
+   save.disabled = false; save.textContent = prev;
+   if (!r.ok || (r.data && r.data.error)) { alert((r.data && r.data.error) || 'No se pudo guardar'); return; }
+   resetForm(); flash('Tarjeta guardada ✓'); cargar();
+ });
+ if (cancel) cancel.addEventListener('click', resetForm);
+ cargar();
 }
 // Habilita o bloquea el agente de estrategia (generadores) según el contexto base.
 function estAgentSet(on) {

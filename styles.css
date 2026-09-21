@@ -1117,6 +1117,27 @@ textarea.fe-in { min-height:70px; resize:vertical; }
 .rte { min-height: 110px; border: 1.5px solid var(--bd2); border-radius: 12px; padding: 12px 14px; background: var(--card); color: var(--ink); font-size: .95rem; line-height: 1.5; outline: none; overflow-y: auto; max-height: 260px; }
 .rte:focus { border-color: var(--red); }
 .rte:empty:before { content: attr(data-ph); color: var(--ink-40); }
+.rte img, .rte-img { max-width: 100%; height: auto; border-radius: 8px; display: block; margin: .4rem 0; cursor: pointer; }
+.rte-img--sel { outline: 2px solid var(--red); outline-offset: 2px; }
+.rte-sep { width: 1px; height: 20px; background: var(--line); margin: 0 .15rem; }
+.rte-img-add { font-family: var(--font); font-size: .8rem; height: 30px; border: 1px solid var(--line); background: var(--card); border-radius: 8px; cursor: pointer; color: var(--ink); padding: 0 .6rem; }
+.rte-img-add:hover { border-color: var(--red); }
+.rte-imgsize { display: inline-flex; align-items: center; gap: .25rem; font-size: .72rem; color: var(--ink-60); }
+.rte-imgsize button { font-family: var(--font); font-size: .72rem; font-weight: 700; min-width: 26px; height: 26px; border: 1px solid var(--line); background: var(--card); border-radius: 7px; cursor: pointer; color: var(--ink); }
+.rte-imgsize button:hover { border-color: #6C00FF; color: #6C00FF; }
+
+/* Tarjetas de estrategia (texto libre + fotos) */
+.est-cards { background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 1rem 1.1rem; margin-bottom: 1.1rem; }
+.est-cards h4 { font-size: .95rem; font-weight: 700; margin-bottom: .7rem; }
+.est-card-new__acts { display: flex; gap: .5rem; margin-top: .5rem; }
+.est-card-list { display: flex; flex-direction: column; gap: .6rem; margin-top: .9rem; }
+.est-card { border: 1px solid var(--line); border-radius: 12px; padding: .85rem 1rem; background: var(--card); position: relative; }
+.est-card__body { font-size: .92rem; line-height: 1.5; color: var(--ink); word-break: break-word; }
+.est-card__body img { max-width: 100%; height: auto; border-radius: 8px; }
+.est-card__acts { display: flex; gap: .5rem; margin-top: .6rem; padding-top: .5rem; border-top: 1px dashed var(--line); }
+.est-card__edit, .est-card__del { font-family: var(--font); font-size: .74rem; font-weight: 600; border: 1px solid var(--line); background: transparent; border-radius: 8px; padding: .28rem .7rem; cursor: pointer; color: var(--ink-60); }
+.est-card__edit:hover { border-color: #6C00FF; color: #6C00FF; }
+.est-card__del:hover { border-color: var(--red); color: var(--red); }
 
 /* Mi día v3 — hero sutil + tareas con estado/prioridad */
 .md-hero { background: linear-gradient(135deg, rgba(249,0,0,.07), rgba(108,0,255,.05)); border: 1px solid var(--glass-border); border-radius: 16px; padding: 1.05rem 1.3rem; box-shadow: var(--glass-shadow), inset 0 1px 0 rgba(255,255,255,.5); margin: .3rem 0 1rem; }
