@@ -1450,7 +1450,7 @@ var PLATS = ["Instagram","YouTube","TikTok","LinkedIn"];
 var TCLS = {Reel:"t-reel",Carrusel:"t-carr",Post:"t-post",Historia:"t-hist",Video:"t-vid",Short:"t-sho",Pauta:"t-pauta",Banner:"t-banner"};
 
 // ===== AUTO-ACTUALIZACIÓN (evita quedarse con una versión vieja en caché) =====
-var VS_BUILD = '20260921b';
+var VS_BUILD = '20260921c';
 (function(){
  try{
   if(new URLSearchParams(location.search).get('v') === VS_BUILD) return; // ya estamos en la versión fresca
@@ -2531,7 +2531,7 @@ function vgNum(v){ var n=parseInt(String(v||"").replace(/[^\d-]/g,""),10); retur
 function vgLunes(iso){ var d=new Date(iso+"T00:00:00"); var g=(d.getDay()+6)%7; d.setDate(d.getDate()-g); return d; }
 function vgFmt(d){ return d.getDate()+"/"+(d.getMonth()+1); }
 var VG_TIPOS=[["Reel","reels"],["Carrusel","carruseles"],["Post","posts"],["Banner","banners"],["Historia","historias"]];
-var _vgPiezas={}, _vgCalYM=null, _vgBrandName="", _vgCicloIni="", _vgCicloFin="", _vgCicloMin=null, _vgCicloMax=null, _vgNuevoTipo="Post";
+var _vgPiezas={}, _vgCalYM=null, _vgBrandName="", _vgCicloIni="", _vgCicloFin="", _vgCicloMin=null, _vgCicloMax=null, _vgNuevoTipo="Post", _vgEstCards=[];
 function _vgYMval(o){ return o?o.y*12+o.m:null; }
 var VG_MESES=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 var VG_DOW=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
@@ -2543,9 +2543,12 @@ function renderGestorContenido(){
  var k1 = vgNorm(brandName), k2 = vgNorm(CU);
  Promise.all([
  FBDB.ref("vsportal/gestor/piezas").once("value").then(function(s){return s.val()||{};}),
- FBDB.ref("vsportal/gestor/marcas/"+vgKey(brandName)+"/ciclo").once("value").then(function(s){return s.val();}).catch(function(){return null;})
+ FBDB.ref("vsportal/gestor/marcas/"+vgKey(brandName)+"/ciclo").once("value").then(function(s){return s.val();}).catch(function(){return null;}),
+ FBDB.ref("vsportal/gestor/marcas/"+vgKey(brandName)+"/estnotas").once("value").then(function(s){return s.val()||{};}).catch(function(){return {};})
  ]).then(function(res){
- var all=res[0], ciclo=res[1]||{pactado:{}};
+ var all=res[0], ciclo=res[1]||{pactado:{}}, estnotas=res[2]||{};
+ // Tarjetas de estrategia que el equipo marcó visibles para el cliente (estudio de mercado, estrategia…)
+ _vgEstCards=Object.keys(estnotas).map(function(k){return estnotas[k];}).filter(function(c){return c && c.html && c.cliente;}).sort(function(a,b){return (b.at||"").localeCompare(a.at||"");});
  var mine = Object.keys(all).map(function(k){return all[k];}).filter(function(p){ if(!p||!p.marca) return false; var pm=vgNorm(p.marca); return pm===k1||pm===k2||(k1&&pm.indexOf(k1)>=0)||(k1&&k1.indexOf(pm)>=0); });
  _vgPiezas={}; mine.forEach(function(p){ if(p.id) _vgPiezas[p.id]=p; });
  // Traer histórico del perfil del cliente (DB.publications) al calendario — publicadas (hoy Instagram)
@@ -2593,32 +2596,53 @@ function renderGestorContenido(){
 }
 function vgRenderCal(){
  var el=gi("calGestorPanel"); if(!el) return;
- var y=_vgCalYM.y, m=_vgCalYM.m;
- var porDia={}; Object.keys(_vgPiezas).forEach(function(id){ var p=_vgPiezas[id]; var f=p.fecha||p.fechaEntrega; if(!f) return; if(f.slice(0,7)===y+"-"+String(m).padStart(2,"0")) (porDia[f]||(porDia[f]=[])).push(p); });
+ var hoy=(new Date()).toISOString().slice(0,10);
+ var ini=_vgCicloIni, fin=_vgCicloFin;
+ var rangeMode=!!(ini&&fin); // muestra SOLO los días exactos del ciclo (puede cruzar meses)
+ var MABR=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+ var porDia={}; Object.keys(_vgPiezas).forEach(function(id){ var p=_vgPiezas[id]; var f=p.fecha||p.fechaEntrega; if(!f) return; (porDia[f]||(porDia[f]=[])).push(p); });
  var sinF=Object.keys(_vgPiezas).map(function(id){return _vgPiezas[id];}).filter(function(p){return !(p.fecha||p.fechaEntrega);});
- var offset=(new Date(y,m-1,1).getDay()+6)%7, dias=new Date(y,m,0).getDate(), hoy=(new Date()).toISOString().slice(0,10);
- var _vv=y*12+m; var _atMin=_vgCicloMin&&_vv<=_vgYMval(_vgCicloMin); var _atMax=_vgCicloMax&&_vv>=_vgYMval(_vgCicloMax);
- var _btnPrev=_atMin?'<span class="cpill" style="opacity:.3;cursor:default">Anterior</span>':'<button class="cpill" onclick="vgCalNav(-1)">Anterior</button>';
- var _btnNext=_atMax?'<span class="cpill" style="opacity:.3;cursor:default">Siguiente</span>':'<button class="cpill" onclick="vgCalNav(1)">Siguiente</button>';
- var _rango=(_vgCicloIni||_vgCicloFin)?'<div style="font-size:11px;color:var(--t3);text-align:center;margin-top:2px">Ciclo activo'+(_vgCicloIni?': '+vgEsc(_vgCicloIni):'')+(_vgCicloFin?' → '+vgEsc(_vgCicloFin):'')+'</div>':'';
- var _btnNuevo=(_vgCicloIni||_vgCicloFin)?'<button class="btn btn-red btn-sm" onclick="vgNuevoContenido()" style="white-space:nowrap">+ Agregar contenido</button>':'';
- var nav='<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px"><div style="display:flex;align-items:center;gap:8px">'+_btnPrev+_btnNext+'</div><div style="font-size:15px;font-weight:800;text-transform:capitalize;flex:1;text-align:center">'+VG_MESES[m-1]+" "+y+'</div>'+_btnNuevo+'</div>'+_rango+'<div style="height:10px"></div>';
- var cells=''; VG_DOW.forEach(function(d){ cells+='<div class="vg-dow">'+d+'</div>'; });
- for(var i=0;i<offset;i++) cells+='<div class="vg-cell vg-cell--empty"></div>';
- for(var d=1;d<=dias;d++){
- var iso=y+"-"+String(m).padStart(2,"0")+"-"+String(d).padStart(2,"0"); var arr=porDia[iso]||[]; var esHoy=iso===hoy;
- // Días FUERA del ciclo activo: se ven atenuados (no son días del ciclo del cliente).
- var _off=(_vgCicloIni&&iso<_vgCicloIni)||(_vgCicloFin&&iso>_vgCicloFin);
- var chips=arr.slice(0,2).map(function(p){ var e=VG_EST[p.etapa]||VG_EST.editada; var esHist=(p.tipo==="Historia"||p.tipo==="Historias"); var col=esHist?"#e0218a":e.c; return '<div class="vg-chip'+(esHist?" vg-chip--hist":"")+'" onclick="vgOpenPieza(\''+p.id+'\')" style="background:'+col+'" title="'+vgEsc(p.tipo||"")+' · '+vgEsc(p.idea||"")+'">'+vgTipoIcon(p.tipo)+'<span class="vg-chip__t">'+vgEsc(p.tipo||"")+(p.idea?" · "+vgEsc(p.idea):"")+'</span></div>'; }).join("");
- if(arr.length>2) chips+='<div class="vg-more" onclick="vgDay(\''+iso+'\')">+'+(arr.length-2)+' más</div>';
- cells+='<div class="vg-cell'+(esHoy?' vg-cell--hoy':'')+(_off?' vg-cell--off':'')+'"><div class="vg-cell__n">'+d+'</div>'+chips+'</div>';
+ function _celda(iso){ // celda ACTIVA (día del ciclo)
+   var d=+iso.slice(8,10), mo=+iso.slice(5,7); var arr=porDia[iso]||[]; var esHoy=iso===hoy;
+   var chips=arr.slice(0,2).map(function(p){ var e=VG_EST[p.etapa]||VG_EST.editada; var esHist=(p.tipo==="Historia"||p.tipo==="Historias"); var col=esHist?"#e0218a":e.c; return '<div class="vg-chip'+(esHist?" vg-chip--hist":"")+'" onclick="vgOpenPieza(\''+p.id+'\')" style="background:'+col+'" title="'+vgEsc(p.tipo||"")+' · '+vgEsc(p.idea||"")+'">'+vgTipoIcon(p.tipo)+'<span class="vg-chip__t">'+vgEsc(p.tipo||"")+(p.idea?" · "+vgEsc(p.idea):"")+'</span></div>'; }).join("");
+   if(arr.length>2) chips+='<div class="vg-more" onclick="vgDay(\''+iso+'\')">+'+(arr.length-2)+' más</div>';
+   var nlabel=(d===1||iso===ini)?(d+' <span class="vg-cell__mo">'+MABR[mo-1]+'</span>'):d;
+   return '<div class="vg-cell'+(esHoy?' vg-cell--hoy':'')+'"><div class="vg-cell__n">'+nlabel+'</div>'+chips+'</div>';
  }
- var grid='<style>.vg-dow{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;text-align:center;padding:4px 0}.vg-cell{height:96px;border:1px solid var(--bd);border-radius:10px;padding:5px 6px;overflow:hidden;background:var(--bg2)}.vg-cell--empty{border:0;background:transparent}.vg-cell--off{background:repeating-linear-gradient(45deg,var(--bg3),var(--bg3) 6px,transparent 6px,transparent 12px);border-style:dashed;opacity:.5;pointer-events:none}.vg-cell--off .vg-cell__n{color:var(--t3)}.vg-cell--hoy{background:rgba(249,0,0,.05);border-color:rgba(249,0,0,.35)}.vg-cell__n{font-size:11px;font-weight:700;color:var(--t2);margin-bottom:4px}.vg-cell--hoy .vg-cell__n{color:var(--red)}.vg-chip{cursor:pointer;color:#fff;border-radius:6px;padding:3px 6px;margin-bottom:3px;font-size:10px;font-weight:600;display:flex;align-items:center;gap:3px;overflow:hidden}.vg-ico{width:11px;height:11px;flex:0 0 auto}.vg-chip__t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.vg-more{cursor:pointer;font-size:10px;font-weight:700;color:var(--t2)}@media(max-width:640px){.vg-cell{height:60px;padding:3px}.vg-cell__n{font-size:10px;margin-bottom:2px}.vg-chip{font-size:0;padding:0;height:7px;margin-bottom:2px;border-radius:3px;gap:0}.vg-chip .vg-ico{display:none}.vg-more{font-size:9px}.vg-dow{font-size:8px}}</style><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">'+cells+'</div>';
+ var cells=''; VG_DOW.forEach(function(d){ cells+='<div class="vg-dow">'+d+'</div>'; });
+ var headerTitle='', navBtns='';
+ if(rangeMode){
+   function _isoAdd(iso,n){ var dt=new Date(iso+'T00:00:00'); dt.setDate(dt.getDate()+n); return dt.toISOString().slice(0,10); }
+   function _dow(iso){ return (new Date(iso+'T00:00:00').getDay()+6)%7; }
+   var gStart=_isoAdd(ini,-_dow(ini)), gEnd=_isoAdd(fin,6-_dow(fin));
+   for(var cur=gStart; cur<=gEnd; cur=_isoAdd(cur,1)){ cells+=(cur>=ini&&cur<=fin)?_celda(cur):'<div class="vg-cell vg-cell--empty"></div>'; }
+   var di=+ini.slice(8,10), mi=+ini.slice(5,7), df=+fin.slice(8,10), mf=+fin.slice(5,7);
+   headerTitle=di+' '+MABR[mi-1]+' – '+df+' '+MABR[mf-1]+' '+fin.slice(0,4);
+ } else {
+   var y=_vgCalYM.y, m=_vgCalYM.m;
+   var offset=(new Date(y,m-1,1).getDay()+6)%7, dias=new Date(y,m,0).getDate();
+   var _vv=y*12+m, _atMin=_vgCicloMin&&_vv<=_vgYMval(_vgCicloMin), _atMax=_vgCicloMax&&_vv>=_vgYMval(_vgCicloMax);
+   navBtns='<div style="display:flex;align-items:center;gap:8px">'+(_atMin?'<span class="cpill" style="opacity:.3;cursor:default">Anterior</span>':'<button class="cpill" onclick="vgCalNav(-1)">Anterior</button>')+(_atMax?'<span class="cpill" style="opacity:.3;cursor:default">Siguiente</span>':'<button class="cpill" onclick="vgCalNav(1)">Siguiente</button>')+'</div>';
+   for(var i=0;i<offset;i++) cells+='<div class="vg-cell vg-cell--empty"></div>';
+   for(var d=1;d<=dias;d++){ cells+=_celda(y+"-"+String(m).padStart(2,"0")+"-"+String(d).padStart(2,"0")); }
+   headerTitle=VG_MESES[m-1]+" "+y;
+ }
+ var _btnNuevo=(ini||fin)?'<button class="btn btn-red btn-sm" onclick="vgNuevoContenido()" style="white-space:nowrap">+ Agregar contenido</button>':'';
+ var nav='<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px">'+(navBtns||'<div></div>')+'<div style="font-size:15px;font-weight:800;text-transform:capitalize;flex:1;text-align:center">'+headerTitle+'</div>'+_btnNuevo+'</div><div style="height:10px"></div>';
+ var grid='<style>.vg-dow{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;text-align:center;padding:4px 0}.vg-cell{height:96px;border:1px solid var(--bd);border-radius:10px;padding:5px 6px;overflow:hidden;background:var(--bg2)}.vg-cell--empty{border:0;background:transparent}.vg-cell--hoy{background:rgba(249,0,0,.05);border-color:rgba(249,0,0,.35)}.vg-cell__n{font-size:11px;font-weight:700;color:var(--t2);margin-bottom:4px}.vg-cell__mo{font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase}.vg-cell--hoy .vg-cell__n{color:var(--red)}.vg-chip{cursor:pointer;color:#fff;border-radius:6px;padding:3px 6px;margin-bottom:3px;font-size:10px;font-weight:600;display:flex;align-items:center;gap:3px;overflow:hidden}.vg-ico{width:11px;height:11px;flex:0 0 auto}.vg-chip__t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.vg-more{cursor:pointer;font-size:10px;font-weight:700;color:var(--t2)}@media(max-width:640px){.vg-cell{height:60px;padding:3px}.vg-cell__n{font-size:10px;margin-bottom:2px}.vg-chip{font-size:0;padding:0;height:7px;margin-bottom:2px;border-radius:3px;gap:0}.vg-chip .vg-ico{display:none}.vg-more{font-size:9px}.vg-dow{font-size:8px}}</style><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">'+cells+'</div>';
  var leyenda='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--t2)">'+Object.keys(VG_EST).map(function(k){return '<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:3px;background:'+VG_EST[k].c+';display:inline-block"></span>'+VG_EST[k].l+'</span>';}).join("")+'<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:3px;background:#e0218a;display:inline-block"></span>Historia</span></div>';
  var help='<p class="tip" style="margin-top:6px">Toca una publicación para ver el detalle y <b>dejar tus comentarios</b> sobre el guion o el texto.</p>';
  var body=nav+grid+leyenda+help+'</div>';
  if(sinF.length){ body+='<div class="card"><div class="card-title">Sin fecha asignada</div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">'+sinF.map(function(p){var e=VG_EST[p.etapa]||VG_EST.idea;return '<div onclick="vgOpenPieza(\''+p.id+'\')" style="cursor:pointer;background:'+e.c+';color:#fff;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600">'+vgEsc(p.tipo||"")+' · '+vgEsc(p.idea||"")+'</div>';}).join("")+'</div></div>'; }
- el.innerHTML=vgDriveCard()+(el._head||"")+body;
+ el.innerHTML=vgDriveCard()+(el._head||"")+body+vgEstCardsHTML();
+}
+// Tarjetas de estrategia visibles para el cliente (estudio de mercado, estrategia, notas del equipo).
+function vgEstCardsHTML(){
+ if(!_vgEstCards||!_vgEstCards.length) return "";
+ var cards=_vgEstCards.map(function(c){ return '<div style="border:1px solid var(--bd);border-radius:12px;padding:14px 16px;background:var(--bg2);margin-top:10px" class="vg-estnote">'+c.html+'</div>'; }).join("");
+ return '<div class="card"><div class="card-title">📌 Estrategia y estudios <span style="font-weight:400;color:var(--t3)">— material que el equipo comparte contigo</span></div>'
+  +'<style>.vg-estnote img{max-width:100%;height:auto;border-radius:8px}.vg-estnote{font-size:14px;line-height:1.55;color:var(--t1)}</style>'
+  +cards+'</div>';
 }
 function vgDriveCard(){
  var url = (DB.driveCfg && DB.driveCfg[CU]) || "";
