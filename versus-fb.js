@@ -955,7 +955,7 @@
           if (!html) return { ok: false, status: 400, data: { error: 'La tarjeta está vacía' } };
           const id = body.id || uid();
           const prev = body.id ? ((await fbGet('gestor/marcas/' + fbKey(marca) + '/estnotas/' + id).catch(() => null)) || {}) : {};
-          const item = { id, html, titulo: String(body.titulo || '').trim(), cliente: body.cliente !== false, at: prev.at || new Date().toISOString(), editAt: new Date().toISOString() };
+          const item = { id, html, titulo: String(body.titulo || '').trim(), fecha: body.fecha || prev.fecha || '', cliente: body.cliente !== false, at: prev.at || new Date().toISOString(), editAt: new Date().toISOString() };
           await fbPut('gestor/marcas/' + fbKey(marca) + '/estnotas/' + id, item);
           return { ok: true, data: { ok: true, item } };
         }

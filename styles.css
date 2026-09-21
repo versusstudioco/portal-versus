@@ -1129,7 +1129,13 @@ textarea.fe-in { min-height:70px; resize:vertical; }
 /* Tarjetas de estrategia (texto libre + fotos) */
 .est-cards { background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 1rem 1.1rem; margin-bottom: 1.1rem; }
 .est-cards h4 { font-size: .95rem; font-weight: 700; margin-bottom: .7rem; }
-.est-card-new__acts { display: flex; gap: .5rem; margin-top: .5rem; }
+.est-card-new__acts { display: flex; gap: .5rem; margin-top: .5rem; align-items: center; flex-wrap: wrap; }
+.est-card-meta { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-bottom: .5rem; }
+@media (max-width: 560px) { .est-card-meta { grid-template-columns: 1fr; } }
+.est-card__head { display: flex; align-items: center; justify-content: space-between; gap: .6rem; margin-bottom: .5rem; }
+.est-card__head b { font-size: .95rem; }
+.est-card__fecha { font-size: .74rem; font-weight: 700; color: #6C00FF; background: rgba(108,0,255,.1); border-radius: 8px; padding: .2rem .55rem; white-space: nowrap; }
+.est-card__fecha--none { color: var(--ink-40); background: rgba(29,29,29,.05); font-weight: 600; }
 .est-card-list { display: flex; flex-direction: column; gap: .6rem; margin-top: .9rem; }
 .est-card { border: 1px solid var(--line); border-radius: 12px; padding: .85rem 1rem; background: var(--card); position: relative; }
 .est-card__body { font-size: .92rem; line-height: 1.5; color: var(--ink); word-break: break-word; }

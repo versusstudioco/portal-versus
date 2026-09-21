@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260921b';
+const VS_TEAM_BUILD = '20260921c';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -2339,6 +2339,10 @@ async function marcaEstrategia(marca) {
  <div class="est-cards" id="estCards">
  <h4> Tarjetas de estrategia <span class="hub-hint" style="display:inline;margin:0">— texto libre con formato y fotos (moodboard, brief, notas…)</span></h4>
  <div class="est-card-new">
+ <div class="est-card-meta">
+ <label class="select"><span>Título</span><input id="estCardTit" placeholder="Ej: Estudio de mercado, Estrategia Q4…"></label>
+ <label class="select"><span>Fecha (día en que el cliente la ve en su calendario)</span><input id="estCardFecha" type="date"></label>
+ </div>
  ${rteBarHTML()}
  <div id="estCardRte" class="rte" contenteditable="true" data-ph="Pega o escribe aquí… puedes poner negrita, tamaño, color y agregar fotos."></div>
  <div class="est-card-new__acts">
@@ -2387,15 +2391,17 @@ async function marcaEstrategia(marca) {
 }
 // --- Tarjetas de estrategia (texto libre con formato + fotos) ---
 function initEstCards(marca) {
- const rte = $('#estCardRte'), save = $('#estCardSave'), cancel = $('#estCardCancel'), list = $('#estCardList'), cli = $('#estCardCli');
+ const rte = $('#estCardRte'), save = $('#estCardSave'), cancel = $('#estCardCancel'), list = $('#estCardList'), cli = $('#estCardCli'), tit = $('#estCardTit'), fec = $('#estCardFecha');
  if (!rte || !save || !list) return;
  wireRte(rte);
  let editId = ''; // '' = crear nueva
- const resetForm = () => { rte.innerHTML = ''; editId = ''; if (cancel) cancel.hidden = true; if (cli) cli.checked = true; save.textContent = 'Guardar tarjeta'; };
+ const resetForm = () => { rte.innerHTML = ''; editId = ''; if (cancel) cancel.hidden = true; if (cli) cli.checked = true; if (tit) tit.value = ''; if (fec) fec.value = ''; save.textContent = 'Guardar tarjeta'; };
+ const fFecha = f => { if (!f) return ''; const p = f.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; };
  const cargar = async () => {
    const r = await api('/api/marca/estnota?marca=' + encodeURIComponent(marca));
    const entries = (r.ok && r.data.entries) || [];
    list.innerHTML = entries.length ? entries.map(c => `<div class="est-card" data-id="${esc(c.id)}">
+     ${(c.titulo || c.fecha) ? `<div class="est-card__head">${c.titulo ? `<b>${esc(c.titulo)}</b>` : ''}${c.fecha ? `<span class="est-card__fecha">📅 ${esc(fFecha(c.fecha))}</span>` : '<span class="est-card__fecha est-card__fecha--none">Sin fecha</span>'}</div>` : ''}
      <div class="est-card__body">${c.html || ''}</div>
      <div class="est-card__acts"><span class="est-card__vis ${c.cliente ? 'on' : ''}" title="Toca para cambiar la visibilidad para el cliente">${c.cliente ? '👁 Visible para el cliente' : '🚫 Solo equipo'}</span><button type="button" class="est-card__edit" title="Editar">Editar</button><button type="button" class="est-card__del" title="Eliminar">Eliminar</button></div>
    </div>`).join('') : '<div class="hub-empty">Aún no hay tarjetas. Escribe arriba y guarda la primera.</div>';
@@ -2410,14 +2416,15 @@ function initEstCards(marca) {
    list.querySelectorAll('.est-card__edit').forEach(b => b.addEventListener('click', () => {
      const id = b.closest('.est-card').dataset.id;
      const c = (state._estCards || []).find(x => x.id === id); if (!c) return;
-     rte.innerHTML = c.html || ''; editId = id; if (cancel) cancel.hidden = false; if (cli) cli.checked = c.cliente !== false; save.textContent = 'Guardar cambios';
+     rte.innerHTML = c.html || ''; editId = id; if (cancel) cancel.hidden = false; if (cli) cli.checked = c.cliente !== false;
+     if (tit) tit.value = c.titulo || ''; if (fec) fec.value = c.fecha || ''; save.textContent = 'Guardar cambios';
      rte.scrollIntoView({ behavior: 'smooth', block: 'center' }); rte.focus();
    }));
    // Toca la etiqueta de visibilidad para alternar sin abrir la tarjeta.
    list.querySelectorAll('.est-card__vis').forEach(b => b.addEventListener('click', async () => {
      const id = b.closest('.est-card').dataset.id;
      const c = (state._estCards || []).find(x => x.id === id); if (!c) return;
-     await api('/api/marca/estnota', { method: 'POST', body: { marca, id, html: c.html, cliente: !c.cliente } });
+     await api('/api/marca/estnota', { method: 'POST', body: { marca, id, html: c.html, titulo: c.titulo || '', fecha: c.fecha || '', cliente: !c.cliente } });
      cargar();
    }));
  };
@@ -2425,7 +2432,7 @@ function initEstCards(marca) {
    const html = (rte.innerHTML || '').trim();
    if (!html || !rte.textContent.trim() && !rte.querySelector('img')) { flash('Escribe algo o agrega una foto'); return; }
    save.disabled = true; const prev = save.textContent; save.textContent = 'Guardando…';
-   const r = await api('/api/marca/estnota', { method: 'POST', body: { marca, id: editId, html, cliente: cli ? cli.checked : true } });
+   const r = await api('/api/marca/estnota', { method: 'POST', body: { marca, id: editId, html, titulo: tit ? tit.value : '', fecha: fec ? fec.value : '', cliente: cli ? cli.checked : true } });
    save.disabled = false; save.textContent = prev;
    if (!r.ok || (r.data && r.data.error)) { alert((r.data && r.data.error) || 'No se pudo guardar'); return; }
    resetForm(); flash('Tarjeta guardada ✓'); cargar();

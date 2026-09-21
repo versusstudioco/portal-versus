@@ -1450,7 +1450,7 @@ var PLATS = ["Instagram","YouTube","TikTok","LinkedIn"];
 var TCLS = {Reel:"t-reel",Carrusel:"t-carr",Post:"t-post",Historia:"t-hist",Video:"t-vid",Short:"t-sho",Pauta:"t-pauta",Banner:"t-banner"};
 
 // ===== AUTO-ACTUALIZACIÓN (evita quedarse con una versión vieja en caché) =====
-var VS_BUILD = '20260921c';
+var VS_BUILD = '20260921d';
 (function(){
  try{
   if(new URLSearchParams(location.search).get('v') === VS_BUILD) return; // ya estamos en la versión fresca
@@ -2531,7 +2531,7 @@ function vgNum(v){ var n=parseInt(String(v||"").replace(/[^\d-]/g,""),10); retur
 function vgLunes(iso){ var d=new Date(iso+"T00:00:00"); var g=(d.getDay()+6)%7; d.setDate(d.getDate()-g); return d; }
 function vgFmt(d){ return d.getDate()+"/"+(d.getMonth()+1); }
 var VG_TIPOS=[["Reel","reels"],["Carrusel","carruseles"],["Post","posts"],["Banner","banners"],["Historia","historias"]];
-var _vgPiezas={}, _vgCalYM=null, _vgBrandName="", _vgCicloIni="", _vgCicloFin="", _vgCicloMin=null, _vgCicloMax=null, _vgNuevoTipo="Post", _vgEstCards=[];
+var _vgPiezas={}, _vgCalYM=null, _vgBrandName="", _vgCicloIni="", _vgCicloFin="", _vgCicloMin=null, _vgCicloMax=null, _vgNuevoTipo="Post", _vgEstCards=[], _vgEstById={}, _vgEstByDay={};
 function _vgYMval(o){ return o?o.y*12+o.m:null; }
 var VG_MESES=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 var VG_DOW=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
@@ -2548,7 +2548,9 @@ function renderGestorContenido(){
  ]).then(function(res){
  var all=res[0], ciclo=res[1]||{pactado:{}}, estnotas=res[2]||{};
  // Tarjetas de estrategia que el equipo marcó visibles para el cliente (estudio de mercado, estrategia…)
- _vgEstCards=Object.keys(estnotas).map(function(k){return estnotas[k];}).filter(function(c){return c && c.html && c.cliente;}).sort(function(a,b){return (b.at||"").localeCompare(a.at||"");});
+ _vgEstCards=Object.keys(estnotas).map(function(k){return estnotas[k];}).filter(function(c){return c && c.html && c.cliente;}).sort(function(a,b){return (a.fecha||a.at||"").localeCompare(b.fecha||b.at||"");});
+ _vgEstById={}; _vgEstByDay={};
+ _vgEstCards.forEach(function(c){ _vgEstById[c.id]=c; if(c.fecha) (_vgEstByDay[c.fecha]||(_vgEstByDay[c.fecha]=[])).push(c); });
  var mine = Object.keys(all).map(function(k){return all[k];}).filter(function(p){ if(!p||!p.marca) return false; var pm=vgNorm(p.marca); return pm===k1||pm===k2||(k1&&pm.indexOf(k1)>=0)||(k1&&k1.indexOf(pm)>=0); });
  _vgPiezas={}; mine.forEach(function(p){ if(p.id) _vgPiezas[p.id]=p; });
  // Traer histórico del perfil del cliente (DB.publications) al calendario — publicadas (hoy Instagram)
@@ -2606,8 +2608,11 @@ function vgRenderCal(){
    var d=+iso.slice(8,10), mo=+iso.slice(5,7); var arr=porDia[iso]||[]; var esHoy=iso===hoy;
    var chips=arr.slice(0,2).map(function(p){ var e=VG_EST[p.etapa]||VG_EST.editada; var esHist=(p.tipo==="Historia"||p.tipo==="Historias"); var col=esHist?"#e0218a":e.c; return '<div class="vg-chip'+(esHist?" vg-chip--hist":"")+'" onclick="vgOpenPieza(\''+p.id+'\')" style="background:'+col+'" title="'+vgEsc(p.tipo||"")+' · '+vgEsc(p.idea||"")+'">'+vgTipoIcon(p.tipo)+'<span class="vg-chip__t">'+vgEsc(p.tipo||"")+(p.idea?" · "+vgEsc(p.idea):"")+'</span></div>'; }).join("");
    if(arr.length>2) chips+='<div class="vg-more" onclick="vgDay(\''+iso+'\')">+'+(arr.length-2)+' más</div>';
+   // Tarjetas de estrategia con fecha en este día → chip morado (se abre al tocar).
+   var est=(_vgEstByDay&&_vgEstByDay[iso])||[];
+   var echips=est.map(function(c){ return '<div class="vg-chip vg-chip--est" onclick="event.stopPropagation();vgOpenEst(\''+c.id+'\')" title="'+vgEsc(c.titulo||"Estrategia")+'">📌<span class="vg-chip__t">'+vgEsc(c.titulo||"Estrategia")+'</span></div>'; }).join("");
    var nlabel=(d===1||iso===ini)?(d+' <span class="vg-cell__mo">'+MABR[mo-1]+'</span>'):d;
-   return '<div class="vg-cell'+(esHoy?' vg-cell--hoy':'')+'"><div class="vg-cell__n">'+nlabel+'</div>'+chips+'</div>';
+   return '<div class="vg-cell'+(esHoy?' vg-cell--hoy':'')+'"><div class="vg-cell__n">'+nlabel+'</div>'+echips+chips+'</div>';
  }
  var cells=''; VG_DOW.forEach(function(d){ cells+='<div class="vg-dow">'+d+'</div>'; });
  var headerTitle='', navBtns='';
@@ -2629,20 +2634,39 @@ function vgRenderCal(){
  }
  var _btnNuevo=(ini||fin)?'<button class="btn btn-red btn-sm" onclick="vgNuevoContenido()" style="white-space:nowrap">+ Agregar contenido</button>':'';
  var nav='<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px">'+(navBtns||'<div></div>')+'<div style="font-size:15px;font-weight:800;text-transform:capitalize;flex:1;text-align:center">'+headerTitle+'</div>'+_btnNuevo+'</div><div style="height:10px"></div>';
- var grid='<style>.vg-dow{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;text-align:center;padding:4px 0}.vg-cell{height:96px;border:1px solid var(--bd);border-radius:10px;padding:5px 6px;overflow:hidden;background:var(--bg2)}.vg-cell--empty{border:0;background:transparent}.vg-cell--hoy{background:rgba(249,0,0,.05);border-color:rgba(249,0,0,.35)}.vg-cell__n{font-size:11px;font-weight:700;color:var(--t2);margin-bottom:4px}.vg-cell__mo{font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase}.vg-cell--hoy .vg-cell__n{color:var(--red)}.vg-chip{cursor:pointer;color:#fff;border-radius:6px;padding:3px 6px;margin-bottom:3px;font-size:10px;font-weight:600;display:flex;align-items:center;gap:3px;overflow:hidden}.vg-ico{width:11px;height:11px;flex:0 0 auto}.vg-chip__t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.vg-more{cursor:pointer;font-size:10px;font-weight:700;color:var(--t2)}@media(max-width:640px){.vg-cell{height:60px;padding:3px}.vg-cell__n{font-size:10px;margin-bottom:2px}.vg-chip{font-size:0;padding:0;height:7px;margin-bottom:2px;border-radius:3px;gap:0}.vg-chip .vg-ico{display:none}.vg-more{font-size:9px}.vg-dow{font-size:8px}}</style><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">'+cells+'</div>';
+ var grid='<style>.vg-dow{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;text-align:center;padding:4px 0}.vg-cell{height:96px;border:1px solid var(--bd);border-radius:10px;padding:5px 6px;overflow:hidden;background:var(--bg2)}.vg-cell--empty{border:0;background:transparent}.vg-cell--hoy{background:rgba(249,0,0,.05);border-color:rgba(249,0,0,.35)}.vg-cell__n{font-size:11px;font-weight:700;color:var(--t2);margin-bottom:4px}.vg-cell__mo{font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase}.vg-cell--hoy .vg-cell__n{color:var(--red)}.vg-chip{cursor:pointer;color:#fff;border-radius:6px;padding:3px 6px;margin-bottom:3px;font-size:10px;font-weight:600;display:flex;align-items:center;gap:3px;overflow:hidden}.vg-chip--est{background:#6C00FF}.vg-ico{width:11px;height:11px;flex:0 0 auto}.vg-chip__t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.vg-more{cursor:pointer;font-size:10px;font-weight:700;color:var(--t2)}@media(max-width:640px){.vg-cell{height:60px;padding:3px}.vg-cell__n{font-size:10px;margin-bottom:2px}.vg-chip{font-size:0;padding:0;height:7px;margin-bottom:2px;border-radius:3px;gap:0}.vg-chip .vg-ico{display:none}.vg-more{font-size:9px}.vg-dow{font-size:8px}}</style><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">'+cells+'</div>';
  var leyenda='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--t2)">'+Object.keys(VG_EST).map(function(k){return '<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:3px;background:'+VG_EST[k].c+';display:inline-block"></span>'+VG_EST[k].l+'</span>';}).join("")+'<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:3px;background:#e0218a;display:inline-block"></span>Historia</span></div>';
  var help='<p class="tip" style="margin-top:6px">Toca una publicación para ver el detalle y <b>dejar tus comentarios</b> sobre el guion o el texto.</p>';
  var body=nav+grid+leyenda+help+'</div>';
  if(sinF.length){ body+='<div class="card"><div class="card-title">Sin fecha asignada</div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">'+sinF.map(function(p){var e=VG_EST[p.etapa]||VG_EST.idea;return '<div onclick="vgOpenPieza(\''+p.id+'\')" style="cursor:pointer;background:'+e.c+';color:#fff;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600">'+vgEsc(p.tipo||"")+' · '+vgEsc(p.idea||"")+'</div>';}).join("")+'</div></div>'; }
  el.innerHTML=vgDriveCard()+(el._head||"")+body+vgEstCardsHTML();
 }
-// Tarjetas de estrategia visibles para el cliente (estudio de mercado, estrategia, notas del equipo).
+// Índice de tarjetas de estrategia visibles para el cliente (estudio de mercado, estrategia…). Cada una se abre en un modal.
+function vgFechaCorta(f){ if(!f) return ""; var p=f.split("-"); return p[2]+"/"+p[1]+"/"+p[0]; }
 function vgEstCardsHTML(){
  if(!_vgEstCards||!_vgEstCards.length) return "";
- var cards=_vgEstCards.map(function(c){ return '<div style="border:1px solid var(--bd);border-radius:12px;padding:14px 16px;background:var(--bg2);margin-top:10px" class="vg-estnote">'+c.html+'</div>'; }).join("");
- return '<div class="card"><div class="card-title">📌 Estrategia y estudios <span style="font-weight:400;color:var(--t3)">— material que el equipo comparte contigo</span></div>'
-  +'<style>.vg-estnote img{max-width:100%;height:auto;border-radius:8px}.vg-estnote{font-size:14px;line-height:1.55;color:var(--t1)}</style>'
-  +cards+'</div>';
+ var items=_vgEstCards.map(function(c){
+  var f=c.fecha?('📅 '+vgFechaCorta(c.fecha)):'Sin fecha';
+  return '<div onclick="vgOpenEst(\''+c.id+'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--bd);border-radius:12px;margin-top:8px;cursor:pointer;background:var(--bg2)" onmouseover="this.style.borderColor=\'#6C00FF\'" onmouseout="this.style.borderColor=\'var(--bd)\'">'
+   +'<span style="width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:rgba(108,0,255,.12);flex-shrink:0">📌</span>'
+   +'<div style="min-width:0;flex:1"><div style="font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+vgEsc(c.titulo||"Estrategia")+'</div><div style="font-size:11px;color:var(--t3)">'+f+'</div></div>'
+   +'<span style="color:var(--t3);font-size:20px;flex-shrink:0">›</span></div>';
+ }).join("");
+ return '<div class="card"><div class="card-title">📌 Estrategia y estudios <span style="font-weight:400;color:var(--t3)">— material que el equipo comparte contigo</span></div>'+items+'</div>';
+}
+// Abre una tarjeta de estrategia en un modal (título, fecha y contenido con formato/fotos).
+function vgOpenEst(id){
+ var c=_vgEstById[id]; if(!c) return;
+ var ov=gi("vgModal"); if(!ov){ ov=document.createElement("div"); ov.id="vgModal"; document.body.appendChild(ov); }
+ ov.style.cssText="position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px";
+ ov.onclick=function(ev){ if(ev.target===ov) vgCloseModal(); };
+ var fLbl=c.fecha?(function(){try{return parseDate(c.fecha).toLocaleDateString("es",{weekday:"long",day:"numeric",month:"long"});}catch(e){return c.fecha;}})():'';
+ ov.innerHTML='<div style="position:relative;background:var(--card);border-radius:18px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)" onclick="event.stopPropagation()">'
+  +'<button onclick="vgCloseModal()" aria-label="Cerrar" style="position:absolute;top:12px;right:12px;z-index:5;width:34px;height:34px;border-radius:50%;border:none;background:rgba(0,0,0,.06);color:var(--t2);font-size:15px;font-weight:700;cursor:pointer">✕</button>'
+  +'<div style="padding:20px 52px 14px 22px;border-bottom:1px solid var(--bd)"><div style="font-size:11px;color:var(--pur);font-weight:700;text-transform:capitalize">📌 Estrategia'+(fLbl?" · "+vgEsc(fLbl):"")+'</div><div style="font-size:19px;font-weight:800;margin-top:2px">'+vgEsc(c.titulo||"Estrategia")+'</div></div>'
+  +'<style>#vgModal .vg-estnote img{max-width:100%;height:auto;border-radius:8px}#vgModal .vg-estnote{font-size:14px;line-height:1.6;color:var(--tx)}</style>'
+  +'<div style="padding:18px 22px" class="vg-estnote">'+c.html+'</div>'
+  +'<div style="padding:0 20px 16px;text-align:right"><button class="btn btn-ghost" onclick="vgCloseModal()">Cerrar</button></div></div>';
 }
 function vgDriveCard(){
  var url = (DB.driveCfg && DB.driveCfg[CU]) || "";
