@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260921d';
+const VS_TEAM_BUILD = '20260921e';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -1912,6 +1912,7 @@ async function marcaCalendario(marca) {
  <span class="mc-count mc-count--hist"><b>${historias}</b> historias</span>
  </div>
  <button class="btn btn--primary btn--sm" id="addCreativo">+ Agregar creativo</button>
+ <button class="btn btn--ghost btn--sm" id="addEstrategia">+ Estrategia</button>
  </div>`;
  html += `<div class="marca-cal-nav"><button class="btn btn--ghost btn--sm" id="mcPrev">Anterior</button><div class="marca-cal-month">${cal.label}</div><button class="btn btn--ghost btn--sm" id="mcNext">Siguiente</button></div>` + cal.html;
  if (sinFecha.length) {
@@ -1924,6 +1925,7 @@ async function marcaCalendario(marca) {
  }
  pane.innerHTML = html;
  const addC = $('#addCreativo'); if (addC) addC.addEventListener('click', () => openAgregarCreativo(marca));
+ const addE = $('#addEstrategia'); if (addE) addE.addEventListener('click', () => openEstrategiaModal(marca));
  const mcPrev = $('#mcPrev'); if (mcPrev) mcPrev.addEventListener('click', () => { let { y, m } = state.marcaCalYM; m--; if (m < 1) { m = 12; y--; } state.marcaCalYM = { y, m }; render(); });
  const mcNext = $('#mcNext'); if (mcNext) mcNext.addEventListener('click', () => { let { y, m } = state.marcaCalYM; m++; if (m > 12) { m = 1; y++; } state.marcaCalYM = { y, m }; render(); });
  pane.querySelectorAll('.cal-pz, .hub-pieza').forEach(el => el.addEventListener('click', () => { if (!el._drag) openPieza(el.dataset.id); }));
@@ -1968,6 +1970,51 @@ async function marcaCalendario(marca) {
 function openAgregarCreativo(marca, fecha) {
  // Abre el editor COMPLETO (mismo de una tarjeta), con la marca ya puesta.
  openPieza(null, { marca, fecha: fecha || null });
+}
+
+// Agregar una TARJETA DE ESTRATEGIA rápido desde el calendario (Título + Fecha + Texto con formato/fotos).
+// Si no se pasa marca (calendario general), muestra un selector de marca.
+async function openEstrategiaModal(marca, fecha) {
+ let marcas = [];
+ if (!marca) {
+   if (state.gestion && state.gestion.marcas) marcas = state.gestion.marcas.map(x => x.marca);
+   else { const g = await api('/api/gestion').catch(() => null); marcas = ((g && g.data && g.data.marcas) || []).map(x => x.marca); }
+ }
+ const html = `<div class="g-modal" id="estModal"><div class="g-modal__box glass pz-box">
+   <button type="button" class="g-close" id="estX" aria-label="Cerrar">✕</button>
+   <div class="pz-idea" style="font-weight:800;font-size:1.15rem;margin-bottom:.4rem">📌 Agregar estrategia</div>
+   <div class="form-grid" style="margin:.6rem 0">
+     ${marca ? `<input type="hidden" id="estMarca" value="${esc(marca)}">` : `<label class="select"><span>Marca</span><select id="estMarca"><option value="">— Elige marca —</option>${marcas.map(m => `<option>${esc(m)}</option>`).join('')}</select></label>`}
+     <label class="select"><span>Título</span><input id="estTit" placeholder="Estudio de mercado, Estrategia Q4…"></label>
+     <label class="select"><span>Fecha <em style="font-weight:400;color:var(--ink-40)">(día en el calendario del cliente)</em></span><input id="estFecha" type="date" value="${esc(fecha || '')}"></label>
+   </div>
+   <div class="pz-field"><span>Contenido</span>
+     ${rteBarHTML()}
+     <div id="estRte" class="rte" contenteditable="true" data-ph="Texto con formato y fotos (estudio de mercado, estrategia, notas…)"></div>
+   </div>
+   <label class="est-card-vis" style="margin-top:.5rem"><input type="checkbox" id="estCli" checked> Visible para el cliente <em>(aparece en su calendario)</em></label>
+   <div class="g-modal__actions">
+     <button class="btn btn--ghost btn--sm" id="estCancel">Cancelar</button>
+     <button class="btn btn--primary btn--sm" id="estSave">Guardar estrategia</button>
+   </div>
+ </div></div>`;
+ document.body.insertAdjacentHTML('beforeend', html);
+ wireRte($('#estRte'));
+ const close = () => { const m = $('#estModal'); if (m) m.remove(); };
+ $('#estX').addEventListener('click', close);
+ $('#estCancel').addEventListener('click', close);
+ $('#estModal').addEventListener('mousedown', e => { if (e.target.id === 'estModal') e.currentTarget._bg = true; else e.currentTarget._bg = false; });
+ $('#estModal').addEventListener('click', e => { if (e.target.id === 'estModal' && e.currentTarget._bg) close(); });
+ $('#estSave').addEventListener('click', async () => {
+   const mk = $('#estMarca').value;
+   const rte = $('#estRte'); const body = (rte.innerHTML || '').trim();
+   if (!mk) { alert('Elige una marca'); return; }
+   if (!body || (!rte.textContent.trim() && !rte.querySelector('img'))) { flash('Escribe algo o agrega una foto'); return; }
+   const btn = $('#estSave'); btn.disabled = true; btn.textContent = 'Guardando…';
+   const r = await api('/api/marca/estnota', { method: 'POST', body: { marca: mk, html: body, titulo: $('#estTit').value, fecha: $('#estFecha').value, cliente: $('#estCli').checked } });
+   if (!r.ok || (r.data && r.data.error)) { btn.disabled = false; btn.textContent = 'Guardar estrategia'; alert((r.data && r.data.error) || 'No se pudo guardar'); return; }
+   close(); flash('Estrategia agregada ✓');
+ });
 }
 
 /* --- Métricas de la marca --- */
@@ -3010,6 +3057,7 @@ async function loadCalendario() {
    <button class="btn btn--primary btn--sm" id="calNewTask">+ Tarea</button>
    <button class="btn btn--ghost btn--sm" id="calNewContent">+ Contenido</button>
    <button class="btn btn--ghost btn--sm" id="calNewMeet">+ Reunión</button>
+   <button class="btn btn--ghost btn--sm" id="calNewEst">+ Estrategia</button>
  </div>
  <p class="topbar__sub" style="margin-bottom:1rem">${porDia && piezas.length} piezas en ${esc(CAL_MESES[m - 1])} ${y} · toca una para ver el guion y la etapa</p>
  <div class="cal">${celdas}</div>`;
@@ -3045,6 +3093,7 @@ async function loadCalendario() {
  const bt = $('#calNewTask'); if (bt) bt.onclick = openTarea;
  const bc = $('#calNewContent'); if (bc) bc.onclick = () => openPieza(null);
  const bm = $('#calNewMeet'); if (bm) bm.onclick = openNuevaReunion;
+ const be = $('#calNewEst'); if (be) be.onclick = () => openEstrategiaModal(null);
 }
 
 /* ---------------- Tendencias: modo En vivo / Biblioteca ---------------- */
