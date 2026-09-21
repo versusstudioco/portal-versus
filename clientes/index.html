@@ -1450,7 +1450,7 @@ var PLATS = ["Instagram","YouTube","TikTok","LinkedIn"];
 var TCLS = {Reel:"t-reel",Carrusel:"t-carr",Post:"t-post",Historia:"t-hist",Video:"t-vid",Short:"t-sho",Pauta:"t-pauta",Banner:"t-banner"};
 
 // ===== AUTO-ACTUALIZACIÓN (evita quedarse con una versión vieja en caché) =====
-var VS_BUILD = '20260921f';
+var VS_BUILD = '20260921g';
 (function(){
  try{
   if(new URLSearchParams(location.search).get('v') === VS_BUILD) return; // ya estamos en la versión fresca
@@ -2562,9 +2562,9 @@ function renderGestorContenido(){
  // Fechas del ciclo ACTIVO del cliente: la fuente de verdad son SUS ciclos (db/cycles),
  // no la config del equipo (que puede estar vacía). Así el calendario se ajusta a sus días reales
  // (ej. 12 sep → 12 oct), no a un mes calendario.
- var _cyc=null;
- if(actCyc[CU]) _cyc=(DB.cycles||[]).filter(Boolean).find(function(c){return c.id===actCyc[CU];});
- if(!_cyc) _cyc=(DB.cycles||[]).filter(Boolean).find(function(c){return c.brand===CU && c.status==="active";});
+ // El CALENDARIO del cliente muestra SIEMPRE el ciclo activo (el resumen por ciclo vive en la pestaña Ciclo).
+ var _cyc=(DB.cycles||[]).filter(Boolean).find(function(c){return c.brand===CU && c.status==="active";});
+ if(!_cyc && actCyc[CU]) _cyc=(DB.cycles||[]).filter(Boolean).find(function(c){return c.id===actCyc[CU];});
  // Pactado vs realizado (realizado = publicadas dentro del rango del ciclo — respeta ciclos 12→12, no solo mes)
  var _ini=(_cyc&&_cyc.start)||ciclo.inicio||"", _fin=(_cyc&&_cyc.end)||ciclo.fin||"";
  // El calendario del cliente muestra el ciclo SELECCIONADO. Lo que el equipo ASIGNA a un ciclo (etiqueta)
@@ -2648,16 +2648,8 @@ function vgRenderCal(){
  var help='<p class="tip" style="margin-top:6px">Toca una publicación para ver el detalle y <b>dejar tus comentarios</b> sobre el guion o el texto.</p>';
  var body=nav+grid+leyenda+help+'</div>';
  if(sinF.length){ body+='<div class="card"><div class="card-title">Contenido del ciclo · sin día en el calendario</div><div style="font-size:12px;color:var(--t3);margin-top:2px">Están asignados a este ciclo pero su fecha está fuera del rango o no tienen fecha.</div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">'+sinF.map(function(p){var e=VG_EST[p.etapa]||VG_EST.idea;return '<div onclick="vgOpenPieza(\''+p.id+'\')" style="cursor:pointer;background:'+e.c+';color:#fff;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600">'+vgEsc(p.tipo||"")+' · '+vgEsc(p.idea||"")+(p.fecha?" · "+vgEsc(p.fecha):"")+'</div>';}).join("")+'</div></div>'; }
- el.innerHTML=vgCalCiclosPills()+vgDriveCard()+(el._head||"")+body+vgEstCardsHTML();
+ el.innerHTML=vgDriveCard()+(el._head||"")+body+vgEstCardsHTML();
 }
-// Selector de ciclo del calendario del cliente (puede ver el activo y los anteriores).
-function vgCalCiclosPills(){
- var cs=(DB.cycles||[]).filter(function(c){return c&&c.brand===CU;}).sort(function(a,b){return String(b.start||"").localeCompare(String(a.start||""));});
- if(!cs.length||cs.length<2) return "";
- var sel=actCyc[CU];
- return '<div class="card" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span style="font-size:12px;color:var(--t3);font-weight:700">Ciclo:</span>'+cs.map(function(c){return '<button class="cpill'+(c.id===sel?" on":"")+'" onclick="vgCalPickCyc(\''+c.id+'\')">'+vgEsc(c.name||"Ciclo")+(c.status==="active"?" · activo":"")+'</button>';}).join("")+'</div>';
-}
-function vgCalPickCyc(id){ actCyc[CU]=id; _vgCalYM=null; renderGestorContenido(); }
 // Índice de tarjetas de estrategia visibles para el cliente (estudio de mercado, estrategia…). Cada una se abre en un modal.
 function vgFechaCorta(f){ if(!f) return ""; var p=f.split("-"); return p[2]+"/"+p[1]+"/"+p[0]; }
 function vgEstCardsHTML(){
