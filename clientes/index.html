@@ -1450,7 +1450,7 @@ var PLATS = ["Instagram","YouTube","TikTok","LinkedIn"];
 var TCLS = {Reel:"t-reel",Carrusel:"t-carr",Post:"t-post",Historia:"t-hist",Video:"t-vid",Short:"t-sho",Pauta:"t-pauta",Banner:"t-banner"};
 
 // ===== AUTO-ACTUALIZACIÓN (evita quedarse con una versión vieja en caché) =====
-var VS_BUILD = '20260916b';
+var VS_BUILD = '20260921a';
 (function(){
  try{
   if(new URLSearchParams(location.search).get('v') === VS_BUILD) return; // ya estamos en la versión fresca
@@ -2554,8 +2554,14 @@ function renderGestorContenido(){
  fecha:p.date, plataforma:p.platform||"Instagram", guion:p.desc||"", link:p.link||"",
  mViews:p.views, mLikes:p.likes, mSaved:p.saved, mShared:p.shares||p.shared, mComments:p.comments, _historico:true, comentarios:{} };
  });
- // Pactado vs realizado (realizado = publicadas dentro del rango del ciclo — respeta ciclos 8→8, no solo mes)
- var _ini=ciclo.inicio||"", _fin=ciclo.fin||"";
+ // Fechas del ciclo ACTIVO del cliente: la fuente de verdad son SUS ciclos (db/cycles),
+ // no la config del equipo (que puede estar vacía). Así el calendario se ajusta a sus días reales
+ // (ej. 12 sep → 12 oct), no a un mes calendario.
+ var _cyc=null;
+ if(actCyc[CU]) _cyc=(DB.cycles||[]).filter(Boolean).find(function(c){return c.id===actCyc[CU];});
+ if(!_cyc) _cyc=(DB.cycles||[]).filter(Boolean).find(function(c){return c.brand===CU && c.status==="active";});
+ // Pactado vs realizado (realizado = publicadas dentro del rango del ciclo — respeta ciclos 12→12, no solo mes)
+ var _ini=(_cyc&&_cyc.start)||ciclo.inicio||"", _fin=(_cyc&&_cyc.end)||ciclo.fin||"";
  // El calendario del cliente SOLO muestra el ciclo activo. Lo de fuera del rango ya vive en Métricas/Histórico.
  _vgCicloIni=_ini; _vgCicloFin=_fin;
  if(_ini||_fin){
@@ -2563,8 +2569,12 @@ function renderGestorContenido(){
  }
  var pub = mine.filter(function(p){ if(p.origenCliente) return false; if(p.etapa!=="publicada") return false; if(_ini&&p.fecha&&p.fecha<_ini) return false; if(_fin&&p.fecha&&p.fecha>_fin) return false; return true; });
  var pac=ciclo.pactado||{}, totP=0, totR=0;
+ // Si el equipo no configuró lo pactado, usa las metas del ciclo activo del cliente.
+ if(_cyc && !((+pac.reels||0)+(+pac.carruseles||0)+(+pac.posts||0)+(+pac.banners||0)+(+pac.historias||0))){
+ pac={ reels:+_cyc.reels||0, carruseles:+_cyc.carruseles||0, posts:+_cyc.posts||0, banners:+_cyc.banners||0, historias:+_cyc.historias||0 };
+ }
  var barras = VG_TIPOS.map(function(t){ var p=+pac[t[1]]||0, r=pub.filter(function(x){return x.tipo===t[0];}).length; totP+=p; totR+=r; if(!p&&!r) return ""; var pct=p?Math.min(100,Math.round(r/p*100)):(r?100:0); return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><b>'+t[0]+'s</b><span style="color:var(--t2)">'+r+" / "+(p||"—")+(p&&r>=p?" ✓":"")+'</span></div><div style="height:8px;background:var(--bg3);border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pct+'%;border-radius:99px;background:linear-gradient(90deg,var(--red),var(--pur));transition:width .6s ease"></div></div></div>'; }).join("");
- var head='<div class="card"><div class="card-title">'+(ciclo.periodo?vgEsc(ciclo.periodo):"Ciclo actual")+' · Pactado vs. Realizado <span style="font-weight:400;color:var(--t3)">('+totR+"/"+totP+')</span></div>'+(barras||'<div style="color:var(--t3);font-size:13px;margin-top:6px">El equipo aún no ha configurado el ciclo.</div>')+'</div>';
+ var head='<div class="card"><div class="card-title">'+vgEsc(ciclo.periodo||(_cyc&&_cyc.name)||"Ciclo actual")+' · Pactado vs. Realizado <span style="font-weight:400;color:var(--t3)">('+totR+"/"+totP+')</span></div>'+(barras||'<div style="color:var(--t3);font-size:13px;margin-top:6px">El equipo aún no ha configurado el ciclo.</div>')+'</div>';
  el._head=head;
  // Mes inicial: hoy si cae dentro del ciclo; si no, el inicio/fin del ciclo; si no hay ciclo, el mes actual.
  if(!_vgCalYM){
