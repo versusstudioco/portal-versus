@@ -1450,7 +1450,7 @@ var PLATS = ["Instagram","YouTube","TikTok","LinkedIn"];
 var TCLS = {Reel:"t-reel",Carrusel:"t-carr",Post:"t-post",Historia:"t-hist",Video:"t-vid",Short:"t-sho",Pauta:"t-pauta",Banner:"t-banner"};
 
 // ===== AUTO-ACTUALIZACIÓN (evita quedarse con una versión vieja en caché) =====
-var VS_BUILD = '20260921d';
+var VS_BUILD = '20260921e';
 (function(){
  try{
   if(new URLSearchParams(location.search).get('v') === VS_BUILD) return; // ya estamos en la versión fresca
@@ -2531,7 +2531,7 @@ function vgNum(v){ var n=parseInt(String(v||"").replace(/[^\d-]/g,""),10); retur
 function vgLunes(iso){ var d=new Date(iso+"T00:00:00"); var g=(d.getDay()+6)%7; d.setDate(d.getDate()-g); return d; }
 function vgFmt(d){ return d.getDate()+"/"+(d.getMonth()+1); }
 var VG_TIPOS=[["Reel","reels"],["Carrusel","carruseles"],["Post","posts"],["Banner","banners"],["Historia","historias"]];
-var _vgPiezas={}, _vgCalYM=null, _vgBrandName="", _vgCicloIni="", _vgCicloFin="", _vgCicloMin=null, _vgCicloMax=null, _vgNuevoTipo="Post", _vgEstCards=[], _vgEstById={}, _vgEstByDay={};
+var _vgPiezas={}, _vgCalYM=null, _vgBrandName="", _vgCicloIni="", _vgCicloFin="", _vgCicloMin=null, _vgCicloMax=null, _vgNuevoTipo="Post", _vgEstCards=[], _vgEstById={}, _vgEstByDay={}, _vgCalEsActivo=true;
 function _vgYMval(o){ return o?o.y*12+o.m:null; }
 var VG_MESES=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 var VG_DOW=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
@@ -2567,12 +2567,21 @@ function renderGestorContenido(){
  if(!_cyc) _cyc=(DB.cycles||[]).filter(Boolean).find(function(c){return c.brand===CU && c.status==="active";});
  // Pactado vs realizado (realizado = publicadas dentro del rango del ciclo — respeta ciclos 12→12, no solo mes)
  var _ini=(_cyc&&_cyc.start)||ciclo.inicio||"", _fin=(_cyc&&_cyc.end)||ciclo.fin||"";
- // El calendario del cliente SOLO muestra el ciclo activo. Lo de fuera del rango ya vive en Métricas/Histórico.
+ // El calendario del cliente muestra el ciclo SELECCIONADO. Lo que el equipo ASIGNA a un ciclo (etiqueta)
+ // manda por esa etiqueta, aunque la fecha se salga del rango; lo que no tiene ciclo, se filtra por fecha.
  _vgCicloIni=_ini; _vgCicloFin=_fin;
- if(_ini||_fin){
- Object.keys(_vgPiezas).forEach(function(id){ var f=_vgPiezas[id].fecha||_vgPiezas[id].fechaEntrega; if(!f){ return; } if((_ini&&f<_ini)||(_fin&&f>_fin)) delete _vgPiezas[id]; });
- }
- var pub = mine.filter(function(p){ if(p.origenCliente) return false; if(p.etapa!=="publicada") return false; if(_ini&&p.fecha&&p.fecha<_ini) return false; if(_fin&&p.fecha&&p.fecha>_fin) return false; return true; });
+ _vgCalEsActivo=!_cyc || _cyc.status==="active"; // "+ Agregar" solo en el ciclo activo
+ var _cycId=_cyc&&_cyc.id;
+ Object.keys(_vgPiezas).forEach(function(id){
+   var p=_vgPiezas[id]; var f=p.fecha||p.fechaEntrega;
+   var enRango=(!_ini||!f||f>=_ini)&&(!_fin||!f||f<=_fin);
+   var keep;
+   if(p._historico){ keep=enRango; }
+   else if(p.cycle){ keep=(_cycId? p.cycle===_cycId : enRango); } // asignada a un ciclo → manda el TAG
+   else { keep=enRango; }
+   if(!keep) delete _vgPiezas[id];
+ });
+ var pub = mine.filter(function(p){ if(p.origenCliente) return false; if(p.etapa!=="publicada") return false; if(p.cycle){ return _cycId? p.cycle===_cycId : true; } if(_ini&&p.fecha&&p.fecha<_ini) return false; if(_fin&&p.fecha&&p.fecha>_fin) return false; return true; });
  var pac=ciclo.pactado||{}, totP=0, totR=0;
  // Si el equipo no configuró lo pactado, usa las metas del ciclo activo del cliente.
  if(_cyc && !((+pac.reels||0)+(+pac.carruseles||0)+(+pac.posts||0)+(+pac.banners||0)+(+pac.historias||0))){
@@ -2603,7 +2612,7 @@ function vgRenderCal(){
  var rangeMode=!!(ini&&fin); // muestra SOLO los días exactos del ciclo (puede cruzar meses)
  var MABR=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
  var porDia={}; Object.keys(_vgPiezas).forEach(function(id){ var p=_vgPiezas[id]; var f=p.fecha||p.fechaEntrega; if(!f) return; (porDia[f]||(porDia[f]=[])).push(p); });
- var sinF=Object.keys(_vgPiezas).map(function(id){return _vgPiezas[id];}).filter(function(p){return !(p.fecha||p.fechaEntrega);});
+ var sinF=Object.keys(_vgPiezas).map(function(id){return _vgPiezas[id];}).filter(function(p){var f=p.fecha||p.fechaEntrega; return !f || (ini&&f<ini) || (fin&&f>fin);});
  function _celda(iso){ // celda ACTIVA (día del ciclo)
    var d=+iso.slice(8,10), mo=+iso.slice(5,7); var arr=porDia[iso]||[]; var esHoy=iso===hoy;
    var chips=arr.slice(0,2).map(function(p){ var e=VG_EST[p.etapa]||VG_EST.editada; var esHist=(p.tipo==="Historia"||p.tipo==="Historias"); var col=esHist?"#e0218a":e.c; return '<div class="vg-chip'+(esHist?" vg-chip--hist":"")+'" onclick="vgOpenPieza(\''+p.id+'\')" style="background:'+col+'" title="'+vgEsc(p.tipo||"")+' · '+vgEsc(p.idea||"")+'">'+vgTipoIcon(p.tipo)+'<span class="vg-chip__t">'+vgEsc(p.tipo||"")+(p.idea?" · "+vgEsc(p.idea):"")+'</span></div>'; }).join("");
@@ -2632,15 +2641,23 @@ function vgRenderCal(){
    for(var d=1;d<=dias;d++){ cells+=_celda(y+"-"+String(m).padStart(2,"0")+"-"+String(d).padStart(2,"0")); }
    headerTitle=VG_MESES[m-1]+" "+y;
  }
- var _btnNuevo=(ini||fin)?'<button class="btn btn-red btn-sm" onclick="vgNuevoContenido()" style="white-space:nowrap">+ Agregar contenido</button>':'';
+ var _btnNuevo=((ini||fin)&&_vgCalEsActivo)?'<button class="btn btn-red btn-sm" onclick="vgNuevoContenido()" style="white-space:nowrap">+ Agregar contenido</button>':'';
  var nav='<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px">'+(navBtns||'<div></div>')+'<div style="font-size:15px;font-weight:800;text-transform:capitalize;flex:1;text-align:center">'+headerTitle+'</div>'+_btnNuevo+'</div><div style="height:10px"></div>';
  var grid='<style>.vg-dow{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;text-align:center;padding:4px 0}.vg-cell{height:96px;border:1px solid var(--bd);border-radius:10px;padding:5px 6px;overflow:hidden;background:var(--bg2)}.vg-cell--empty{border:0;background:transparent}.vg-cell--hoy{background:rgba(249,0,0,.05);border-color:rgba(249,0,0,.35)}.vg-cell__n{font-size:11px;font-weight:700;color:var(--t2);margin-bottom:4px}.vg-cell__mo{font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase}.vg-cell--hoy .vg-cell__n{color:var(--red)}.vg-chip{cursor:pointer;color:#fff;border-radius:6px;padding:3px 6px;margin-bottom:3px;font-size:10px;font-weight:600;display:flex;align-items:center;gap:3px;overflow:hidden}.vg-chip--est{background:#6C00FF}.vg-ico{width:11px;height:11px;flex:0 0 auto}.vg-chip__t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.vg-more{cursor:pointer;font-size:10px;font-weight:700;color:var(--t2)}@media(max-width:640px){.vg-cell{height:60px;padding:3px}.vg-cell__n{font-size:10px;margin-bottom:2px}.vg-chip{font-size:0;padding:0;height:7px;margin-bottom:2px;border-radius:3px;gap:0}.vg-chip .vg-ico{display:none}.vg-more{font-size:9px}.vg-dow{font-size:8px}}</style><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">'+cells+'</div>';
  var leyenda='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--t2)">'+Object.keys(VG_EST).map(function(k){return '<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:3px;background:'+VG_EST[k].c+';display:inline-block"></span>'+VG_EST[k].l+'</span>';}).join("")+'<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:3px;background:#e0218a;display:inline-block"></span>Historia</span></div>';
  var help='<p class="tip" style="margin-top:6px">Toca una publicación para ver el detalle y <b>dejar tus comentarios</b> sobre el guion o el texto.</p>';
  var body=nav+grid+leyenda+help+'</div>';
- if(sinF.length){ body+='<div class="card"><div class="card-title">Sin fecha asignada</div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">'+sinF.map(function(p){var e=VG_EST[p.etapa]||VG_EST.idea;return '<div onclick="vgOpenPieza(\''+p.id+'\')" style="cursor:pointer;background:'+e.c+';color:#fff;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600">'+vgEsc(p.tipo||"")+' · '+vgEsc(p.idea||"")+'</div>';}).join("")+'</div></div>'; }
- el.innerHTML=vgDriveCard()+(el._head||"")+body+vgEstCardsHTML();
+ if(sinF.length){ body+='<div class="card"><div class="card-title">Contenido del ciclo · sin día en el calendario</div><div style="font-size:12px;color:var(--t3);margin-top:2px">Están asignados a este ciclo pero su fecha está fuera del rango o no tienen fecha.</div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">'+sinF.map(function(p){var e=VG_EST[p.etapa]||VG_EST.idea;return '<div onclick="vgOpenPieza(\''+p.id+'\')" style="cursor:pointer;background:'+e.c+';color:#fff;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600">'+vgEsc(p.tipo||"")+' · '+vgEsc(p.idea||"")+(p.fecha?" · "+vgEsc(p.fecha):"")+'</div>';}).join("")+'</div></div>'; }
+ el.innerHTML=vgCalCiclosPills()+vgDriveCard()+(el._head||"")+body+vgEstCardsHTML();
 }
+// Selector de ciclo del calendario del cliente (puede ver el activo y los anteriores).
+function vgCalCiclosPills(){
+ var cs=(DB.cycles||[]).filter(function(c){return c&&c.brand===CU;}).sort(function(a,b){return String(b.start||"").localeCompare(String(a.start||""));});
+ if(!cs.length||cs.length<2) return "";
+ var sel=actCyc[CU];
+ return '<div class="card" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span style="font-size:12px;color:var(--t3);font-weight:700">Ciclo:</span>'+cs.map(function(c){return '<button class="cpill'+(c.id===sel?" on":"")+'" onclick="vgCalPickCyc(\''+c.id+'\')">'+vgEsc(c.name||"Ciclo")+(c.status==="active"?" · activo":"")+'</button>';}).join("")+'</div>';
+}
+function vgCalPickCyc(id){ actCyc[CU]=id; _vgCalYM=null; renderGestorContenido(); }
 // Índice de tarjetas de estrategia visibles para el cliente (estudio de mercado, estrategia…). Cada una se abre en un modal.
 function vgFechaCorta(f){ if(!f) return ""; var p=f.split("-"); return p[2]+"/"+p[1]+"/"+p[0]; }
 function vgEstCardsHTML(){
@@ -2885,6 +2902,17 @@ function renderResumen(cycId, targetId) {
  var el=gi(targetId||'resPanel'); if(!el) return;
  var cyc=cycId?DB.cycles.find(function(c){return c.id===cycId&&c.brand===CU;}):null;
  if(!cyc){el.innerHTML='<div class="empty">Sin ciclos activos. Contacta a VERSUS.</div>';return;}
+ // El contenido del EQUIPO vive en gestor/piezas (no en db/publications). Lo cargamos una vez para que
+ // el consolidado por ciclo cuente lo que el equipo asignó a este ciclo.
+ if(!DB._gpiezas && FBDB){
+   DB._gpiezas=[];
+   var _bn=(CREDS[CU]&&CREDS[CU].name)||CU||""; var _k1=vgNorm(_bn), _k2=vgNorm(CU);
+   FBDB.ref("vsportal/gestor/piezas").once("value").then(function(s){
+     var all=s.val()||{};
+     DB._gpiezas=Object.keys(all).map(function(k){return all[k];}).filter(function(p){ if(!p||!p.marca) return false; var pm=vgNorm(p.marca); return pm===_k1||pm===_k2||(_k1&&pm.indexOf(_k1)>=0)||(_k1&&_k1.indexOf(pm)>=0); });
+     renderResumen(cycId,targetId);
+   }).catch(function(){ renderResumen(cycId,targetId); });
+ }
 
  var pct=cycProgress(cyc);
  var dl=daysLeft(cyc);
@@ -2934,7 +2962,14 @@ function renderResumen(cycId, targetId) {
  var ep=PLATS.filter(function(p){return plats[p];});
  if(!ep.length){el.innerHTML=html+'<div class="empty">Sin plataformas configuradas.</div>';return;}
 
- var pubsInCyc=DB.publications.filter(function(p){return p.brand===CU&&p.cycle===cycId&&p.status==='published'&&!p.origenCliente;});
+ // Publicadas del ciclo = db/publications (histórico) + piezas del equipo asignadas a este ciclo (gestor/piezas),
+ // evitando duplicados por tipo+fecha. Así el consolidado refleja lo que el equipo puso en el Team.
+ var pubsDb=DB.publications.filter(function(p){return p.brand===CU&&p.cycle===cycId&&p.status==='published'&&!p.origenCliente;});
+ var _seenPub={}; pubsDb.forEach(function(p){_seenPub[(p.type||'')+'|'+(p.date||'')]=1;});
+ var gpPub=(DB._gpiezas||[]).filter(function(p){return p.cycle===cycId && p.etapa==='publicada' && !p.origenCliente;})
+   .map(function(p){return {brand:CU, cycle:cycId, type:p.tipo, date:p.fecha||p.fechaEntrega||'', status:'published'};})
+   .filter(function(p){return !_seenPub[(p.type||'')+'|'+(p.date||'')];});
+ var pubsInCyc=pubsDb.concat(gpPub);
 
  // \u2500\u2500 DATOS DEL CICLO ACTUAL \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
  var baseFollowers=Number(cyc.baseFollowers)||0;
@@ -3414,7 +3449,21 @@ function renderContenido(cycId) {
  var el=gi('contPanel'); if(!el) return;
  var cyc=cycId?DB.cycles.find(function(c){return c.id===cycId&&c.brand===CU;}):null;
  if(!cyc){el.innerHTML='<div class="empty">Sin ciclo seleccionado.</div>';return;}
- var pubs=DB.publications.filter(function(p){return p.brand===CU&&p.cycle===cycId&&p.status==='published';})
+ if(!DB._gpiezas && FBDB){
+   DB._gpiezas=[];
+   var _bn=(CREDS[CU]&&CREDS[CU].name)||CU||""; var _k1=vgNorm(_bn), _k2=vgNorm(CU);
+   FBDB.ref("vsportal/gestor/piezas").once("value").then(function(s){
+     var all=s.val()||{};
+     DB._gpiezas=Object.keys(all).map(function(k){return all[k];}).filter(function(p){ if(!p||!p.marca) return false; var pm=vgNorm(p.marca); return pm===_k1||pm===_k2||(_k1&&pm.indexOf(_k1)>=0)||(_k1&&_k1.indexOf(pm)>=0); });
+     renderContenido(cycId);
+   }).catch(function(){ renderContenido(cycId); });
+ }
+ var pubsDb=DB.publications.filter(function(p){return p.brand===CU&&p.cycle===cycId&&p.status==='published';});
+ var _seenC={}; pubsDb.forEach(function(p){_seenC[(p.type||'')+'|'+(p.date||'')]=1;});
+ var gpC=(DB._gpiezas||[]).filter(function(p){return p.cycle===cycId && p.etapa==='publicada' && !p.origenCliente;})
+   .map(function(p){return {id:p.id, brand:CU, cycle:cycId, type:p.tipo, date:p.fecha||p.fechaEntrega||'', desc:p.idea||p.guion||'', status:'published', platform:p.plataforma||'', link:p.link||p.linkIg||p.linkTiktok||p.linkLinkedin||'', views:+p.mViews||0, likes:+p.mLikes||0, comments:+p.mComments||0, saved:+p.mSaved||0, shares:+p.mShared||0, featured:false};})
+   .filter(function(p){return !_seenC[(p.type||'')+'|'+(p.date||'')];});
+ var pubs=pubsDb.concat(gpC)
  .sort(function(a,b){return (a.date||'').localeCompare(b.date||'');}); // mas viejo -> mas nuevo
  if(!pubs.length){el.innerHTML='<div class="empty">Sin publicaciones en este ciclo.</div>';return;}
 
