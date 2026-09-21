@@ -1450,7 +1450,7 @@ var PLATS = ["Instagram","YouTube","TikTok","LinkedIn"];
 var TCLS = {Reel:"t-reel",Carrusel:"t-carr",Post:"t-post",Historia:"t-hist",Video:"t-vid",Short:"t-sho",Pauta:"t-pauta",Banner:"t-banner"};
 
 // ===== AUTO-ACTUALIZACIÓN (evita quedarse con una versión vieja en caché) =====
-var VS_BUILD = '20260921e';
+var VS_BUILD = '20260921f';
 (function(){
  try{
   if(new URLSearchParams(location.search).get('v') === VS_BUILD) return; // ya estamos en la versión fresca
@@ -2577,11 +2577,11 @@ function renderGestorContenido(){
    var enRango=(!_ini||!f||f>=_ini)&&(!_fin||!f||f<=_fin);
    var keep;
    if(p._historico){ keep=enRango; }
-   else if(p.cycle){ keep=(_cycId? p.cycle===_cycId : enRango); } // asignada a un ciclo → manda el TAG
+   else if(p.cycle){ keep=_cyc? pzEnCiclo(p,_cyc) : enRango; } // asignada a un ciclo → manda el TAG (id o nombre)
    else { keep=enRango; }
    if(!keep) delete _vgPiezas[id];
  });
- var pub = mine.filter(function(p){ if(p.origenCliente) return false; if(p.etapa!=="publicada") return false; if(p.cycle){ return _cycId? p.cycle===_cycId : true; } if(_ini&&p.fecha&&p.fecha<_ini) return false; if(_fin&&p.fecha&&p.fecha>_fin) return false; return true; });
+ var pub = mine.filter(function(p){ if(p.origenCliente) return false; if(p.etapa!=="publicada") return false; if(p.cycle){ return _cyc? pzEnCiclo(p,_cyc) : true; } if(_ini&&p.fecha&&p.fecha<_ini) return false; if(_fin&&p.fecha&&p.fecha>_fin) return false; return true; });
  var pac=ciclo.pactado||{}, totP=0, totR=0;
  // Si el equipo no configuró lo pactado, usa las metas del ciclo activo del cliente.
  if(_cyc && !((+pac.reels||0)+(+pac.carruseles||0)+(+pac.posts||0)+(+pac.banners||0)+(+pac.historias||0))){
@@ -2894,6 +2894,13 @@ function renderCiclos(){
  // Mostrar el ciclo seleccionado con su desarrollo semana a semana (mismo detalle del resumen).
  renderResumen(actCyc[CU], 'ciclosPanel');
 }
+// ¿La pieza del equipo pertenece a este ciclo? Por etiqueta (id o nombre) o, si no tiene, por fecha dentro del rango.
+function pzEnCiclo(p, cyc){
+ if(!p||!cyc) return false;
+ if(p.cycle){ return p.cycle===cyc.id || vgNorm(p.cycle)===vgNorm(cyc.name||''); }
+ var f=p.fecha||p.fechaEntrega; if(!f) return false;
+ return (!cyc.start||f>=cyc.start) && (!cyc.end||f<=cyc.end);
+}
 function renderResumen(cycId, targetId) {
  if(!DB.cycles) DB.cycles=[];
  if(!DB.publications) DB.publications=[];
@@ -2962,12 +2969,12 @@ function renderResumen(cycId, targetId) {
  var ep=PLATS.filter(function(p){return plats[p];});
  if(!ep.length){el.innerHTML=html+'<div class="empty">Sin plataformas configuradas.</div>';return;}
 
- // Publicadas del ciclo = db/publications (histórico) + piezas del equipo asignadas a este ciclo (gestor/piezas),
- // evitando duplicados por tipo+fecha. Así el consolidado refleja lo que el equipo puso en el Team.
+ // Contenido del ciclo = db/publications (histórico) + piezas del equipo ASIGNADAS a este ciclo (gestor/piezas),
+ // evitando duplicados por tipo+fecha. Cuenta lo que el equipo puso en el Team (asignado al ciclo, no solo publicado).
  var pubsDb=DB.publications.filter(function(p){return p.brand===CU&&p.cycle===cycId&&p.status==='published'&&!p.origenCliente;});
  var _seenPub={}; pubsDb.forEach(function(p){_seenPub[(p.type||'')+'|'+(p.date||'')]=1;});
- var gpPub=(DB._gpiezas||[]).filter(function(p){return p.cycle===cycId && p.etapa==='publicada' && !p.origenCliente;})
-   .map(function(p){return {brand:CU, cycle:cycId, type:p.tipo, date:p.fecha||p.fechaEntrega||'', status:'published'};})
+ var gpPub=(DB._gpiezas||[]).filter(function(p){return pzEnCiclo(p,cyc) && p.etapa!=='idea' && !p.origenCliente;})
+   .map(function(p){return {brand:CU, cycle:cycId, type:p.tipo, date:p.fecha||p.fechaEntrega||'', status:(p.etapa==='publicada'?'published':'planned'), etapa:p.etapa};})
    .filter(function(p){return !_seenPub[(p.type||'')+'|'+(p.date||'')];});
  var pubsInCyc=pubsDb.concat(gpPub);
 
@@ -3117,7 +3124,7 @@ function renderResumen(cycId, targetId) {
  html+='<div class="kpi-lbl" style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;">Creativos</div>';
  html+='<div style="display:flex;align-items:baseline;gap:6px;"><div class="kpi-val">'+entrCreat+'</div>';
  if(hasGoalC) html+='<div class="kpi-meta" style="font-size:12px;">/ '+promCreat+' prometidos</div>';
- else html+='<div class="kpi-meta" style="font-size:12px;">publicados</div>';
+ else html+='<div class="kpi-meta" style="font-size:12px;">en el ciclo</div>';
  html+='</div>';
  if(hasGoalC) html+='<div class="kpi-bar"><div class="kpi-fill '+clC+'" style="width:'+Math.min(100,pctC)+'%"></div></div>';
  html+='<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">';
@@ -3460,8 +3467,8 @@ function renderContenido(cycId) {
  }
  var pubsDb=DB.publications.filter(function(p){return p.brand===CU&&p.cycle===cycId&&p.status==='published';});
  var _seenC={}; pubsDb.forEach(function(p){_seenC[(p.type||'')+'|'+(p.date||'')]=1;});
- var gpC=(DB._gpiezas||[]).filter(function(p){return p.cycle===cycId && p.etapa==='publicada' && !p.origenCliente;})
-   .map(function(p){return {id:p.id, brand:CU, cycle:cycId, type:p.tipo, date:p.fecha||p.fechaEntrega||'', desc:p.idea||p.guion||'', status:'published', platform:p.plataforma||'', link:p.link||p.linkIg||p.linkTiktok||p.linkLinkedin||'', views:+p.mViews||0, likes:+p.mLikes||0, comments:+p.mComments||0, saved:+p.mSaved||0, shares:+p.mShared||0, featured:false};})
+ var gpC=(DB._gpiezas||[]).filter(function(p){return pzEnCiclo(p,cyc) && p.etapa!=='idea' && !p.origenCliente;})
+   .map(function(p){return {id:p.id, brand:CU, cycle:cycId, type:p.tipo, date:p.fecha||p.fechaEntrega||'', desc:p.idea||p.guion||'', status:(p.etapa==='publicada'?'published':'planned'), etapa:p.etapa, platform:p.plataforma||'', link:p.link||p.linkIg||p.linkTiktok||p.linkLinkedin||'', views:+p.mViews||0, likes:+p.mLikes||0, comments:+p.mComments||0, saved:+p.mSaved||0, shares:+p.mShared||0, featured:false};})
    .filter(function(p){return !_seenC[(p.type||'')+'|'+(p.date||'')];});
  var pubs=pubsDb.concat(gpC)
  .sort(function(a,b){return (a.date||'').localeCompare(b.date||'');}); // mas viejo -> mas nuevo
