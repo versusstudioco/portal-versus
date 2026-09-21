@@ -1450,7 +1450,7 @@ var PLATS = ["Instagram","YouTube","TikTok","LinkedIn"];
 var TCLS = {Reel:"t-reel",Carrusel:"t-carr",Post:"t-post",Historia:"t-hist",Video:"t-vid",Short:"t-sho",Pauta:"t-pauta",Banner:"t-banner"};
 
 // ===== AUTO-ACTUALIZACIÓN (evita quedarse con una versión vieja en caché) =====
-var VS_BUILD = '20260921g';
+var VS_BUILD = '20260921h';
 (function(){
  try{
   if(new URLSearchParams(location.search).get('v') === VS_BUILD) return; // ya estamos en la versión fresca
@@ -2886,12 +2886,10 @@ function renderCiclos(){
  // Mostrar el ciclo seleccionado con su desarrollo semana a semana (mismo detalle del resumen).
  renderResumen(actCyc[CU], 'ciclosPanel');
 }
-// ¿La pieza del equipo pertenece a este ciclo? Por etiqueta (id o nombre) o, si no tiene, por fecha dentro del rango.
+// ¿La pieza del equipo pertenece a este ciclo? SOLO por la ETIQUETA de ciclo (asignación manual en el Team).
+// No se cuenta por fecha automáticamente: manda el ciclo que el equipo le asignó.
 function pzEnCiclo(p, cyc){
- if(!p||!cyc) return false;
- if(p.cycle){ return p.cycle===cyc.id || vgNorm(p.cycle)===vgNorm(cyc.name||''); }
- var f=p.fecha||p.fechaEntrega; if(!f) return false;
- return (!cyc.start||f>=cyc.start) && (!cyc.end||f<=cyc.end);
+ return !!(p && cyc && p.cycle && p.cycle===cyc.id);
 }
 function renderResumen(cycId, targetId) {
  if(!DB.cycles) DB.cycles=[];

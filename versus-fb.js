@@ -752,13 +752,35 @@
         }
         const cfg = (await fbGet('gestor/marcas/' + fbKey(marca) + '/ciclo').catch(() => null)) || { periodo: '', inicio: '', fin: '', pactado: { reels: 0, carruseles: 0, posts: 0, banners: 0, historias: 0 } };
         const all = await piezasAll();
-        // "Realizado" de Versus: publicadas de la marca, EXCLUYENDO lo que propuso el cliente (eso es contenido del cliente, aparte de lo pactado).
-        const pub = all.filter(x => x.marca === marca && x.etapa === 'publicada' && !x.origenCliente);
-        cfg.realizado = {
-          reels: pub.filter(x => x.tipo === 'Reel').length, carruseles: pub.filter(x => x.tipo === 'Carrusel').length,
-          posts: pub.filter(x => x.tipo === 'Post').length, banners: pub.filter(x => x.tipo === 'Banner').length,
-          historias: pub.filter(x => x.tipo === 'Historia').length
-        };
+        const norm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+        const km = norm(marca);
+        const mine = all.filter(x => x && x.marca && (norm(x.marca) === km || (km && norm(x.marca).indexOf(km) >= 0) || (km && km.indexOf(norm(x.marca)) >= 0)));
+        // Resolver el cliente y su CICLO ACTIVO para contar por la ETIQUETA de ciclo (asignación manual).
+        const [credsTeam, credsCli] = await Promise.all([fbGet('db/creds').catch(() => ({})), fbGet('creds').catch(() => ({}))]);
+        const creds = Object.assign({}, credsCli || {}, credsTeam || {}); let cu = '';
+        Object.entries(creds).forEach(([u, v]) => { if (!cu && v && v.type === 'client' && (norm(v.name) === km || norm(u) === km || (km && norm(v.name).indexOf(km) >= 0) || (km && km.indexOf(norm(v.name)) >= 0))) cu = u; });
+        let activeCycId = '';
+        let dbPubs = [];
+        if (cu) {
+          const [cyclesRaw, pubsRaw] = await Promise.all([fbGet('db/cycles').catch(() => null), fbGet('db/publications').catch(() => null)]);
+          const cyclesArr = (Array.isArray(cyclesRaw) ? cyclesRaw : Object.values(cyclesRaw || {})).filter(c => c && c.brand === cu);
+          const act = cyclesArr.find(c => c.status === 'active');
+          activeCycId = act ? act.id : '';
+          dbPubs = (Array.isArray(pubsRaw) ? pubsRaw : Object.values(pubsRaw || {})).filter(Boolean).filter(x => x.brand === cu && x.status === 'published');
+        }
+        if (activeCycId) {
+          const cnt = contarCicloTag(activeCycId, mine, dbPubs);
+          cfg.realizado = { reels: cnt.reels, carruseles: cnt.carruseles, posts: cnt.posts, banners: cnt.banners, historias: cnt.historias };
+          cfg.cicloId = activeCycId;
+        } else {
+          // Sin ciclo activo enlazado: cae al conteo simple de publicadas (para no quedar en 0).
+          const pub = mine.filter(x => x.etapa === 'publicada' && !x.origenCliente);
+          cfg.realizado = {
+            reels: pub.filter(x => x.tipo === 'Reel').length, carruseles: pub.filter(x => x.tipo === 'Carrusel').length,
+            posts: pub.filter(x => x.tipo === 'Post').length, banners: pub.filter(x => x.tipo === 'Banner').length,
+            historias: pub.filter(x => x.tipo === 'Historia').length
+          };
+        }
         return { ok: true, data: cfg };
       }
       if (p === '/api/marca/cliente') {
@@ -834,6 +856,9 @@
         ]);
         const objectives = (Array.isArray(objsRaw) ? objsRaw : Object.values(objsRaw || {})).filter(Boolean);
         const pubs = (Array.isArray(pubsRaw) ? pubsRaw : Object.values(pubsRaw || {})).filter(Boolean).filter(x => x.brand === cu && x.status === 'published');
+        // Piezas del EQUIPO de esta marca (la fuente real del contenido; se cuenta por etiqueta de ciclo).
+        const allPz = await piezasAll();
+        const minePz = allPz.filter(x => x && x.marca && (norm(x.marca) === km || (km && norm(x.marca).indexOf(km) >= 0) || (km && km.indexOf(norm(x.marca)) >= 0)));
         const wm = wmRaw || {};
         const cyclesArr = (Array.isArray(cyclesRaw) ? cyclesRaw : Object.values(cyclesRaw || {})).filter(c => c && c.brand === cu);
         const hoyISO = new Date().toISOString().slice(0, 10);
@@ -855,9 +880,10 @@
           const cobjs = objectives.filter(o => o.brand === cu && o.cycle === cyc.id);
           if (cobjs.length) { const s = { reels: 0, carruseles: 0, posts: 0, historias: 0 }; cobjs.forEach(o => { s.reels += +o.reels || 0; s.carruseles += +o.carruseles || 0; s.posts += +o.posts || 0; s.historias += +o.stories || 0; }); if (s.reels) goals.reels = s.reels; if (s.carruseles) goals.carruseles = s.carruseles; if (s.posts) goals.posts = s.posts; if (s.historias) goals.historias = s.historias; }
           const metaCreativos = goals.reels + goals.carruseles + goals.posts + goals.videos + goals.shorts;
-          const cpubs = pubs.filter(x => x.cycle === cyc.id && !x.origenCliente);
-          const creativosPub = cpubs.filter(x => x.type !== 'Historia' && x.type !== 'Historias').length;
-          const histPub = cpubs.filter(x => x.type === 'Historia' || x.type === 'Historias').length;
+          // Realizado por ETIQUETA de ciclo (asignación manual), desde gestor/piezas + histórico, sin duplicar.
+          const cnt = contarCicloTag(cyc.id, minePz, pubs);
+          const creativosPub = cnt.creativos;
+          const histPub = cnt.historias;
           const pct = metaCreativos ? Math.min(100, Math.round(creativosPub / metaCreativos * 100)) : (creativosPub ? 100 : 0);
           const activo = cyc.status === 'active' || (cyc.start && cyc.end && cyc.start <= hoyISO && hoyISO <= cyc.end);
           return { id: cyc.id, name: cyc.name || cyc.id, start: cyc.start || '', end: cyc.end || '', status: cyc.status || (activo ? 'active' : ''), activo,
@@ -1186,6 +1212,20 @@
     return id;
   }
   function fbKey(s) { return String(s || '').replace(/[.#$/\[\]]/g, '_').trim() || 'marca'; }
+  // Conteo ÚNICO del contenido de un ciclo, por la ETIQUETA de ciclo (asignación manual), no por fecha.
+  // Fuente: gestor/piezas asignadas al ciclo (etapa != idea, sin origenCliente) + histórico db/publications
+  // de ese ciclo, sin duplicar (por tipo+fecha). Devuelve conteos por tipo y agregados.
+  function contarCicloTag(cycId, minePz, dbPubs) {
+    const esCre = t => t && t !== 'Historia' && t !== 'Historias';
+    const gp = (minePz || []).filter(x => x && x.cycle === cycId && x.etapa !== 'idea' && !x.origenCliente);
+    const dbp = (dbPubs || []).filter(x => x && x.cycle === cycId && !x.origenCliente);
+    const seen = {}; dbp.forEach(x => { seen[(x.type || '') + '|' + (x.date || '')] = 1; });
+    const items = dbp.map(x => ({ type: x.type }))
+      .concat(gp.filter(x => !seen[(x.tipo || '') + '|' + (x.fecha || '')]).map(x => ({ type: x.tipo })));
+    const n = t => items.filter(i => (t === 'Historia') ? (i.type === 'Historia' || i.type === 'Historias') : i.type === t).length;
+    return { reels: n('Reel'), carruseles: n('Carrusel'), posts: n('Post'), banners: n('Banner'), historias: n('Historia'),
+      creativos: items.filter(i => esCre(i.type)).length };
+  }
 
   /* ---- Demos de IA (hasta conectar Gemini por función) ---- */
   function aiDemo(p, b) {
