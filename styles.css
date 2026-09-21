@@ -1178,6 +1178,17 @@ body.dark .cfg-logo__img{background:#111;border-color:rgba(255,255,255,.12)}
 body.dark .cfg-logo__up{border-color:rgba(255,255,255,.2)}
 .cfg-logo__img img{max-width:100%;max-height:100%;object-fit:contain;display:block;margin:auto}
 .cfg-logo__img:not(.cfg-logo__img--img){display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.6rem;color:#F90000}
+.cfg-logos{display:flex;gap:1.2rem;margin-top:.6rem;flex-wrap:wrap}
+.cfg-logo2{display:flex;flex-direction:column;align-items:center;gap:.4rem}
+.cfg-logo2__prev{width:120px;height:84px;border-radius:12px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(0,0,0,.1);padding:8px;overflow:hidden}
+.cfg-logo2__prev img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.cfg-logo2__prev--light{background:#fff}
+.cfg-logo2__prev--dark{background:#111}
+.cfg-logo2__prev--dark .gw-none{color:rgba(255,255,255,.5)}
+.cfg-logo2__lbl{font-size:.72rem;font-weight:700;color:var(--ink-60);text-transform:uppercase;letter-spacing:.4px}
+.cfg-logo2__up{display:inline-flex;align-items:center;gap:.4rem;cursor:pointer;font-weight:700;font-size:.78rem;border:1px dashed rgba(0,0,0,.2);border-radius:10px;padding:.4rem .7rem}
+.cfg-logo2__up:hover{border-color:var(--red,#F90000);color:var(--red,#F90000)}
+body.dark .cfg-logo2__up{border-color:rgba(255,255,255,.2)}
 
 /* Tareas: check redondo */
 .md-check{width:20px;height:20px;flex:none;border-radius:50%;border:2px solid rgba(0,0,0,.25);background:transparent;cursor:pointer;padding:0;position:relative;transition:all .15s}

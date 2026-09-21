@@ -602,7 +602,7 @@
         if (creds[usuario]) return { ok: false, status: 400, data: { error: 'Ese usuario ya existe' } };
         try { if (_secondary) { await _secondary.auth().createUserWithEmailAndPassword(usuario + EMAIL_DOM, pass); await _secondary.auth().signOut(); } }
         catch (e) { return { ok: false, status: 400, data: { error: 'No se pudo crear la cuenta: ' + ((e && e.message) || e) } }; }
-        await fbPut('db/creds/' + usuario, { name: nombre, type: 'client' });
+        await fbPut('db/creds/' + usuario, { name: nombre, type: 'client', pass: pass });
         if (body.instagram || body.tiktok) {
           const bc = (await fbGet('db/brandCfg/' + usuario).catch(() => null)) || {};
           if (body.instagram) bc.instagram = String(body.instagram).replace(/^@/, '');
@@ -799,17 +799,53 @@
         if (method === 'POST') {
           const nueva = String(body.newPass || '');
           if (nueva.length < 6) return { ok: false, status: 400, data: { error: 'La contraseña debe tener 6 o más caracteres' } };
-          if (!_secondary || !cur) return { ok: false, status: 400, data: { error: 'No se puede cambiar automáticamente (no tenemos la contraseña actual). Restablécela en la consola de Firebase.' } };
+          // Usa la contraseña actual GUARDADA o, si no la tenemos, la que el admin escriba en "contraseña actual".
+          const actual = cur || String(body.currentPass || '');
+          if (!_secondary) return { ok: false, status: 400, data: { error: 'No disponible en este navegador. Reintenta o restablécela en la consola de Firebase.' } };
+          if (!actual) return { ok: false, status: 400, data: { error: 'No tenemos guardada la contraseña actual de este cliente. Escríbela en el campo "Contraseña actual" para poder cambiarla.' } };
           try {
-            await _secondary.auth().signInWithEmailAndPassword(cu + EMAIL_DOM, cur);
+            await _secondary.auth().signInWithEmailAndPassword(cu + EMAIL_DOM, actual);
             await _secondary.auth().currentUser.updatePassword(nueva);
             await _secondary.auth().signOut();
-          } catch (e) { try { await _secondary.auth().signOut(); } catch (_) {} return { ok: false, status: 400, data: { error: 'No se pudo cambiar: ' + (e.code || e.message || e) } }; }
+          } catch (e) {
+            try { await _secondary.auth().signOut(); } catch (_) {}
+            const code = (e && (e.code || e.message)) || '';
+            const msg = /wrong-password|invalid-credential|invalid-login/i.test(String(code))
+              ? 'La contraseña ACTUAL no es correcta. Escribe la contraseña actual del cliente en "Contraseña actual".'
+              : 'No se pudo cambiar: ' + code;
+            return { ok: false, status: 400, data: { error: msg } };
+          }
+          // Guardar la nueva en ambos stores (y crearla si no existía) para que el próximo cambio sea automático.
+          await fbPut('db/creds/' + cu + '/pass', nueva).catch(() => {});
           if (credsCli[cu]) await fbPut('creds/' + cu + '/pass', nueva).catch(() => {});
-          if (credsTeam[cu]) await fbPut('db/creds/' + cu + '/pass', nueva).catch(() => {});
           return { ok: true, data: { ok: true, pass: nueva } };
         }
         return { ok: true, data: { usuario: cu, pass: cur } };
+      }
+      // Logo de la marca para el PORTAL DEL CLIENTE (fondo claro/oscuro). Cualquiera del equipo puede cambiarlo.
+      // Se guarda en db/brandCfg[cu].logoLight/logoDark (lo que lee el cliente) y se refleja en gestor para el Team.
+      if (p === '/api/marca/logo') {
+        const s = await sesionActual();
+        if (!s || !s.esEquipo) return { ok: false, status: 403, data: { error: 'Solo el equipo' } };
+        const marca = q.get('marca') || body.marca || '';
+        const norm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+        const [credsTeam, credsCli] = await Promise.all([fbGet('db/creds').catch(() => ({})), fbGet('creds').catch(() => ({}))]);
+        const creds = Object.assign({}, credsCli || {}, credsTeam || {});
+        const km = norm(marca); let cu = '';
+        Object.entries(creds).forEach(([u, v]) => { if (!cu && v && v.type === 'client' && (norm(v.name) === km || norm(u) === km || (km && norm(v.name).indexOf(km) >= 0) || (km && km.indexOf(norm(v.name)) >= 0))) cu = u; });
+        if (method === 'POST') {
+          const patch = {};
+          if (typeof body.logoLight === 'string') patch.logoLight = body.logoLight; // logo para fondo CLARO (suele ser oscuro)
+          if (typeof body.logoDark === 'string') patch.logoDark = body.logoDark;    // logo para fondo OSCURO (suele ser claro)
+          if (!Object.keys(patch).length) return { ok: false, status: 400, data: { error: 'Nada que guardar' } };
+          if (cu) { for (const k of Object.keys(patch)) await fbPut('db/brandCfg/' + cu + '/' + k, patch[k]); }
+          // Reflejar en el Team (gestor) para su propia vista de logo.
+          const anyLogo = patch.logoLight || patch.logoDark;
+          if (anyLogo) await fbPut('gestor/marcas/' + fbKey(marca) + '/logo', anyLogo).catch(() => {});
+          return { ok: true, data: { ok: true, cliente: cu, avisoCliente: cu ? '' : 'La marca no está enlazada a un cliente; el logo se guardó para el equipo pero el cliente no lo verá hasta enlazar su cuenta.' } };
+        }
+        const bc = cu ? ((await fbGet('db/brandCfg/' + cu).catch(() => null)) || {}) : {};
+        return { ok: true, data: { cliente: cu, logoLight: bc.logoLight || '', logoDark: bc.logoDark || '' } };
       }
       if (p === '/api/marca/wm') {
         // Métricas semanales (seguidores/vistas) conectadas al portal del cliente: db/weekMetrics[CU__ciclo__plat][semana].

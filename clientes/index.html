@@ -1450,7 +1450,7 @@ var PLATS = ["Instagram","YouTube","TikTok","LinkedIn"];
 var TCLS = {Reel:"t-reel",Carrusel:"t-carr",Post:"t-post",Historia:"t-hist",Video:"t-vid",Short:"t-sho",Pauta:"t-pauta",Banner:"t-banner"};
 
 // ===== AUTO-ACTUALIZACIÓN (evita quedarse con una versión vieja en caché) =====
-var VS_BUILD = '20260921h';
+var VS_BUILD = '20260921i';
 (function(){
  try{
   if(new URLSearchParams(location.search).get('v') === VS_BUILD) return; // ya estamos en la versión fresca
@@ -2588,7 +2588,13 @@ function renderGestorContenido(){
  pac={ reels:+_cyc.reels||0, carruseles:+_cyc.carruseles||0, posts:+_cyc.posts||0, banners:+_cyc.banners||0, historias:+_cyc.historias||0 };
  }
  var barras = VG_TIPOS.map(function(t){ var p=+pac[t[1]]||0, r=pub.filter(function(x){return x.tipo===t[0];}).length; totP+=p; totR+=r; if(!p&&!r) return ""; var pct=p?Math.min(100,Math.round(r/p*100)):(r?100:0); return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><b>'+t[0]+'s</b><span style="color:var(--t2)">'+r+" / "+(p||"—")+(p&&r>=p?" ✓":"")+'</span></div><div style="height:8px;background:var(--bg3);border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pct+'%;border-radius:99px;background:linear-gradient(90deg,var(--red),var(--pur));transition:width .6s ease"></div></div></div>'; }).join("");
- var head='<div class="card"><div class="card-title">'+vgEsc(ciclo.periodo||(_cyc&&_cyc.name)||"Ciclo actual")+' · Pactado vs. Realizado <span style="font-weight:400;color:var(--t3)">('+totR+"/"+totP+')</span></div>'+(barras||'<div style="color:var(--t3);font-size:13px;margin-top:6px">El equipo aún no ha configurado el ciclo.</div>')+'</div>';
+ // Encabezado con el LOGO de la marca (fondo claro/oscuro según el tema).
+ var _bcH=(DB.brandCfg&&DB.brandCfg[CU])||{};
+ var _isDarkH=document.body.classList.contains('dark')||document.documentElement.classList.contains('dark')||dark;
+ var _logoH=_isDarkH?(_bcH.logoDark||_bcH.logoLight):(_bcH.logoLight||_bcH.logoDark);
+ var _nameH=(CREDS[CU]&&CREDS[CU].name)||_vgBrandName||CU||'';
+ var brandHead=_logoH?'<div class="card" style="display:flex;align-items:center;gap:12px"><img src="'+vgEsc(_logoH)+'" alt="logo" style="height:44px;width:auto;max-width:160px;object-fit:contain"><div style="font-weight:800;font-size:16px">'+vgEsc(_nameH)+'</div></div>':'';
+ var head=brandHead+'<div class="card"><div class="card-title">'+vgEsc(ciclo.periodo||(_cyc&&_cyc.name)||"Ciclo actual")+' · Pactado vs. Realizado <span style="font-weight:400;color:var(--t3)">('+totR+"/"+totP+')</span></div>'+(barras||'<div style="color:var(--t3);font-size:13px;margin-top:6px">El equipo aún no ha configurado el ciclo.</div>')+'</div>';
  el._head=head;
  // Mes inicial: hoy si cae dentro del ciclo; si no, el inicio/fin del ciclo; si no hay ciclo, el mes actual.
  if(!_vgCalYM){
@@ -2692,6 +2698,15 @@ function vgLinks(p){
  if(!items.length) return "";
  return '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">'+items.map(function(x){return '<a href="'+vgEsc(x[1])+'" target="_blank" rel="noopener" style="font-size:12px;font-weight:700;color:#fff;background:var(--red);border-radius:99px;padding:7px 14px;text-decoration:none">'+vgEsc(x[0])+'</a>';}).join("")+'</div>';
 }
+// Referentes / material que el equipo dejó en la pieza (links de referencia). El cliente los ve y los abre.
+function vgReferencias(p){
+ var raw=(p.refLinks||'').trim(); if(!raw) return '';
+ var links=raw.split(/[\n,]+/).map(function(s){return s.trim();}).filter(Boolean);
+ if(!links.length) return '';
+ return '<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Referentes / material</div>'
+  +links.map(function(u){ var href=/^https?:\/\//i.test(u)?u:('https://'+u); var label=u.replace(/^https?:\/\//i,'').slice(0,52); return '<a href="'+vgEsc(href)+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--pur);background:rgba(108,0,255,.1);border-radius:99px;padding:6px 12px;text-decoration:none;margin:0 6px 6px 0">🔗 '+vgEsc(label)+'</a>'; }).join('')
+  +'</div>';
+}
 function vgMetrics(p){
  var out='', names={ig:'Instagram',tiktok:'TikTok',linkedin:'LinkedIn'};
  if(p.met && typeof p.met==='object' && Object.keys(p.met).length){
@@ -2758,6 +2773,7 @@ function vgOpenPieza(id){
  +'<div style="padding:20px 52px 20px 22px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div><div style="font-size:11px;color:var(--t3)">'+vgEsc(p.tipo||"")+(p.fecha?" · "+vgEsc(p.fecha):"")+'</div><div style="font-size:19px;font-weight:800;margin-top:2px">'+vgEsc(p.idea||"Publicación")+'</div></div><span style="font-size:10px;font-weight:700;color:#fff;background:'+e.c+';border-radius:999px;padding:3px 10px;white-space:nowrap">'+e.l+'</span></div>'
  +'<div style="padding:18px 22px">'
  +(guion?'<div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Guion / Texto</div><div style="font-size:14px;line-height:1.55;white-space:pre-wrap;background:var(--bg3);border-radius:12px;padding:12px 14px;margin-bottom:16px">'+guion+'</div>':'<div style="font-size:12px;color:var(--t3);margin-bottom:16px">El guion/texto aún no está cargado.</div>')
+ +vgReferencias(p)
  +vgMetrics(p)
  +platHtml
  +vgFechas(p)

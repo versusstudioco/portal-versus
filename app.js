@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260921f';
+const VS_TEAM_BUILD = '20260921g';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -2180,11 +2180,13 @@ async function marcaClienteAcceso(marca) {
  const box = $('#cfCliente'); if (!box) return;
  const { ok, data } = await api('/api/marca/cliente?marca=' + encodeURIComponent(marca));
  if (!ok || !data.usuario) { box.innerHTML = '<div class="md-none">Esta marca no está enlazada a una cuenta de cliente (el nombre debe coincidir con el cliente).</div>'; return; }
+ const tienePass = !!data.pass;
  box.innerHTML = `
  <div class="cl-acc">
    <div class="cl-acc__row"><span>Usuario</span><b>@${esc(data.usuario)}</b></div>
-   <div class="cl-acc__row"><span>Contraseña</span>${data.pass ? `<button class="cl-pass__btn" data-pass="${esc(data.pass)}" title="Ver/ocultar">••••••</button>` : '<span class="cl-pass__none">encriptada (se restablece en Firebase)</span>'}</div>
+   <div class="cl-acc__row"><span>Contraseña</span>${tienePass ? `<button class="cl-pass__btn" data-pass="${esc(data.pass)}" title="Ver/ocultar">••••••</button>` : '<span class="cl-pass__none">no guardada</span>'}</div>
  </div>
+ ${tienePass ? '' : `<div class="cl-acc__cur"><input class="plat-row__user" id="cfCliCur" type="text" placeholder="Contraseña ACTUAL del cliente (para autorizar el cambio)"><div class="hub-hint" style="margin:.2rem 0 0">No teníamos guardada su contraseña. Escribe la <b>actual</b> una vez; después el cambio será automático.</div></div>`}
  <div class="plat-row" style="margin-top:.6rem">
    <input class="plat-row__user" id="cfCliPass" type="text" placeholder="Nueva contraseña (mín. 6)">
    <button class="btn btn--ghost btn--sm" id="cfCliSave">Cambiar contraseña</button>
@@ -2192,10 +2194,12 @@ async function marcaClienteAcceso(marca) {
  const pb = box.querySelector('.cl-pass__btn'); if (pb) pb.addEventListener('click', () => { const sh = pb.dataset.shown === '1'; pb.textContent = sh ? '••••••' : pb.dataset.pass; pb.dataset.shown = sh ? '0' : '1'; });
  const save = $('#cfCliSave'); if (save) save.addEventListener('click', async () => {
    const np = ($('#cfCliPass').value || ''); if (np.length < 6) { alert('La contraseña debe tener 6 o más caracteres.'); return; }
+   const curEl = $('#cfCliCur'); const curVal = curEl ? (curEl.value || '') : '';
+   if (curEl && !curVal) { alert('Escribe la contraseña ACTUAL del cliente para autorizar el cambio.'); return; }
    save.disabled = true; save.textContent = 'Cambiando…';
-   const r = await api('/api/marca/cliente', { method: 'POST', body: { marca, newPass: np } });
+   const r = await api('/api/marca/cliente', { method: 'POST', body: { marca, newPass: np, currentPass: curVal } });
    save.disabled = false; save.textContent = 'Cambiar contraseña';
-   if (r.ok) { alert('Contraseña actualizada. El cliente ya entra con la nueva.'); marcaClienteAcceso(marca); } else alert(r.data.error || 'No se pudo');
+   if (r.ok && !(r.data && r.data.error)) { alert('Contraseña actualizada. El cliente ya entra con la nueva.'); marcaClienteAcceso(marca); } else alert((r.data && r.data.error) || 'No se pudo');
  });
 }
 async function marcaConfig(marca) {
@@ -2204,15 +2208,20 @@ async function marcaConfig(marca) {
  const { data: ctx } = await api('/api/marca/contexto?marca=' + encodeURIComponent(marca));
  pane.innerHTML = `
  <div class="est-ctx">
- <h4> Logo de la marca <span class="hub-hint" style="display:inline;margin:0">— aparece en su tarjeta y en el portal</span></h4>
- <div class="cfg-logo">
- ${marcaLogoHTML(marca, 'cfg-logo__img')}
- <label class="hub-up cfg-logo__up">
- <input type="file" class="hub-file-input" accept="image/*" style="display:none">
- <span> Cambiar logo</span>
- </label>
+ <h4> Logo de la marca <span class="hub-hint" style="display:inline;margin:0">— aparece en su tarjeta y en el portal del cliente</span></h4>
+ <div class="cfg-logos">
+   <div class="cfg-logo2">
+     <div class="cfg-logo2__prev cfg-logo2__prev--light" id="cfgLogoLightPrev"><span class="gw-none">Sin logo</span></div>
+     <div class="cfg-logo2__lbl">Fondo claro</div>
+     <label class="hub-up cfg-logo2__up"><input type="file" id="cfgLogoLight" accept="image/*" style="display:none"><span>Subir / cambiar</span></label>
+   </div>
+   <div class="cfg-logo2">
+     <div class="cfg-logo2__prev cfg-logo2__prev--dark" id="cfgLogoDarkPrev"><span class="gw-none">Sin logo</span></div>
+     <div class="cfg-logo2__lbl">Fondo oscuro</div>
+     <label class="hub-up cfg-logo2__up"><input type="file" id="cfgLogoDark" accept="image/*" style="display:none"><span>Subir / cambiar</span></label>
+   </div>
  </div>
- <div class="hub-hint" style="margin:.2rem 0 0">PNG, SVG o JPG. Máximo ~650KB.</div>
+ <div class="hub-hint" style="margin:.4rem 0 0">PNG/SVG/JPG. El de <b>fondo claro</b> suele ser tu logo oscuro; el de <b>fondo oscuro</b>, tu logo claro. Cualquiera del equipo puede cambiarlo; el cliente lo ve en su portal.</div>
  </div>
 
  <div class="est-ctx" style="margin-top:1rem">
@@ -2238,20 +2247,31 @@ async function marcaConfig(marca) {
 
  marcaPlataformas(marca);
  if (isAdmin()) marcaClienteAcceso(marca);
- const inp = pane.querySelector('.hub-file-input');
- if (inp) inp.addEventListener('change', async () => {
- const file = inp.files[0]; if (!file) return;
- if (file.size > 650 * 1024) { alert('Máximo ~650KB. Comprime la imagen.'); inp.value = ''; return; }
- const lab = inp.closest('.hub-up'); const orig = lab.innerHTML; lab.textContent = 'Subiendo…';
- try {
- const dataBase64 = await fileToBase64(file);
- const r = await api('/api/archivos/upload', { method: 'POST', body: { marca, tipo: 'logo', name: file.name, mime: file.type, dataBase64 } });
- if (!r.ok || r.data.ok === false) throw new Error((r.data && r.data.error) || 'No se pudo subir');
- await refreshLogos();
- const h = document.querySelector('.marca-uni-head'); if (h && h.firstElementChild) { h.firstElementChild.outerHTML = marcaLogoHTML(marca, 'marca-uni-logo'); bindLogoFit(document); }
- marcaConfig(marca);
- } catch (e) { lab.innerHTML = orig; alert(e.message || 'No se pudo subir'); }
- });
+ // Logos claro/oscuro → db/brandCfg (lo que ve el cliente). Cualquiera del equipo.
+ const setLogoPrev = (id, uri) => { const el = $('#' + id); if (el) el.innerHTML = uri ? `<img src="${uri}" alt="logo">` : '<span class="gw-none">Sin logo</span>'; };
+ api('/api/marca/logo?marca=' + encodeURIComponent(marca)).then(r => {
+   if (!r.ok || !document.getElementById('cfgLogoLightPrev')) return;
+   setLogoPrev('cfgLogoLightPrev', r.data.logoLight || ''); setLogoPrev('cfgLogoDarkPrev', r.data.logoDark || '');
+ }).catch(() => {});
+ const wireLogo = (inputId, field, prevId) => {
+   const inp = $('#' + inputId); if (!inp) return;
+   inp.addEventListener('change', async () => {
+     const file = inp.files[0]; if (!file) return; inp.value = '';
+     if (!/^image\//.test(file.type)) { alert('Debe ser una imagen.'); return; }
+     const lab = inp.closest('.hub-up'); const orig = lab.innerHTML; lab.querySelector('span').textContent = 'Subiendo…';
+     try {
+       const dataUri = await compressImage(file, 600, 0.85); // logo nítido, tamaño contenido
+       const r = await api('/api/marca/logo', { method: 'POST', body: { marca, [field]: dataUri } });
+       if (!r.ok || (r.data && r.data.error)) throw new Error((r.data && r.data.error) || 'No se pudo subir');
+       setLogoPrev(prevId, dataUri);
+       if (r.data && r.data.avisoCliente) flash(r.data.avisoCliente); else flash('Logo actualizado ✓');
+       await refreshLogos().catch(() => {});
+       lab.innerHTML = orig;
+     } catch (e) { lab.innerHTML = orig; alert(e.message || 'No se pudo subir'); }
+   });
+ };
+ wireLogo('cfgLogoLight', 'logoLight', 'cfgLogoLightPrev');
+ wireLogo('cfgLogoDark', 'logoDark', 'cfgLogoDarkPrev');
  const save = $('#cfSave');
  if (save) save.addEventListener('click', async () => {
  save.disabled = true; save.textContent = 'Guardando…';
