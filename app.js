@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260921j';
+const VS_TEAM_BUILD = '20260921k';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -1101,9 +1101,9 @@ async function loadCommunity() {
 /* ---------------- Mis tareas ---------------- */
 const TASK_STATE = { pendiente: 'Pendiente', en_curso: 'En curso', hecho: 'Hecho' };
 const PRIO_CLS = { alta: 'st-red', media: 'st-blue', baja: '' };
-async function loadMisTareas() {
+async function loadMisTareas(silent) {
  const out = $('#mistareasOut');
- out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando tus tareas…</div>';
+ if (!silent || !out.innerHTML.trim()) out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando tus tareas…</div>';
  const { data } = await api('/api/team/mytasks');
  const tasks = data.tasks || [];
  const cols = { pendiente: [], en_curso: [], hecho: [] };
@@ -1155,8 +1155,9 @@ function taskCard(t, withActions) {
 }
 function bindTaskActions(reload) {
  $$('.t-st').forEach(b => b.addEventListener('click', async () => {
+ b.disabled = true;
  await api('/api/team/task-status', { method: 'POST', body: { id: b.dataset.id, status: b.dataset.st } });
- (reload || loadMisTareas)();
+ (reload || (() => loadMisTareas(true)))();
  }));
 }
 
@@ -1635,9 +1636,8 @@ const LOGO_ALIAS = { perse: 'drinkperse', ml: 'mauriciolinares' };
 function logoSlugFor(marca) {
  const slugs = state.logoSlugs || []; const k = normKey(marca);
  if (LOGO_ALIAS[k] && slugs.includes(LOGO_ALIAS[k])) return LOGO_ALIAS[k];
- let hit = slugs.find(s => normKey(s) === k);
- if (!hit) hit = slugs.find(s => { const ns = normKey(s); return k.includes(ns) || ns.includes(k); });
- return hit || null;
+ // SOLO coincidencia exacta por clave normalizada (nada difuso: mezclaba logos entre marcas, p. ej. Con Tacto ↔ Persé).
+ return slugs.find(s => normKey(s) === k) || null;
 }
 function isDarkTheme() { return document.documentElement.classList.contains('dark') || document.body.classList.contains('dark'); }
 function marcaLogoHTML(marca, cls) {
@@ -2960,9 +2960,10 @@ function fraseDelDia() {
 }
 function startOfWeek(d) { const x = new Date(d); const day = (x.getDay() + 6) % 7; x.setDate(x.getDate() - day); x.setHours(0, 0, 0, 0); return x; }
 const DIAS_SEM = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-async function loadInicio() {
+async function loadInicio(silent) {
  const out = $('#inicioOut');
- out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando tu día…</div>';
+ // silent = refresco sin parpadeo: deja el contenido actual hasta que llegue el nuevo.
+ if (!silent || !out.innerHTML.trim()) out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando tu día…</div>';
  const [mt, bd] = await Promise.all([api('/api/team/mytasks'), api('/api/piezas')]);
  const data = mt.data || {};
  const me = data.me || {}, tasks = data.tasks || [];
@@ -3104,7 +3105,7 @@ function openTarea() {
   // Al cerrar sin guardar: si ya escribiste el título, la tarea se guarda sola (no se pierde).
   const close = () => {
     const modal = $('#tkModal'); if (!modal) return;
-    if (!tkGuardado) { const b = tkBody(); if (b.title) { tkGuardado = true; api('/api/team/task-crear', { method: 'POST', body: b }).then(r => { if (r.ok) loadInicio(); }).catch(() => {}); flash('Tarea guardada ✓'); } }
+    if (!tkGuardado) { const b = tkBody(); if (b.title) { tkGuardado = true; api('/api/team/task-crear', { method: 'POST', body: b }).then(r => { if (r.ok) loadInicio(true); }).catch(() => {}); flash('Tarea guardada ✓'); } }
     modal.remove();
   };
   $('#tkCancel').onclick = close; $('#tkX').onclick = close; $('#tkModal').onclick = e => { if (e.target.id === 'tkModal') close(); };
@@ -3114,7 +3115,7 @@ function openTarea() {
     const body = tkBody();
     close(); // se cierra al instante; se crea y refresca en segundo plano
     api('/api/team/task-crear', { method: 'POST', body })
-      .then(r => { if (r.ok) loadInicio(); else alert((r.data && r.data.error) || 'No se pudo crear la tarea'); })
+      .then(r => { if (r.ok) loadInicio(true); else alert((r.data && r.data.error) || 'No se pudo crear la tarea'); })
       .catch(() => alert('No se pudo crear la tarea (revisa tu conexión).'));
   };
 }
