@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260921k';
+const VS_TEAM_BUILD = '20260921l';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -1340,8 +1340,28 @@ async function loadConfig() {
  const out = $('#configOut');
  if (!isAdmin()) { out.innerHTML = AGENDA_PANEL; renderAgenda(); return; }
  out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando configuración…</div>';
- const r = await api('/api/admin/clientes');
- const clientes = (r.ok && r.data.clientes) || [];
+ const [r, gv] = await Promise.all([api('/api/admin/accesos'), api('/api/gestion').catch(() => ({ data: {} }))]);
+ const clientes = (r.ok && r.data.items) || [];
+ const _marcas = ((gv.data && gv.data.marcas) || []).map(x => x.marca);
+ const _nk = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+ const _linked = new Set(); clientes.forEach(c => { _linked.add(_nk(c.name)); _linked.add(_nk(c.usuario)); });
+ const _unlinked = _marcas.filter(m => { const k = _nk(m); return k && !_linked.has(k); });
+ const _dark = document.body.classList.contains('dark');
+ const _cliCard = c => { const logo = _dark ? (c.logoDark || c.logoLight) : (c.logoLight || c.logoDark); return `<div class="acc-card" data-name="${esc(c.name)}" data-user="${esc(c.usuario)}">
+   <div style="display:flex;gap:.7rem;align-items:center">
+     <div class="acc-card__logo${logo ? '' : ' acc-card__logo--ph'}">${logo ? `<img src="${esc(logo)}" alt="logo">` : esc((c.name || '?').charAt(0).toUpperCase())}</div>
+     <div style="min-width:0"><div class="acc-card__name">${esc(c.name)}</div><div class="acc-card__user">@${esc(c.usuario)}</div></div>
+   </div>
+   <div class="acc-card__passrow"><span class="acc-card__passlbl">Contraseña</span>${c.pass ? `<button type="button" class="acc-pass" data-pass="${esc(c.pass)}">••••••</button>` : '<span class="acc-card__none">no guardada</span>'}<button class="acc-mini acc-chpass" type="button">cambiar</button></div>
+   <div class="acc-card__chp" hidden>${c.pass ? '' : '<input class="acc-cur" type="text" placeholder="Contraseña ACTUAL (una vez)">'}<input class="acc-new" type="text" placeholder="Nueva contraseña (mín. 6)"><button class="btn btn--primary btn--sm acc-save" type="button">Guardar clave</button></div>
+   <div class="acc-hd"><label class="acc-hd__f"><span>Instagram</span><input class="acc-ig" value="${esc(c.instagram || '')}" placeholder="usuario"></label><label class="acc-hd__f"><span>TikTok</span><input class="acc-tk" value="${esc(c.tiktok || '')}" placeholder="usuario"></label></div>
+   <div class="acc-card__acts"><button class="btn btn--ghost btn--sm acc-savehd" type="button">Guardar @</button><button class="btn btn--primary btn--sm acc-edit" type="button">Editar / logo</button></div>
+ </div>`; };
+ const _unCard = m => `<div class="acc-card acc-card--un" data-name="${esc(m)}">
+   <div style="display:flex;gap:.7rem;align-items:center"><div class="acc-card__logo acc-card__logo--ph">${esc((m || '?').charAt(0).toUpperCase())}</div><div style="min-width:0"><div class="acc-card__name">${esc(m)}</div><div class="acc-card__user" style="color:var(--red)">sin portal de cliente</div></div></div>
+   <p class="hub-hint" style="margin:.2rem 0 .4rem">Esta marca no está enlazada a una cuenta. Créale su portal para que entre a /clientes/.</p>
+   <div class="acc-card__acts"><button class="btn btn--primary btn--sm acc-crear" type="button" data-marca="${esc(m)}">+ Crear portal de clientes</button></div>
+ </div>`;
  out.innerHTML = AGENDA_PANEL + `
  <div class="glass panel form-panel">
  <h3 class="live-h3" style="margin-top:0"> Crear cuenta de cliente</h3>
@@ -1357,14 +1377,8 @@ async function loadConfig() {
  <button class="btn btn--primary" id="ccSave">Crear cliente</button>
  </div>
  <h3 class="live-h3">Clientes (${clientes.length})</h3>
- <p class="hub-hint" style="margin:-.3rem 0 .6rem">Usuario y contraseña con que cada cliente entra a <b>/clientes/</b>. Toca la contraseña para verla.</p>
- <div class="eq-list">${clientes.map(c => `
- <div class="eq-person"><div class="eq-av">${esc((c.name || '?').trim().charAt(0).toUpperCase())}</div>
- <div class="eq-person__id"><div class="eq-person__name">${esc(c.name)}</div><div class="eq-person__user">@${esc(c.usuario)}</div></div>
- <div class="cl-pass">${c.pass
-   ? `<button class="cl-pass__btn" data-pass="${esc(c.pass)}" title="Toca para ver/ocultar">••••••</button>`
-   : `<span class="cl-pass__none" title="Se creó con contraseña propia (encriptada). Restablécela en la consola de Firebase.">sin ver</span>`}</div>
- </div>`).join('') || '<div class="empty">Aún no hay clientes.</div>'}</div>
+ <p class="hub-hint" style="margin:-.3rem 0 .8rem">Cada marca con su acceso a <b>/clientes/</b>. Ver/cambiar contraseña, editar sus @ y su logo. Las marcas sin portal aparecen al final para crearlo.</p>
+ <div class="acc-grid">${(clientes.map(_cliCard).join('') + _unlinked.map(_unCard).join('')) || '<div class="empty">Aún no hay clientes.</div>'}</div>
  <div class="glass panel form-panel" style="margin-top:1.2rem">
  <h3 class="live-h3" style="margin-top:0"> Otras acciones</h3>
  <ul style="margin:.2rem 0 0 1.1rem;color:var(--ink-60);font-size:.9rem;line-height:1.7">
@@ -1392,10 +1406,37 @@ async function loadConfig() {
  if (res.ok) { alert('Cliente creado. Ya puede entrar al Portal de Clientes con su usuario y contraseña.'); loadConfig(); }
  else alert(res.data.error || 'No se pudo crear');
  });
- $$('.cl-pass__btn').forEach(b => b.addEventListener('click', () => {
- const shown = b.dataset.shown === '1';
- b.textContent = shown ? '••••••' : b.dataset.pass;
- b.dataset.shown = shown ? '0' : '1';
+ // Tarjetas de clientes: ver/cambiar contraseña, editar @ y logo, y crear portal para marcas sin enlazar.
+ out.querySelectorAll('.acc-pass').forEach(b => b.addEventListener('click', () => { const sh = b.dataset.shown === '1'; b.textContent = sh ? '••••••' : b.dataset.pass; b.dataset.shown = sh ? '0' : '1'; }));
+ out.querySelectorAll('.acc-chpass').forEach(b => b.addEventListener('click', () => { const chp = b.closest('.acc-card').querySelector('.acc-card__chp'); chp.hidden = !chp.hidden; }));
+ out.querySelectorAll('.acc-save').forEach(b => b.addEventListener('click', async () => {
+   const card = b.closest('.acc-card'); const name = card.dataset.name;
+   const np = (card.querySelector('.acc-new').value || ''); if (np.length < 6) { alert('La contraseña debe tener 6 o más caracteres.'); return; }
+   const curEl = card.querySelector('.acc-cur'); const curVal = curEl ? (curEl.value || '') : '';
+   if (curEl && !curVal) { alert('Escribe la contraseña ACTUAL del cliente para autorizar el cambio.'); return; }
+   b.disabled = true; b.textContent = 'Guardando…';
+   const rr = await api('/api/marca/cliente', { method: 'POST', body: { marca: name, newPass: np, currentPass: curVal } });
+   b.disabled = false; b.textContent = 'Guardar clave';
+   if (rr.ok && !(rr.data && rr.data.error)) { flash('Contraseña actualizada ✓'); loadConfig(); } else alert((rr.data && rr.data.error) || 'No se pudo');
+ }));
+ out.querySelectorAll('.acc-savehd').forEach(b => b.addEventListener('click', async () => {
+   const card = b.closest('.acc-card'); const name = card.dataset.name;
+   b.disabled = true; b.textContent = 'Guardando…';
+   const rr = await api('/api/marca/logo', { method: 'POST', body: { marca: name, instagram: card.querySelector('.acc-ig').value, tiktok: card.querySelector('.acc-tk').value } });
+   b.disabled = false; b.textContent = 'Guardar @';
+   flash(rr.ok ? 'Redes actualizadas ✓' : 'No se pudo');
+ }));
+ out.querySelectorAll('.acc-edit').forEach(b => b.addEventListener('click', () => {
+   const name = b.closest('.acc-card').dataset.name;
+   const nav = document.querySelector('.nav__item[data-view="archivos"]'); if (nav) nav.click();
+   setTimeout(() => { openMarca(name, ''); setTimeout(() => { const t = document.querySelector('.hub-tab[data-tab="config"]'); if (t) t.click(); }, 400); }, 350);
+ }));
+ out.querySelectorAll('.acc-crear').forEach(b => b.addEventListener('click', () => {
+   const m = b.dataset.marca;
+   const n = $('#ccNombre'), u = $('#ccUser'); if (n) n.value = m; if (u) u.value = _nk(m);
+   const form = $('#ccNombre'); if (form) { form.closest('.form-panel').scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+   const pass = $('#ccPass'); if (pass) pass.focus();
+   flash('Completa la contraseña y crea el portal de ' + m);
  }));
  renderNotifPanel();
  renderAgenda();
@@ -1479,9 +1520,8 @@ async function loadEquipo() {
  <button class="seg__btn active" data-eq="personas">Personas</button>
  <button class="seg__btn" data-eq="tareas">Tareas</button>
  <button class="seg__btn" data-eq="ejecucion">Ejecución</button>
- <button class="seg__btn" data-eq="accesos">Marcas y accesos</button>
  </div>
- <div id="eqPersonas"></div><div id="eqTareas" class="hidden"></div><div id="eqEjec" class="hidden"></div><div id="eqAccesos" class="hidden"></div>`;
+ <div id="eqPersonas"></div><div id="eqTareas" class="hidden"></div><div id="eqEjec" class="hidden"></div>`;
  out.innerHTML = html;
 
  // Personas
@@ -1566,8 +1606,6 @@ async function loadEquipo() {
  $('#eqPersonas').classList.toggle('hidden', m !== 'personas');
  $('#eqTareas').classList.toggle('hidden', m !== 'tareas');
  $('#eqEjec').classList.toggle('hidden', m !== 'ejecucion');
- $('#eqAccesos').classList.toggle('hidden', m !== 'accesos');
- if (m === 'accesos') renderEqAccesos();
  }));
  bindTaskActions();
 }

@@ -839,6 +839,8 @@
           const patch = {};
           if (typeof body.logoLight === 'string') patch.logoLight = body.logoLight; // logo para fondo CLARO (suele ser oscuro)
           if (typeof body.logoDark === 'string') patch.logoDark = body.logoDark;    // logo para fondo OSCURO (suele ser claro)
+          if (typeof body.instagram === 'string') patch.instagram = body.instagram.replace(/^@/, '').trim();
+          if (typeof body.tiktok === 'string') patch.tiktok = body.tiktok.replace(/^@/, '').trim();
           if (!Object.keys(patch).length) return { ok: false, status: 400, data: { error: 'Nada que guardar' } };
           if (cu) { for (const k of Object.keys(patch)) await fbPut('db/brandCfg/' + cu + '/' + k, patch[k]); }
           // Reflejar en el Team (gestor) para su propia vista de logo.

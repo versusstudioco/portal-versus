@@ -481,6 +481,13 @@ body.dark .acc-card__logo { background: #111; border-color: rgba(255,255,255,.12
 .acc-card__acts { display: flex; gap: .5rem; flex-wrap: wrap; }
 .acc-card__chp { display: flex; flex-direction: column; gap: .45rem; border-top: 1px dashed var(--line); padding-top: .6rem; }
 .acc-card__chp input { font-family: var(--font); font-size: .88rem; padding: .5rem .7rem; border: 1px solid var(--line); border-radius: 8px; }
+.acc-mini { font-family: var(--font); font-size: .72rem; font-weight: 600; border: 1px solid var(--line); background: transparent; border-radius: 7px; padding: .2rem .5rem; cursor: pointer; color: var(--ink-60); margin-left: auto; }
+.acc-mini:hover { border-color: #6C00FF; color: #6C00FF; }
+.acc-hd { display: flex; gap: .5rem; }
+.acc-hd__f { flex: 1; display: flex; flex-direction: column; gap: .2rem; }
+.acc-hd__f span { font-size: .68rem; font-weight: 700; text-transform: uppercase; color: var(--ink-40); }
+.acc-hd__f input { font-family: var(--font); font-size: .85rem; padding: .4rem .6rem; border: 1px solid var(--line); border-radius: 8px; }
+.acc-card--un { border-style: dashed; }
 .mc-count { font-size: .84rem; color: var(--ink-60); background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: .35rem .8rem; }
 .mc-count b { color: var(--ink); font-size: 1rem; }
 .mc-count--hist b { color: var(--red); }
