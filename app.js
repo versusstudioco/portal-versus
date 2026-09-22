@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260921n';
+const VS_TEAM_BUILD = '20260921o';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -672,6 +672,9 @@ function openPieza(id, prefill) {
  if (p && p.historico) return openPiezaHistorico(p);
  let people = ((state.teamPeople && state.teamPeople.length ? state.teamPeople : state.equipoPeople) || []).map(x => x.name);
  if (!people.length) people = ['Michelle', 'Vero'];
+ // Responsable por defecto: YO (quien está creando). Se puede cambiar en el selector.
+ const _yo = (state.me && (state.me.name || state.me.username)) || '';
+ if (!id && !p.responsable && _yo) p.responsable = _yo;
  // Conteo POR CICLO (no histórico): solo piezas dentro del rango del ciclo activo de la marca.
  let cr = (state._cicloRange && state._cicloRange.marca === p.marca) ? state._cicloRange : null;
  const enCiclo = x => { if (!cr || !(cr.inicio || cr.fin)) return true; const f = x.fecha || x.fechaEntrega; if (!f) return true; return (!cr.inicio || f >= cr.inicio) && (!cr.fin || f <= cr.fin); };
@@ -719,7 +722,7 @@ function openPieza(id, prefill) {
  <div class="pz-row3" style="margin:.7rem 0">
  <label class="select"><span>Categoría</span><div class="pz-iconsel"><span class="pz-iconsel__ic" id="pzTipoIcon">${tipoIcon(p.tipo)}</span><select id="pzTipo">${CATEGORIAS_PIEZA.map(t => `<option ${p.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div></label>
  <label class="select"><span>N.º de publicación</span><input id="pzNum" type="text" value="${esc(p.numero || '')}" placeholder="1"><div class="pz-numfoot"><span id="pzExtraBadge" class="pz-extra-badge" hidden></span><span id="pzNumFijo" class="pz-num-fijo"${p.numeroManual ? '' : ' hidden'}>📌 fijo · <a href="#" id="pzNumAuto">auto</a></span></div></label>
- <label class="select"><span>Responsable</span><div class="pz-iconsel"><span class="pz-iconsel__ic" id="pzRespIcon">${respIcon(p.responsable)}</span><select id="pzResp"><option value="">— Sin asignar —</option>${people.map(n => `<option ${p.responsable === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}<option value="Cliente" ${p.responsable === 'Cliente' ? 'selected' : ''}>Cliente</option>${(p.responsable && !people.includes(p.responsable) && p.responsable !== 'Cliente') ? `<option selected>${esc(p.responsable)}</option>` : ''}</select></div></label>
+ <label class="select"><span>Responsable</span><div class="pz-iconsel"><span class="pz-iconsel__ic" id="pzRespIcon">${respIcon(p.responsable)}</span><select id="pzResp">${_yo ? `<option value="${esc(_yo)}" ${p.responsable === _yo ? 'selected' : ''}>Yo · ${esc(_yo)}</option>` : ''}${people.filter(n => n !== _yo).map(n => `<option ${p.responsable === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}<option value="Cliente" ${p.responsable === 'Cliente' ? 'selected' : ''}>Cliente</option>${(p.responsable && !people.includes(p.responsable) && p.responsable !== 'Cliente' && p.responsable !== _yo) ? `<option selected>${esc(p.responsable)}</option>` : ''}<option value="">— Sin asignar —</option></select></div></label>
  </div>
  <div class="pz-row2" style="margin:.7rem 0">
  <label class="select"><span>Fecha de entrega</span><input id="pzFechaEntrega" type="date" value="${esc(p.fechaEntrega || '')}"></label>

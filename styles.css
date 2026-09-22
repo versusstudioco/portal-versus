@@ -624,28 +624,29 @@ body.dark .ioscard__btn:hover { background: #2c2c2e; }
 .fl-empty { font-size: .8rem; color: var(--ink-40); text-align: center; padding: .5rem 0; }
 
 /* Modal de pieza */
-.pz-box { max-width: 560px; text-align: left; }
-.pz-head { display: flex; gap: .6rem; margin-bottom: .6rem; }
-.pz-marca { flex: 1; font-family: var(--font); font-size: 1rem; font-weight: 700; padding: .5rem .7rem; border: 1px solid var(--line); border-radius: 8px; }
-.pz-etapa { font-family: var(--font); font-weight: 700; padding: .5rem .7rem; border: 1.5px solid var(--ink); border-radius: 8px; background: var(--card); color: var(--ink); }
-.pz-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .9rem; align-items: start; }
-.pz-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; }
+.pz-box { max-width: 580px; text-align: left; }
+.pz-head { display: flex; gap: .6rem; margin-bottom: .8rem; }
+.pz-marca { flex: 1; min-width: 0; font-family: var(--font); font-size: 1rem; font-weight: 600; padding: .6rem .8rem; border: 1px solid rgba(0,0,0,.1); border-radius: 12px; background: var(--card); color: var(--ink); }
+.pz-marca:focus { outline: none; border-color: #0a84ff; }
+.pz-etapa { font-family: var(--font); font-weight: 700; font-size: .9rem; padding: .6rem .9rem; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--card); color: var(--ink); min-width: 118px; }
+.pz-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .8rem; align-items: start; }
+.pz-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
 @media (max-width: 560px){ .pz-row3, .pz-row2 { grid-template-columns: 1fr; } }
-.pz-row3 > .select, .pz-row2 > .select { margin: 0; }
-.pz-row3 > .select > span, .pz-row2 > .select > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
-.pz-row3 .select input, .pz-row3 .pz-iconsel { height: 42px; box-sizing: border-box; }
-.pz-iconsel { display: flex; align-items: center; gap: .4rem; border: 1px solid var(--line); border-radius: 8px; padding: 0 .3rem 0 .6rem; background: var(--card); }
-.pz-iconsel:focus-within { border-color: var(--red); }
-.pz-iconsel__ic { flex: 0 0 auto; width: 18px; height: 18px; color: var(--ink); display: inline-flex; align-items: center; justify-content: center; }
+.pz-row3 > .select, .pz-row2 > .select { margin: 0; gap: .3rem; }
+.pz-row3 > .select > span, .pz-row2 > .select > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; text-transform: none; letter-spacing: 0; font-size: .78rem; color: var(--ink-40); }
+.pz-row3 .select input, .pz-row3 .pz-iconsel, .pz-row2 .select input { height: 44px; box-sizing: border-box; border-radius: 12px; }
+.pz-iconsel { display: flex; align-items: center; gap: .45rem; border: 1px solid rgba(0,0,0,.1); border-radius: 12px; padding: 0 .35rem 0 .7rem; background: var(--card); }
+.pz-iconsel:focus-within { border-color: #0a84ff; }
+.pz-iconsel__ic { flex: 0 0 auto; width: 18px; height: 18px; color: var(--ink-60); display: inline-flex; align-items: center; justify-content: center; }
 .pz-iconsel__ic svg { width: 18px; height: 18px; }
 .pz-iconsel select { border: 0; background: transparent; padding: .5rem .2rem; font-family: var(--font); font-size: .92rem; font-weight: 600; flex: 1; min-width: 0; outline: none; color: var(--ink); }
 .pz-numfoot { min-height: 14px; margin-top: 4px; line-height: 1; }
 .pz-num-fijo { font-size: 10px; font-weight: 600; color: var(--ink-40); }
 .pz-num-fijo a { color: #6C00FF; text-decoration: underline; cursor: pointer; }
-.pz-etapa { min-width: 120px; }
-.pz-idea { width: 100%; font-family: var(--font); font-size: 1.15rem; font-weight: 800; padding: .5rem .7rem; border: 1px solid var(--line); border-radius: 8px; }
+.pz-idea { width: 100%; box-sizing: border-box; font-family: var(--font); font-size: 1.15rem; font-weight: 700; letter-spacing: -.01em; padding: .7rem .9rem; border: 1px solid rgba(0,0,0,.1); border-radius: 12px; background: var(--card); }
+.pz-idea:focus { outline: none; border-color: #0a84ff; }
 .pz-field { display: block; margin-bottom: .7rem; }
-.pz-field > span { display: block; font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-60); margin-bottom: .3rem; }
+.pz-field > span { display: block; font-size: .78rem; font-weight: 600; color: var(--ink-40); margin-bottom: .35rem; }
 .pz-field textarea { width: 100%; font-family: var(--font); font-size: .92rem; padding: .6rem .7rem; border: 1px solid var(--line); border-radius: 8px; resize: vertical; line-height: 1.5; }
 .pz-comments { display: flex; flex-direction: column; gap: .35rem; margin-bottom: .5rem; max-height: 160px; overflow-y: auto; }
 .pz-comment { font-size: .84rem; background: var(--bg); border-radius: 7px; padding: .4rem .6rem; }
