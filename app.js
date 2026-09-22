@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260922a';
+const VS_TEAM_BUILD = '20260922b';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -1679,7 +1679,9 @@ function isDarkTheme() { return document.documentElement.classList.contains('dar
 function marcaLogoHTML(marca, cls) {
  const slug = logoSlugFor(marca);
  const d = slug && state.logoData ? state.logoData[slug] : null;
- const src = d ? (isDarkTheme() ? (d.dark || d.light) : (d.light || d.dark)) : null;
+ // Cada fondo usa SOLO su logo: en fondo claro el de fondo claro; en fondo oscuro el de fondo oscuro.
+ // Nada de cruzar (no mostrar el de fondo oscuro sobre fondo claro). Si falta el correcto, muestra la inicial.
+ const src = d ? (isDarkTheme() ? d.dark : d.light) : null;
  return src
  ? `<div class="${cls} ${cls}--img"><img src="${src}" alt="${esc(marca)}"></div>`
  : `<div class="${cls}">${esc((marca.trim()[0] || '?').toUpperCase())}</div>`;
