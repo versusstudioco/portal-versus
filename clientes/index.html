@@ -1450,7 +1450,7 @@ var PLATS = ["Instagram","YouTube","TikTok","LinkedIn"];
 var TCLS = {Reel:"t-reel",Carrusel:"t-carr",Post:"t-post",Historia:"t-hist",Video:"t-vid",Short:"t-sho",Pauta:"t-pauta",Banner:"t-banner"};
 
 // ===== AUTO-ACTUALIZACIÓN (evita quedarse con una versión vieja en caché) =====
-var VS_BUILD = '20260921i';
+var VS_BUILD = '20260921j';
 (function(){
  try{
   if(new URLSearchParams(location.search).get('v') === VS_BUILD) return; // ya estamos en la versión fresca
@@ -2387,12 +2387,13 @@ function showS(id) {
 
 // ===== THEME =====
 function toggleTheme() {
- // Update brand logo after theme change
+ // Cambia TODOS los logos de marca (resumen, calendario, etc.) según el tema nuevo.
  setTimeout(function(){
- var li=gi('brandLogoImg'); if(!li) return;
  var isDk=document.body.classList.contains('dark')||dark;
- var dL=li.dataset.light||'', dD=li.dataset.dark||dL;
- li.src=isDk?(dD||dL):(dL||dD);
+ document.querySelectorAll('img[data-light]').forEach(function(li){
+   var dL=li.dataset.light||'', dD=li.dataset.dark||dL;
+   var src=isDk?(dD||dL):(dL||dD); if(src) li.src=src;
+ });
  },50);
  // original continues:
  dark = !dark;
@@ -2593,7 +2594,7 @@ function renderGestorContenido(){
  var _isDarkH=document.body.classList.contains('dark')||document.documentElement.classList.contains('dark')||dark;
  var _logoH=_isDarkH?(_bcH.logoDark||_bcH.logoLight):(_bcH.logoLight||_bcH.logoDark);
  var _nameH=(CREDS[CU]&&CREDS[CU].name)||_vgBrandName||CU||'';
- var brandHead=_logoH?'<div class="card" style="display:flex;align-items:center;gap:12px"><img src="'+vgEsc(_logoH)+'" alt="logo" style="height:44px;width:auto;max-width:160px;object-fit:contain"><div style="font-weight:800;font-size:16px">'+vgEsc(_nameH)+'</div></div>':'';
+ var brandHead=_logoH?'<div class="card" style="display:flex;align-items:center;gap:12px"><img class="vg-brandlogo" data-light="'+vgEsc(_bcH.logoLight||_bcH.logoDark||'')+'" data-dark="'+vgEsc(_bcH.logoDark||_bcH.logoLight||'')+'" src="'+vgEsc(_logoH)+'" alt="logo" style="height:44px;width:auto;max-width:160px;object-fit:contain"><div style="font-weight:800;font-size:16px">'+vgEsc(_nameH)+'</div></div>':'';
  var head=brandHead+'<div class="card"><div class="card-title">'+vgEsc(ciclo.periodo||(_cyc&&_cyc.name)||"Ciclo actual")+' · Pactado vs. Realizado <span style="font-weight:400;color:var(--t3)">('+totR+"/"+totP+')</span></div>'+(barras||'<div style="color:var(--t3);font-size:13px;margin-top:6px">El equipo aún no ha configurado el ciclo.</div>')+'</div>';
  el._head=head;
  // Mes inicial: hoy si cae dentro del ciclo; si no, el inicio/fin del ciclo; si no hay ciclo, el mes actual.

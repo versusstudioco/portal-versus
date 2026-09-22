@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260921l';
+const VS_TEAM_BUILD = '20260921m';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -2336,7 +2336,8 @@ async function marcaConfig(marca) {
      <label class="hub-up cfg-logo2__up"><input type="file" id="cfgLogoDark" accept="image/*" style="display:none"><span>Subir / cambiar</span></label>
    </div>
  </div>
- <div class="hub-hint" style="margin:.4rem 0 0">PNG/SVG/JPG. El de <b>fondo claro</b> suele ser tu logo oscuro; el de <b>fondo oscuro</b>, tu logo claro. Cualquiera del equipo puede cambiarlo; el cliente lo ve en su portal.</div>
+ <div class="hub-hint" style="margin:.4rem 0 .5rem">PNG/SVG/JPG. El de <b>fondo claro</b> suele ser tu logo oscuro; el de <b>fondo oscuro</b>, tu logo claro. Cualquiera del equipo puede cambiarlo; el cliente lo ve en su portal.</div>
+ <button class="btn btn--primary btn--sm" id="cfgLogoSave" disabled>Guardar logos</button>
  </div>
 
  <div class="est-ctx" style="margin-top:1rem">
@@ -2368,25 +2369,35 @@ async function marcaConfig(marca) {
    if (!r.ok || !document.getElementById('cfgLogoLightPrev')) return;
    setLogoPrev('cfgLogoLightPrev', r.data.logoLight || ''); setLogoPrev('cfgLogoDarkPrev', r.data.logoDark || '');
  }).catch(() => {});
- const wireLogo = (inputId, field, prevId) => {
+ // Se PREPARA la imagen al elegirla (preview) y se sube con el botón "Guardar logos".
+ const _staged = {};
+ const stageLogo = (inputId, field, prevId) => {
    const inp = $('#' + inputId); if (!inp) return;
    inp.addEventListener('change', async () => {
      const file = inp.files[0]; if (!file) return; inp.value = '';
      if (!/^image\//.test(file.type)) { alert('Debe ser una imagen.'); return; }
-     const lab = inp.closest('.hub-up'); const orig = lab.innerHTML; lab.querySelector('span').textContent = 'Subiendo…';
      try {
-       const dataUri = await compressImage(file, 600, 0.85); // logo nítido, tamaño contenido
-       const r = await api('/api/marca/logo', { method: 'POST', body: { marca, [field]: dataUri } });
-       if (!r.ok || (r.data && r.data.error)) throw new Error((r.data && r.data.error) || 'No se pudo subir');
-       setLogoPrev(prevId, dataUri);
-       if (r.data && r.data.avisoCliente) flash(r.data.avisoCliente); else flash('Logo actualizado ✓');
-       await refreshLogos().catch(() => {});
-       lab.innerHTML = orig;
-     } catch (e) { lab.innerHTML = orig; alert(e.message || 'No se pudo subir'); }
+       const dataUri = await compressImage(file, 600, 0.85); // conserva PNG (transparencia)
+       _staged[field] = dataUri; setLogoPrev(prevId, dataUri);
+       const sb = $('#cfgLogoSave'); if (sb) { sb.disabled = false; sb.textContent = 'Guardar logos'; }
+       flash('Listo — toca "Guardar logos"');
+     } catch (e) { alert('No se pudo procesar la imagen.'); }
    });
  };
- wireLogo('cfgLogoLight', 'logoLight', 'cfgLogoLightPrev');
- wireLogo('cfgLogoDark', 'logoDark', 'cfgLogoDarkPrev');
+ stageLogo('cfgLogoLight', 'logoLight', 'cfgLogoLightPrev');
+ stageLogo('cfgLogoDark', 'logoDark', 'cfgLogoDarkPrev');
+ const lsb = $('#cfgLogoSave');
+ if (lsb) lsb.addEventListener('click', async () => {
+   if (!Object.keys(_staged).length) { flash('Elige un logo primero'); return; }
+   lsb.disabled = true; lsb.textContent = 'Guardando…';
+   const r = await api('/api/marca/logo', { method: 'POST', body: Object.assign({ marca }, _staged) });
+   if (!r.ok || (r.data && r.data.error)) { lsb.disabled = false; lsb.textContent = 'Guardar logos'; alert((r.data && r.data.error) || 'No se pudo guardar'); return; }
+   await refreshLogos().catch(() => {});
+   const _tl = $('#topbarLogo'); if (_tl) { _tl.innerHTML = marcaLogoHTML(marca, 'tb-logo'); bindLogoFit(_tl); }
+   for (const k in _staged) delete _staged[k];
+   lsb.textContent = 'Guardado ✓'; setTimeout(() => { const b = $('#cfgLogoSave'); if (b) { b.textContent = 'Guardar logos'; b.disabled = true; } }, 1500);
+   flash((r.data && r.data.avisoCliente) ? r.data.avisoCliente : 'Logo guardado ✓ · el cliente ya lo ve');
+ });
  const save = $('#cfSave');
  if (save) save.addEventListener('click', async () => {
  save.disabled = true; save.textContent = 'Guardando…';
