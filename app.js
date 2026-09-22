@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260921g';
+const VS_TEAM_BUILD = '20260921h';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -700,21 +700,30 @@ function openPieza(id, prefill) {
  </div>`;
  const pubSection = `<div class="pz-plattabs">${PLATS.map(([pk, pl], i) => `<button type="button" class="pz-plattab${i === 0 ? ' active' : ''}${platHasData(pk) ? ' has' : ''}" data-plattab="${pk}">${pl}</button>`).join('')}</div>
  <div class="pz-platpanel">${PLATS.map(([pk]) => platPanel(pk)).join('')}</div>`;
+ // Estado con color, iconos de responsable y lista de marcas (para agregar desde el calendario general).
+ const ETAPA_COL = { idea: '#8a8a8a', aprobada: '#16a34a', grabada: '#2563eb', editada: '#d97706', publicada: '#6C00FF' };
+ const etapaStyle = e => { const c = ETAPA_COL[e] || '#8a8a8a'; return 'color:' + c + ';border-color:' + c + ';font-weight:700'; };
+ const _PERSON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>';
+ const _CLIENT_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/></svg>';
+ const respIcon = r => !r ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>' : (r === 'Cliente' ? _CLIENT_SVG : _PERSON_SVG);
+ const marcasList = (state.gestion && state.gestion.marcas ? state.gestion.marcas.map(x => x.marca) : []);
+ const marcaOpts = (function () { const cur = p.marca || ''; const set = new Set(marcasList); let o = '<option value="">— Elige marca —</option>'; if (cur && !set.has(cur)) o += `<option value="${esc(cur)}" selected>${esc(cur)}</option>`; marcasList.forEach(m => { o += `<option ${m === cur ? 'selected' : ''}>${esc(m)}</option>`; }); return o; })();
  const html = `<div class="g-modal" id="pzModal"><div class="g-modal__box glass pz-box">
  <button type="button" class="g-close" id="pzX" aria-label="Cerrar">✕</button>
  <div class="pz-head">
- <input id="pzMarca" class="pz-marca" placeholder="Marca" value="${esc(p.marca)}">
- <select id="pzEtapa" class="pz-etapa">${et.map(([v, l]) => `<option value="${v}" ${p.etapa === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+ <select id="pzMarca" class="pz-marca">${marcaOpts}</select>
+ <select id="pzEtapa" class="pz-etapa" style="${etapaStyle(p.etapa)}">${et.map(([v, l]) => `<option value="${v}" ${p.etapa === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
  </div>
  ${p.origenCliente ? '<div class="pz-cli-banner">🟢 <b>Idea propuesta por el cliente.</b> Por ahora es solo para su parrilla y <b>no cuenta</b> en las metas. Si la tomamos, apruébala como contenido de Versus y entra al flujo normal.<div style="margin-top:.5rem"><button type="button" class="btn btn--primary btn--sm" id="pzAprobarVersus">✓ Aprobar como contenido de Versus</button></div></div>' : ''}
  <input id="pzIdea" class="pz-idea" placeholder="La idea / título" value="${esc(p.idea)}">
- <div class="form-grid" style="margin:.6rem 0">
- <label class="select"><span>Categoría</span><select id="pzTipo">${CATEGORIAS_PIEZA.map(t => `<option ${p.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+ <div class="pz-row3" style="margin:.6rem 0">
+ <label class="select"><span>Categoría</span><div class="pz-iconsel"><span class="pz-iconsel__ic" id="pzTipoIcon">${tipoIcon(p.tipo)}</span><select id="pzTipo">${CATEGORIAS_PIEZA.map(t => `<option ${p.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div></label>
  <label class="select"><span>N.º de publicación <em style="font-weight:400;color:var(--ink-40)">(del ciclo)</em></span><input id="pzNum" type="text" value="${esc(p.numero || '')}" placeholder="1"><span id="pzExtraBadge" class="pz-extra-badge" hidden></span><span id="pzNumFijo" class="pz-num-fijo"${p.numeroManual ? '' : ' hidden'}>📌 fijo · <a href="#" id="pzNumAuto">volver a automático</a></span></label>
- <label class="select select--grow"><span>Responsable</span>
- <select id="pzResp"><option value="">— Sin asignar —</option>${people.map(n => `<option ${p.responsable === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}<option value="Cliente" ${p.responsable === 'Cliente' ? 'selected' : ''}>Cliente (pendiente de aprobación)</option>${(p.responsable && !people.includes(p.responsable) && p.responsable !== 'Cliente') ? `<option selected>${esc(p.responsable)}</option>` : ''}</select></label>
- <label class="select"><span> Fecha de entrega</span><input id="pzFechaEntrega" type="date" value="${esc(p.fechaEntrega || '')}"></label>
- <label class="select"><span> Fecha de publicación</span><input id="pzFecha" type="date" value="${esc(p.fecha || '')}"></label>
+ <label class="select"><span>Responsable</span><div class="pz-iconsel"><span class="pz-iconsel__ic" id="pzRespIcon">${respIcon(p.responsable)}</span><select id="pzResp"><option value="">— Sin asignar —</option>${people.map(n => `<option ${p.responsable === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}<option value="Cliente" ${p.responsable === 'Cliente' ? 'selected' : ''}>Cliente</option>${(p.responsable && !people.includes(p.responsable) && p.responsable !== 'Cliente') ? `<option selected>${esc(p.responsable)}</option>` : ''}</select></div></label>
+ </div>
+ <div class="pz-row2" style="margin:.6rem 0">
+ <label class="select"><span>Fecha de entrega</span><input id="pzFechaEntrega" type="date" value="${esc(p.fechaEntrega || '')}"></label>
+ <label class="select"><span>Fecha de publicación</span><input id="pzFecha" type="date" value="${esc(p.fecha || '')}"></label>
  </div>
  <div class="pz-cycrow"><span class="pz-cyclbl">Ciclo</span><select id="pzCycle" class="pz-cycsel"><option value="${esc(p.cycle || '')}">${p.cycle ? 'Cargando…' : 'Ciclo activo (automático)'}</option></select></div>
  <div class="pz-count">En este ciclo de <b>${esc(p.marca || 'la marca')}</b>: ${nCreativos} creativo(s) · ${nHistorias} historia(s)${id ? '' : ' — esta sería la #' + esc(p.numero || '?')}</div>
@@ -722,7 +731,6 @@ function openPieza(id, prefill) {
         ${rteBarHTML()}
         <div id="pzGuion" class="rte" contenteditable="true" data-ph="El guion del contenido…">${p.guion || ''}</div>
       </div>
- <label class="pz-field"><span>Características</span><textarea id="pzCar" rows="2" placeholder="Formato, duración, música, referencias…">${esc(p.caracteristicas || '')}</textarea></label>
  <label class="pz-field"><span>Links de referencia <em>(brief, Drive, inspiración… uno por línea)</em></span><textarea id="pzRefLinks" rows="2" placeholder="https://…">${esc(p.refLinks || '')}</textarea></label>
  <div class="pz-field"><span>Fotos / adjuntos</span>
  <div id="pzFotos" class="pz-fotos">${id ? '<div class="gw-none">Cargando…</div>' : '<div class="gw-none">Guarda la pieza para poder adjuntar fotos.</div>'}</div>
@@ -732,7 +740,7 @@ function openPieza(id, prefill) {
  ${pubSection}
  </div>
  ${id ? `<div class="pz-field"><span>Comentarios</span>
- <div class="pz-comments">${(p.comentarios || []).map(c => `<div class="pz-comment ${c.sistema ? 'pz-comment--sys' : ''}"><b>${esc(c.autor)}</b> ${esc(c.texto)}</div>`).join('') || '<div class="gw-none">Sin comentarios</div>'}</div>
+ <div class="pz-comments">${(p.comentarios || []).filter(c => c && !c.sistema).map(c => `<div class="pz-comment"><b>${esc(c.autor)}</b> ${esc(c.texto)}</div>`).join('') || '<div class="gw-none">Sin comentarios</div>'}</div>
  <div class="pz-addc"><input id="pzC" placeholder="Escribe un comentario…"><button class="btn btn--ghost btn--sm" id="pzCadd">Comentar</button></div></div>` : ''}
  <div class="g-modal__actions">
  ${id ? '<button class="btn btn--ghost btn--sm" id="pzDel">Eliminar</button>' : ''}
@@ -745,7 +753,7 @@ function openPieza(id, prefill) {
  let numFijado = !!p.numeroManual;
  // Arma el cuerpo de la pieza desde el formulario (se reusa para guardar y para el borrador).
  const buildPiezaBody = () => {
-   const body = { id, marca: $('#pzMarca').value, idea: $('#pzIdea').value, tipo: $('#pzTipo').value, responsable: $('#pzResp').value, numero: $('#pzNum').value, numeroManual: numFijado, cycle: (($('#pzCycle') && $('#pzCycle').value) || _pzCicloActivo || ''), guion: ($('#pzGuion').innerHTML || '').trim(), caracteristicas: $('#pzCar').value,
+   const body = { id, marca: $('#pzMarca').value, idea: $('#pzIdea').value, tipo: $('#pzTipo').value, responsable: $('#pzResp').value, numero: $('#pzNum').value, numeroManual: numFijado, cycle: (($('#pzCycle') && $('#pzCycle').value) || _pzCicloActivo || ''), guion: ($('#pzGuion').innerHTML || '').trim(),
      fecha: $('#pzFecha').value || null, fechaEntrega: $('#pzFechaEntrega').value || null,
      refLinks: ($('#pzRefLinks') && $('#pzRefLinks').value) || '',
      linkIg: $('#pzLinkIg').value, linkTiktok: $('#pzLinkTiktok').value, linkLinkedin: $('#pzLinkLinkedin').value };
@@ -807,6 +815,26 @@ function openPieza(id, prefill) {
  };
  if (pzNum) pzNum.addEventListener('input', calcExtra);
  if (pzTipo) pzTipo.addEventListener('change', calcExtra);
+ // Iconos vivos (categoría, responsable) y color del estado.
+ const _pzTipoIc = $('#pzTipoIcon');
+ if (pzTipo && _pzTipoIc) pzTipo.addEventListener('change', () => { _pzTipoIc.innerHTML = tipoIcon(pzTipo.value); });
+ const _pzResp = $('#pzResp'), _pzRespIc = $('#pzRespIcon');
+ if (_pzResp && _pzRespIc) _pzResp.addEventListener('change', () => { _pzRespIc.innerHTML = respIcon(_pzResp.value); });
+ const _pzEtapa = $('#pzEtapa');
+ if (_pzEtapa) _pzEtapa.addEventListener('change', () => { _pzEtapa.setAttribute('style', etapaStyle(_pzEtapa.value)); });
+ // Marca: si la lista no estaba cargada (p. ej. desde el calendario general), tráela y repuebla el selector.
+ if (!marcasList.length) {
+   const cur = p.marca || '';
+   api('/api/gestion').then(g => {
+     const sel = $('#pzMarca'); if (!sel || !document.getElementById('pzModal')) return;
+     const ms = ((g.data && g.data.marcas) || []).map(x => x.marca);
+     if (!ms.length) return;
+     const set = new Set(ms); let o = '<option value="">— Elige marca —</option>';
+     if (cur && !set.has(cur)) o += `<option value="${esc(cur)}" selected>${esc(cur)}</option>`;
+     ms.forEach(m => { o += `<option ${m === cur ? 'selected' : ''}>${esc(m)}</option>`; });
+     sel.innerHTML = o;
+   }).catch(() => {});
+ }
  if (metaCre == null && p.marca) {
    api('/api/marca/ciclo?marca=' + encodeURIComponent(p.marca)).then(r => {
      if (!r.ok || !document.getElementById('pzModal')) return;
@@ -821,9 +849,8 @@ function openPieza(id, prefill) {
    const sel = $('#pzCycle'); if (!sel || !document.getElementById('pzModal')) return;
    const cycles = (r.ok && r.data.cycles) || [];
    const act = cycles.find(c => c.activo); _pzCicloActivo = act ? act.id : '';
-   const fD = s => { if (!s) return ''; const p2 = s.split('-'); return p2[2] + '/' + p2[1]; };
    const opts = ['<option value="">Ciclo activo (automático)</option>'].concat(cycles.map(c =>
-     `<option value="${esc(c.id)}" ${p.cycle === c.id ? 'selected' : ''}>${esc(c.name)}${c.start ? ' · ' + fD(c.start) + '–' + fD(c.end) : ''}${c.activo ? ' · activo' : ''}</option>`));
+     `<option value="${esc(c.id)}" ${p.cycle === c.id ? 'selected' : ''}>${esc(c.name)}${c.activo ? ' · activo' : ''}</option>`));
    if (p.cycle && !cycles.some(c => c.id === p.cycle)) opts.push(`<option value="${esc(p.cycle)}" selected>${esc(p.cycle)}</option>`);
    sel.innerHTML = opts.join('');
  }).catch(() => {});
@@ -880,16 +907,18 @@ function openPieza(id, prefill) {
 }
 
 // Comprime una imagen en el navegador a JPEG (máx ~1000px) para que quepa y no pese el tablero.
-function compressImage(file, max, q) {
+function compressImage(file, max, q, mime) {
  max = max || 1000; q = q || 0.72;
+ // Si el archivo original es PNG y no se pide otro formato, se CONSERVA PNG (mantiene la transparencia — clave en logos).
+ const outMime = mime || ((file && /png$/i.test(file.type)) ? 'image/png' : 'image/jpeg');
  return new Promise((res, rej) => {
  const rd = new FileReader();
  rd.onload = () => { const img = new Image(); img.onload = () => {
  let w = img.width, h = img.height;
  if (w > h && w > max) { h = Math.round(h * max / w); w = max; } else if (h > max) { w = Math.round(w * max / h); h = max; }
  const c = document.createElement('canvas'); c.width = w; c.height = h;
- c.getContext('2d').drawImage(img, 0, 0, w, h);
- res(c.toDataURL('image/jpeg', q));
+ c.getContext('2d').drawImage(img, 0, 0, w, h); // canvas transparente por defecto → PNG mantiene el alfa
+ res(c.toDataURL(outMime, q));
  }; img.onerror = rej; img.src = rd.result; };
  rd.onerror = rej; rd.readAsDataURL(file);
  });
@@ -914,7 +943,7 @@ function rteBarHTML() {
    <button type="button" class="rte-b" data-cmd="bold" title="Negrita"><b>B</b></button>
    <button type="button" class="rte-b" data-cmd="italic" title="Cursiva"><i>I</i></button>
    <button type="button" class="rte-b" data-cmd="underline" title="Subrayado" style="text-decoration:underline">U</button>
-   <select class="rte-sel" title="Tamaño del texto"><option value="">Tamaño</option><option value="2">Pequeño</option><option value="3">Normal</option><option value="5">Grande</option><option value="6">Título</option></select>
+   <select class="rte-sel" title="Tamaño del texto"><option value="">Tamaño</option><option value="2">12</option><option value="3">14</option><option value="4">16</option><option value="5">18</option><option value="6">24</option><option value="7">32</option></select>
    <input type="color" class="rte-color" value="#111111" title="Color del texto">
    <button type="button" class="rte-b" data-cmd="insertUnorderedList" title="Lista">• Lista</button>
    <span class="rte-sep"></span>
