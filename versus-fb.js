@@ -198,25 +198,27 @@
     return { etapas: ETAPAS, columnas: cols, total: piezas.length };
   }
 
-  /* ---- LOGOS desde brandCfg (como data URI) ---- */
+  /* ---- LOGOS (data URI). Fuente única por MARCA (gestor), con brandCfg de respaldo. ---- */
   async function logos() {
-    // Siempre fresco: el logo cambia y no puede quedar cacheado 5 min.
-    const brandCfg = (await fbGet('db/brandCfg').catch(() => ({}))) || {};
-    const out = [];
-    for (const slug of Object.keys(brandCfg || {})) {
-      const b = brandCfg[slug] || {};
-      const light = (typeof b.logoLight === 'string' && b.logoLight.startsWith('data:')) ? b.logoLight : null; // logo oscuro, para fondo claro
-      const dark = (typeof b.logoDark === 'string' && b.logoDark.startsWith('data:')) ? b.logoDark : null;   // logo claro, para fondo oscuro
-      if (light || dark) out.push({ slug, light, dark, dataUri: light || dark });
+    const isData = s => typeof s === 'string' && s.startsWith('data:');
+    const nk = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+    const [brandCfg, gm] = await Promise.all([fbGet('db/brandCfg').catch(() => ({})), fbGet('gestor/marcas').catch(() => ({}))]);
+    const out = []; const seen = new Set();
+    // 1) Logo del EQUIPO por marca (gestor/marcas/<key>): dual (logoLight/logoDark) o antiguo único (.logo). MANDA.
+    for (const key of Object.keys(gm || {})) {
+      const g = gm[key] || {};
+      const light = isData(g.logoLight) ? g.logoLight : (isData(g.logo) ? g.logo : null);
+      const dark = isData(g.logoDark) ? g.logoDark : (isData(g.logo) ? g.logo : null);
+      if (light || dark) { out.push({ slug: key, marca: g.nombre || key, light, dark, dataUri: light || dark }); seen.add(nk(key)); }
     }
-    // Logos subidos desde el Team (gestor/marcas/<key>/logo), por nombre de marca
-    try {
-      const gm = (await fbGet('gestor/marcas').catch(() => null)) || {};
-      for (const key of Object.keys(gm)) {
-        const lg = gm[key] && gm[key].logo;
-        if (typeof lg === 'string' && lg.startsWith('data:')) out.push({ slug: key, marca: (gm[key].nombre || key), light: lg, dark: lg, dataUri: lg });
-      }
-    } catch (_) {}
+    // 2) brandCfg (marcas cliente sin gestor) — solo si no hay ya uno con la misma clave.
+    for (const slug of Object.keys(brandCfg || {})) {
+      if (seen.has(nk(slug))) continue;
+      const b = brandCfg[slug] || {};
+      const light = isData(b.logoLight) ? b.logoLight : null;
+      const dark = isData(b.logoDark) ? b.logoDark : null;
+      if (light || dark) { out.push({ slug, light, dark, dataUri: light || dark }); seen.add(nk(slug)); }
+    }
     return out;
   }
 
@@ -842,15 +844,19 @@
           if (typeof body.instagram === 'string') patch.instagram = body.instagram.replace(/^@/, '').trim();
           if (typeof body.tiktok === 'string') patch.tiktok = body.tiktok.replace(/^@/, '').trim();
           if (!Object.keys(patch).length) return { ok: false, status: 400, data: { error: 'Nada que guardar' } };
+          const mk = fbKey(marca);
+          // FUENTE ÚNICA: los logos se guardan SIEMPRE por marca en gestor (funciona con o sin cliente).
+          if (patch.logoLight != null) { await fbPut('gestor/marcas/' + mk + '/logoLight', patch.logoLight); await fbPut('gestor/marcas/' + mk + '/logo', patch.logoLight).catch(() => {}); }
+          if (patch.logoDark != null) await fbPut('gestor/marcas/' + mk + '/logoDark', patch.logoDark);
+          // Espejo al portal del CLIENTE (si está vinculado) — logos y @.
           if (cu) { for (const k of Object.keys(patch)) await fbPut('db/brandCfg/' + cu + '/' + k, patch[k]); }
-          // Reflejar en el Team (gestor) para su propia vista de logo.
-          const anyLogo = patch.logoLight || patch.logoDark;
-          if (anyLogo) await fbPut('gestor/marcas/' + fbKey(marca) + '/logo', anyLogo).catch(() => {});
           _bustPortal(); // que el logo nuevo se vea de inmediato (no la caché de 5 min)
-          return { ok: true, data: { ok: true, cliente: cu, avisoCliente: cu ? '' : 'La marca no está enlazada a un cliente; el logo se guardó para el equipo pero el cliente no lo verá hasta enlazar su cuenta.' } };
+          const soloTeam = !cu && (patch.logoLight != null || patch.logoDark != null);
+          return { ok: true, data: { ok: true, cliente: cu, avisoCliente: soloTeam ? 'Logo guardado. Esta marca aún no tiene portal de cliente; cuando lo tenga, lo verá automáticamente.' : '' } };
         }
+        const g = (await fbGet('gestor/marcas/' + fbKey(marca)).catch(() => null)) || {};
         const bc = cu ? ((await fbGet('db/brandCfg/' + cu).catch(() => null)) || {}) : {};
-        return { ok: true, data: { cliente: cu, logoLight: bc.logoLight || '', logoDark: bc.logoDark || '' } };
+        return { ok: true, data: { cliente: cu, logoLight: g.logoLight || bc.logoLight || g.logo || '', logoDark: g.logoDark || bc.logoDark || g.logo || '', instagram: bc.instagram || '', tiktok: bc.tiktok || '' } };
       }
       // Panel de admin: todas las marcas/clientes con su acceso (usuario + contraseña) y logo, para editar por tarjetas.
       if (p === '/api/admin/accesos') {
