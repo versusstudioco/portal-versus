@@ -857,6 +857,37 @@
         const bc = cu ? ((await fbGet('db/brandCfg/' + cu).catch(() => null)) || {}) : {};
         return { ok: true, data: { cliente: cu, logoLight: g.logoLight || bc.logoLight || g.logo || '', logoDark: g.logoDark || bc.logoDark || g.logo || '', instagram: bc.instagram || '', tiktok: bc.tiktok || '' } };
       }
+      // Campañas de pauta de una marca (resumen que ve el cliente en su pestaña Pauta). Solo el equipo.
+      if (p === '/api/marca/pauta') {
+        const s = await sesionActual();
+        if (!s || !s.esEquipo) return { ok: false, status: 403, data: { error: 'Solo el equipo' } };
+        const marca = q.get('marca') || body.marca || '';
+        const norm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+        const [credsTeam, credsCli] = await Promise.all([fbGet('db/creds').catch(() => ({})), fbGet('creds').catch(() => ({}))]);
+        const creds = Object.assign({}, credsCli || {}, credsTeam || {});
+        const km = norm(marca); let cu = '';
+        Object.entries(creds).forEach(([u, v]) => { if (!cu && v && v.type === 'client' && (norm(v.name) === km || norm(u) === km || (km && norm(v.name).indexOf(km) >= 0) || (km && km.indexOf(norm(v.name)) >= 0))) cu = u; });
+        if (!cu) { if (method === 'POST') return { ok: false, status: 400, data: { error: 'La marca no tiene portal de cliente vinculado. Créalo primero para cargar su pauta.' } }; return { ok: true, data: { cu: '', cycles: [], pauta: [] } }; }
+        const pautaRaw = await fbGet('db/pauta').catch(() => null);
+        let arr = (Array.isArray(pautaRaw) ? pautaRaw : (pautaRaw && typeof pautaRaw === 'object' ? Object.values(pautaRaw) : [])).filter(Boolean);
+        if (method === 'POST') {
+          if (body.remove) { arr = arr.filter(x => x && x.id !== body.remove); await fbPut('db/pauta', arr); return { ok: true, data: { ok: true } }; }
+          if (!body.cycle) return { ok: false, status: 400, data: { error: 'Selecciona un ciclo' } };
+          const N = v => +v || 0;
+          const rec = { id: body.id || ('pa' + Date.now()), brand: cu, cycle: String(body.cycle), platform: String(body.platform || ''), period: String(body.period || ''), tipo: String(body.tipo || ''),
+            investment: N(body.investment), days: N(body.days), reach: N(body.reach), impressions: N(body.impressions), frequency: N(body.frequency), clicks: N(body.clicks), ctr: N(body.ctr), conversions: N(body.conversions), cpc: N(body.cpc), anuncios: N(body.anuncios), alcance_pauta: N(body.alcance_pauta), resultados: String(body.resultados || '') };
+          const i = arr.findIndex(x => x && x.id === rec.id);
+          if (i >= 0) arr[i] = rec; else arr.push(rec);
+          await fbPut('db/pauta', arr);
+          await fbPut('db/pautaOn/' + cu, true).catch(() => {});
+          return { ok: true, data: { ok: true, rec } };
+        }
+        const cyclesRaw = await fbGet('db/cycles').catch(() => null);
+        const cycles = (Array.isArray(cyclesRaw) ? cyclesRaw : Object.values(cyclesRaw || {})).filter(c => c && c.brand === cu)
+          .map(c => ({ id: c.id, name: c.name || c.id, status: c.status })).sort((a, b) => (a.status === 'active' && b.status !== 'active') ? -1 : (b.status === 'active' && a.status !== 'active') ? 1 : 0);
+        const pauta = arr.filter(x => x && x.brand === cu);
+        return { ok: true, data: { cu, cycles, pauta } };
+      }
       // Panel de admin: todas las marcas/clientes con su acceso (usuario + contraseña) y logo, para editar por tarjetas.
       if (p === '/api/admin/accesos') {
         const s = await sesionActual();

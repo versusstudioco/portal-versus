@@ -494,6 +494,16 @@ body.dark .ioscard__btn:hover { background: #2c2c2e; }
 .ioscard__chpacts { display: flex; }
 .ioscard--un .ioscard__logo { background: repeating-linear-gradient(45deg,#f2f2f7,#f2f2f7 6px,transparent 6px,transparent 12px); }
 .acc-card--un { border-style: dashed; }
+/* Campañas de pauta (admin) */
+.pauta-list { display: flex; flex-direction: column; gap: .5rem; margin-top: .9rem; }
+.pauta-item { display: flex; align-items: center; justify-content: space-between; gap: .6rem; border: 1px solid var(--line); border-radius: 12px; padding: .6rem .85rem; background: var(--card); }
+.pauta-item__l { min-width: 0; }
+.pauta-item__l b { font-size: .92rem; }
+.pauta-item__l span { display: block; font-size: .76rem; color: var(--ink-60); overflow: hidden; text-overflow: ellipsis; }
+.pauta-item__a { display: flex; gap: .4rem; flex: 0 0 auto; }
+.pauta-item__a button { font-family: var(--font); font-size: .74rem; font-weight: 600; border: 1px solid var(--line); background: transparent; border-radius: 8px; padding: .28rem .6rem; cursor: pointer; color: var(--ink-60); }
+.pauta-item__a .pau-edit:hover { border-color: #6C00FF; color: #6C00FF; }
+.pauta-item__a .pau-del:hover { border-color: var(--red); color: var(--red); }
 .mc-count { font-size: .84rem; color: var(--ink-60); background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: .35rem .8rem; }
 .mc-count b { color: var(--ink); font-size: 1rem; }
 .mc-count--hist b { color: var(--red); }

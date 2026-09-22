@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260922d';
+const VS_TEAM_BUILD = '20260922e';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -2316,6 +2316,65 @@ async function marcaClienteAcceso(marca) {
    if (r.ok && !(r.data && r.data.error)) { alert('Contraseña actualizada. El cliente ya entra con la nueva.'); marcaClienteAcceso(marca); } else alert((r.data && r.data.error) || 'No se pudo');
  });
 }
+// Campañas de pauta (equipo): agrega/edita el resumen que ve el cliente en su pestaña Pauta.
+const PAUTA_TIPOS = ['Reconocimiento', 'Performance', 'Reconocimiento + Performance', 'Tráfico', 'Conversiones'];
+const PAUTA_CAMPOS = [
+  ['platform', 'Plataforma', 'text', 'Instagram / Meta…'], ['period', 'Período', 'text', 'Semana 1–4'],
+  ['investment', 'Inversión', 'number', '0'], ['days', 'Días', 'number', '0'],
+  ['reach', 'Alcance', 'number', '0'], ['impressions', 'Impresiones', 'number', '0'],
+  ['frequency', 'Frecuencia', 'number', '0'], ['clicks', 'Clicks', 'number', '0'],
+  ['ctr', 'CTR (%)', 'number', '0'], ['conversions', 'Conversiones', 'number', '0'],
+  ['cpc', 'CPC', 'number', '0'], ['anuncios', 'Anuncios', 'number', '0'], ['alcance_pauta', 'Alcance de pauta', 'number', '0']
+];
+async function marcaPautaAdmin(marca) {
+  const box = $('#cfPauta'); if (!box) return;
+  const r = await api('/api/marca/pauta?marca=' + encodeURIComponent(marca));
+  if (!r.ok) { box.innerHTML = `<div class="hub-hint">${esc((r.data && r.data.error) || 'No se pudo cargar')}</div>`; return; }
+  const cu = r.data.cu, cycles = r.data.cycles || [], pauta = r.data.pauta || [];
+  if (!cu) { box.innerHTML = '<div class="est-ctx-alert">Esta marca no tiene portal de cliente. Créalo en <b>Acceso del cliente</b> para poder cargar su pauta.</div>'; return; }
+  const render = (editing) => {
+    const e = editing || {};
+    const cycOpts = ['<option value="">— Ciclo —</option>'].concat(cycles.map(c => `<option value="${esc(c.id)}" ${e.cycle === c.id ? 'selected' : ''}>${esc(c.name)}${c.status === 'active' ? ' · activo' : ''}</option>`)).join('');
+    box.innerHTML = `
+      <div class="pauta-form">
+        <div class="est-ctx-grid">
+          <label class="select"><span>Ciclo</span><select id="pauCycle">${cycOpts}</select></label>
+          <label class="select"><span>Tipo de pauta</span><select id="pauTipo"><option value="">—</option>${PAUTA_TIPOS.map(t => `<option ${e.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+          ${PAUTA_CAMPOS.map(([k, l, t, ph]) => `<label class="select"><span>${l}</span><input id="pau_${k}" type="${t}" ${t === 'number' ? 'min="0"' : ''} value="${esc(e[k] != null ? e[k] : '')}" placeholder="${ph}"></label>`).join('')}
+        </div>
+        <label class="select" style="margin-top:.5rem"><span>Resultados / notas <em>(lo que resume la campaña)</em></span><textarea id="pau_resultados" rows="2" placeholder="Qué se logró, aprendizajes…">${esc(e.resultados || '')}</textarea></label>
+        <div style="display:flex;gap:.5rem;margin-top:.6rem">
+          <button class="btn btn--primary btn--sm" id="pauSave">${editing ? 'Guardar cambios' : 'Agregar campaña'}</button>
+          ${editing ? '<button class="btn btn--ghost btn--sm" id="pauCancel">Cancelar</button>' : ''}
+        </div>
+      </div>
+      <div class="pauta-list">${pauta.length ? pauta.map(pt => {
+        const cn = (cycles.find(c => c.id === pt.cycle) || {}).name || pt.cycle || '';
+        return `<div class="pauta-item" data-id="${esc(pt.id)}">
+          <div class="pauta-item__l"><b>${esc(pt.platform || pt.tipo || 'Pauta')}</b><span>${esc(cn)}${pt.period ? ' · ' + esc(pt.period) : ''} · inv ${esc(pt.investment || 0)} · alcance ${esc(pt.reach || pt.alcance_pauta || 0)}</span></div>
+          <div class="pauta-item__a"><button class="pau-edit" data-id="${esc(pt.id)}">Editar</button><button class="pau-del" data-id="${esc(pt.id)}">Eliminar</button></div>
+        </div>`;
+      }).join('') : '<div class="hub-empty">Aún no hay campañas cargadas para esta marca.</div>'}</div>`;
+    const save = $('#pauSave');
+    save.addEventListener('click', async () => {
+      const cycle = $('#pauCycle').value; if (!cycle) { alert('Selecciona un ciclo.'); return; }
+      const body = { marca, id: e.id || '', cycle, tipo: $('#pauTipo').value, resultados: $('#pau_resultados').value };
+      PAUTA_CAMPOS.forEach(([k]) => { body[k] = $('#pau_' + k).value; });
+      save.disabled = true; save.textContent = 'Guardando…';
+      const rr = await api('/api/marca/pauta', { method: 'POST', body });
+      if (!rr.ok || (rr.data && rr.data.error)) { save.disabled = false; save.textContent = editing ? 'Guardar cambios' : 'Agregar campaña'; alert((rr.data && rr.data.error) || 'No se pudo'); return; }
+      flash('Campaña de pauta guardada ✓'); marcaPautaAdmin(marca);
+    });
+    const cancel = $('#pauCancel'); if (cancel) cancel.addEventListener('click', () => marcaPautaAdmin(marca));
+    box.querySelectorAll('.pau-edit').forEach(b => b.addEventListener('click', () => { const pt = pauta.find(x => x.id === b.dataset.id); if (pt) render(pt); box.scrollIntoView({ behavior: 'smooth', block: 'center' }); }));
+    box.querySelectorAll('.pau-del').forEach(b => b.addEventListener('click', async () => {
+      if (!confirm('¿Eliminar esta campaña de pauta?')) return;
+      await api('/api/marca/pauta', { method: 'POST', body: { marca, remove: b.dataset.id } });
+      marcaPautaAdmin(marca);
+    }));
+  };
+  render(null);
+}
 async function marcaConfig(marca) {
  const pane = $('#marcaPane');
  pane.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando configuración…</div>';
@@ -2358,9 +2417,12 @@ async function marcaConfig(marca) {
  <div id="cfPlatInner"><div class="hub-hint">Cargando…</div></div>
  </div>
 
+ <div class="est-ctx" style="margin-top:1rem"><h4> Campañas de pauta <span class="hub-hint" style="display:inline;margin:0">— el resumen que ve el cliente en su pestaña Pauta</span></h4><div id="cfPauta"><div class="hub-hint">Cargando…</div></div></div>
+
  ${isAdmin() ? `<div class="est-ctx" style="margin-top:1rem"><h4> Acceso del cliente <span class="hub-hint" style="display:inline;margin:0">— con esto entra a /clientes/</span></h4><div id="cfCliente"><div class="hub-hint">Cargando…</div></div></div>` : ''}`;
 
  marcaPlataformas(marca);
+ marcaPautaAdmin(marca);
  if (isAdmin()) marcaClienteAcceso(marca);
  // Logos claro/oscuro → db/brandCfg (lo que ve el cliente). Cualquiera del equipo.
  const setLogoPrev = (id, uri) => { const el = $('#' + id); if (el) el.innerHTML = uri ? `<img src="${uri}" alt="logo">` : '<span class="gw-none">Sin logo</span>'; };
