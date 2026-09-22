@@ -198,26 +198,38 @@
     return { etapas: ETAPAS, columnas: cols, total: piezas.length };
   }
 
-  /* ---- LOGOS (data URI). Fuente única por MARCA (gestor), con brandCfg de respaldo. ---- */
+  /* ---- LOGOS (data URI). Fusiona gestor + brandCfg por marca; el logo CLARO/OSCURO explícito
+         SIEMPRE gana sobre el logo único antiguo (.logo). ---- */
   async function logos() {
     const isData = s => typeof s === 'string' && s.startsWith('data:');
     const nk = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
-    const [brandCfg, gm] = await Promise.all([fbGet('db/brandCfg').catch(() => ({})), fbGet('gestor/marcas').catch(() => ({}))]);
-    const out = []; const seen = new Set();
-    // 1) Logo del EQUIPO por marca (gestor/marcas/<key>): dual (logoLight/logoDark) o antiguo único (.logo). MANDA.
+    const [brandCfg, gm, credsTeam, credsCli] = await Promise.all([fbGet('db/brandCfg').catch(() => ({})), fbGet('gestor/marcas').catch(() => ({})), fbGet('db/creds').catch(() => ({})), fbGet('creds').catch(() => ({}))]);
+    const creds = Object.assign({}, credsCli || {}, credsTeam || {});
+    const map = {}; // normKey -> { slug, ll (fondo claro explícito), ld (fondo oscuro explícito), single (legacy), marca }
+    const ensure = slug => { const k = nk(slug); return (map[k] || (map[k] = { slug })); };
+    // Gestor: logo del equipo por marca (dual o único).
     for (const key of Object.keys(gm || {})) {
-      const g = gm[key] || {};
-      const light = isData(g.logoLight) ? g.logoLight : (isData(g.logo) ? g.logo : null);
-      const dark = isData(g.logoDark) ? g.logoDark : (isData(g.logo) ? g.logo : null);
-      if (light || dark) { out.push({ slug: key, marca: g.nombre || key, light, dark, dataUri: light || dark }); seen.add(nk(key)); }
+      const g = gm[key] || {}; const e = ensure(key);
+      if (isData(g.logoLight)) e.ll = g.logoLight;
+      if (isData(g.logoDark)) e.ld = g.logoDark;
+      if (isData(g.logo) && !e.single) e.single = g.logo;
+      if (g.nombre) e.marca = g.nombre;
     }
-    // 2) brandCfg (marcas cliente sin gestor) — solo si no hay ya uno con la misma clave.
-    for (const slug of Object.keys(brandCfg || {})) {
-      if (seen.has(nk(slug))) continue;
-      const b = brandCfg[slug] || {};
-      const light = isData(b.logoLight) ? b.logoLight : null;
-      const dark = isData(b.logoDark) ? b.logoDark : null;
-      if (light || dark) { out.push({ slug, light, dark, dataUri: light || dark }); seen.add(nk(slug)); }
+    // brandCfg (portal del cliente): se empareja por el NOMBRE de la marca (no por el usuario) y también por el usuario.
+    const fill = (e, b) => { if (isData(b.logoLight) && !e.ll) e.ll = b.logoLight; if (isData(b.logoDark) && !e.ld) e.ld = b.logoDark; };
+    for (const cu of Object.keys(brandCfg || {})) {
+      const b = brandCfg[cu] || {};
+      if (!isData(b.logoLight) && !isData(b.logoDark)) continue;
+      const nombre = (creds[cu] && creds[cu].name) || cu;
+      fill(ensure(nombre), b); // clave por NOMBRE de marca → coincide con lo que se muestra
+      fill(ensure(cu), b);     // y por usuario, por si acaso
+    }
+    const out = [];
+    for (const k of Object.keys(map)) {
+      const e = map[k];
+      const light = e.ll || e.single || null; // fondo claro: explícito > único
+      const dark = e.ld || e.single || null;  // fondo oscuro: explícito > único
+      if (light || dark) out.push({ slug: e.slug, marca: e.marca, light, dark, dataUri: light || dark });
     }
     return out;
   }
