@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260922e';
+const VS_TEAM_BUILD = '20260922f';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -1665,22 +1665,22 @@ function normKey(s) { return String(s || '').toLowerCase().normalize('NFD').repl
 function fileToBase64(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
 async function refreshLogos() {
   const lg = await api('/api/marca/logos');
-  if (lg.ok) { const arr = lg.data.logos || []; state.logoSlugs = arr.map(x => x.slug); state.logoData = {}; arr.forEach(x => { state.logoData[x.slug] = { light: x.light || x.dataUri || null, dark: x.dark || x.dataUri || null }; }); }
+  if (lg.ok) { const arr = lg.data.logos || []; state.logoSlugs = arr.map(x => x.slug); state.logoData = {}; arr.forEach(x => { state.logoData[x.slug] = { light: x.light || null, dark: x.dark || null }; }); }
 }
 
 const LOGO_ALIAS = { perse: 'drinkperse', ml: 'mauriciolinares' };
 function logoSlugFor(marca) {
  const slugs = state.logoSlugs || []; const k = normKey(marca);
  if (LOGO_ALIAS[k] && slugs.includes(LOGO_ALIAS[k])) return LOGO_ALIAS[k];
- let hit = slugs.find(s => normKey(s) === k);
- if (!hit) hit = slugs.find(s => { const ns = normKey(s); return ns.length > 2 && (k.includes(ns) || ns.includes(k)); });
- return hit || null;
+ // Coincidencia EXACTA por clave normalizada (sin difuso: eso mezclaba logos entre marcas).
+ return slugs.find(s => normKey(s) === k) || null;
 }
 function isDarkTheme() { return document.documentElement.classList.contains('dark') || document.body.classList.contains('dark'); }
 function marcaLogoHTML(marca, cls) {
  const slug = logoSlugFor(marca);
  const d = slug && state.logoData ? state.logoData[slug] : null;
- const src = d ? (isDarkTheme() ? (d.dark || d.light) : (d.light || d.dark)) : null;
+ // Cada fondo usa SU logo: fondo claro → logoLight; fondo oscuro → logoDark. Si falta, muestra la inicial.
+ const src = d ? (isDarkTheme() ? d.dark : d.light) : null;
  return src
  ? `<div class="${cls} ${cls}--img"><img src="${src}" alt="${esc(marca)}"></div>`
  : `<div class="${cls}">${esc((marca.trim()[0] || '?').toUpperCase())}</div>`;
@@ -1705,17 +1705,8 @@ function aplicarNumeros(scope, mapa) {
    }
  });
 }
-// Un logo claro (para fondo oscuro) es invisible sobre la caja blanca: le ponemos fondo oscuro.
-function fitLogoBg(img) {
- try {
- const c = document.createElement('canvas'); c.width = c.height = 28;
- const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0, 28, 28);
- const d = ctx.getImageData(0, 0, 28, 28).data;
- let lum = 0, a = 0;
- for (let i = 0; i < d.length; i += 4) { const al = d[i + 3] / 255; if (al < 0.1) continue; lum += (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) * al; a += al; }
- if (a && (lum / a) > 150) { const box = img.parentElement; if (box) box.classList.add('logo--ondark'); }
- } catch (e) {}
-}
+// Ya no forzamos fondo oscuro: cada fondo usa su propio logo (claro/oscuro), así que no hace falta.
+function fitLogoBg(img) { /* sin fondo automático */ }
 function bindLogoFit(scope) {
  (scope || document).querySelectorAll('.marca-card__logo--img img, .marca-uni-logo--img img, .bcard-av--img img, .tb-logo--img img').forEach(img => {
  if (img.complete && img.naturalWidth) fitLogoBg(img);
@@ -1730,7 +1721,7 @@ async function loadArchivos() {
  state.hubMarcas = data.marcas || [];
  const logosArr = (lg.ok ? lg.data.logos : []) || [];
  state.logoSlugs = logosArr.map(x => x.slug);
- state.logoData = {}; logosArr.forEach(x => { state.logoData[x.slug] = { light: x.light || x.dataUri || null, dark: x.dark || x.dataUri || null }; });
+ state.logoData = {}; logosArr.forEach(x => { state.logoData[x.slug] = { light: x.light || null, dark: x.dark || null }; });
  renderMarcasGrid();
 }
 function renderMarcasGrid() {

@@ -198,26 +198,26 @@
     return { etapas: ETAPAS, columnas: cols, total: piezas.length };
   }
 
-  /* ---- LOGOS (data URI). brandCfg del cliente + logo del equipo por marca (dual o único). ---- */
+  /* ---- LOGOS (data URI). SOLO los que se guardan en la marca para FONDO CLARO (logoLight)
+         y FONDO OSCURO (logoDark). Nada de logo único viejo (.logo). ---- */
   async function logos() {
     const isData = s => typeof s === 'string' && s.startsWith('data:');
-    const brandCfg = (await fbGet('db/brandCfg').catch(() => ({}))) || {};
+    const [gm, brandCfg] = await Promise.all([fbGet('gestor/marcas').catch(() => ({})), fbGet('db/brandCfg').catch(() => ({}))]);
     const out = [];
+    // Fuente principal: el logo guardado en la MARCA (gestor/marcas/<key>).
+    for (const key of Object.keys(gm || {})) {
+      const g = gm[key] || {};
+      const light = isData(g.logoLight) ? g.logoLight : null;
+      const dark = isData(g.logoDark) ? g.logoDark : null;
+      if (light || dark) out.push({ slug: key, marca: (g.nombre || key), light, dark, dataUri: light || dark });
+    }
+    // Respaldo: brandCfg del cliente (por si el logo quedó ahí; keyed por usuario).
     for (const slug of Object.keys(brandCfg || {})) {
       const b = brandCfg[slug] || {};
       const light = isData(b.logoLight) ? b.logoLight : null;
       const dark = isData(b.logoDark) ? b.logoDark : null;
       if (light || dark) out.push({ slug, light, dark, dataUri: light || dark });
     }
-    try {
-      const gm = (await fbGet('gestor/marcas').catch(() => null)) || {};
-      for (const key of Object.keys(gm)) {
-        const g = gm[key] || {};
-        const light = isData(g.logoLight) ? g.logoLight : (isData(g.logo) ? g.logo : null);
-        const dark = isData(g.logoDark) ? g.logoDark : (isData(g.logo) ? g.logo : null);
-        if (light || dark) out.push({ slug: key, marca: (g.nombre || key), light, dark, dataUri: light || dark });
-      }
-    } catch (_) {}
     return out;
   }
 
@@ -855,7 +855,7 @@
         }
         const g = (await fbGet('gestor/marcas/' + fbKey(marca)).catch(() => null)) || {};
         const bc = cu ? ((await fbGet('db/brandCfg/' + cu).catch(() => null)) || {}) : {};
-        return { ok: true, data: { cliente: cu, logoLight: g.logoLight || bc.logoLight || g.logo || '', logoDark: g.logoDark || bc.logoDark || g.logo || '', instagram: bc.instagram || '', tiktok: bc.tiktok || '' } };
+        return { ok: true, data: { cliente: cu, logoLight: g.logoLight || bc.logoLight || '', logoDark: g.logoDark || bc.logoDark || '', instagram: bc.instagram || '', tiktok: bc.tiktok || '' } };
       }
       // Campañas de pauta de una marca (resumen que ve el cliente en su pestaña Pauta). Solo el equipo.
       if (p === '/api/marca/pauta') {
