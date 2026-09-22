@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260922c';
+const VS_TEAM_BUILD = '20260922d';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -1672,16 +1672,15 @@ const LOGO_ALIAS = { perse: 'drinkperse', ml: 'mauriciolinares' };
 function logoSlugFor(marca) {
  const slugs = state.logoSlugs || []; const k = normKey(marca);
  if (LOGO_ALIAS[k] && slugs.includes(LOGO_ALIAS[k])) return LOGO_ALIAS[k];
- // SOLO coincidencia exacta por clave normalizada (nada difuso: mezclaba logos entre marcas, p. ej. Con Tacto ↔ Persé).
- return slugs.find(s => normKey(s) === k) || null;
+ let hit = slugs.find(s => normKey(s) === k);
+ if (!hit) hit = slugs.find(s => { const ns = normKey(s); return ns.length > 2 && (k.includes(ns) || ns.includes(k)); });
+ return hit || null;
 }
 function isDarkTheme() { return document.documentElement.classList.contains('dark') || document.body.classList.contains('dark'); }
 function marcaLogoHTML(marca, cls) {
  const slug = logoSlugFor(marca);
  const d = slug && state.logoData ? state.logoData[slug] : null;
- // Cada fondo usa SOLO su logo: en fondo claro el de fondo claro; en fondo oscuro el de fondo oscuro.
- // Nada de cruzar (no mostrar el de fondo oscuro sobre fondo claro). Si falta el correcto, muestra la inicial.
- const src = d ? (isDarkTheme() ? d.dark : d.light) : null;
+ const src = d ? (isDarkTheme() ? (d.dark || d.light) : (d.light || d.dark)) : null;
  return src
  ? `<div class="${cls} ${cls}--img"><img src="${src}" alt="${esc(marca)}"></div>`
  : `<div class="${cls}">${esc((marca.trim()[0] || '?').toUpperCase())}</div>`;
@@ -1706,9 +1705,17 @@ function aplicarNumeros(scope, mapa) {
    }
  });
 }
-// Ya NO ponemos fondo negro automático: con logo para fondo claro/oscuro por separado, se usa el correcto.
-// (Se conserva la función para no romper llamadas; ahora no hace nada.)
-function fitLogoBg(img) { /* sin fondo automático */ }
+// Un logo claro (para fondo oscuro) es invisible sobre la caja blanca: le ponemos fondo oscuro.
+function fitLogoBg(img) {
+ try {
+ const c = document.createElement('canvas'); c.width = c.height = 28;
+ const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0, 28, 28);
+ const d = ctx.getImageData(0, 0, 28, 28).data;
+ let lum = 0, a = 0;
+ for (let i = 0; i < d.length; i += 4) { const al = d[i + 3] / 255; if (al < 0.1) continue; lum += (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) * al; a += al; }
+ if (a && (lum / a) > 150) { const box = img.parentElement; if (box) box.classList.add('logo--ondark'); }
+ } catch (e) {}
+}
 function bindLogoFit(scope) {
  (scope || document).querySelectorAll('.marca-card__logo--img img, .marca-uni-logo--img img, .bcard-av--img img, .tb-logo--img img').forEach(img => {
  if (img.complete && img.naturalWidth) fitLogoBg(img);
