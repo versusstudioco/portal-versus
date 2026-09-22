@@ -143,6 +143,7 @@
 
   /* ---- caché de lecturas del portal ---- */
   let _cache = { at: 0, pubs: null, brandCfg: null };
+  function _bustPortal() { _cache = { at: 0, pubs: null, brandCfg: null }; }
   async function portal(force) {
     if (!force && _cache.pubs && Date.now() - _cache.at < 300000) return _cache;
     const [pubsRaw, brandCfg] = await Promise.all([fbGet('db/publications').catch(() => null), fbGet('db/brandCfg').catch(() => ({}))]);
@@ -199,7 +200,8 @@
 
   /* ---- LOGOS desde brandCfg (como data URI) ---- */
   async function logos() {
-    const { brandCfg } = await portal();
+    // Siempre fresco: el logo cambia y no puede quedar cacheado 5 min.
+    const brandCfg = (await fbGet('db/brandCfg').catch(() => ({}))) || {};
     const out = [];
     for (const slug of Object.keys(brandCfg || {})) {
       const b = brandCfg[slug] || {};
@@ -842,10 +844,28 @@
           // Reflejar en el Team (gestor) para su propia vista de logo.
           const anyLogo = patch.logoLight || patch.logoDark;
           if (anyLogo) await fbPut('gestor/marcas/' + fbKey(marca) + '/logo', anyLogo).catch(() => {});
+          _bustPortal(); // que el logo nuevo se vea de inmediato (no la caché de 5 min)
           return { ok: true, data: { ok: true, cliente: cu, avisoCliente: cu ? '' : 'La marca no está enlazada a un cliente; el logo se guardó para el equipo pero el cliente no lo verá hasta enlazar su cuenta.' } };
         }
         const bc = cu ? ((await fbGet('db/brandCfg/' + cu).catch(() => null)) || {}) : {};
         return { ok: true, data: { cliente: cu, logoLight: bc.logoLight || '', logoDark: bc.logoDark || '' } };
+      }
+      // Panel de admin: todas las marcas/clientes con su acceso (usuario + contraseña) y logo, para editar por tarjetas.
+      if (p === '/api/admin/accesos') {
+        const s = await sesionActual();
+        if (!s || s.role !== 'admin') return { ok: false, status: 403, data: { error: 'Solo el administrador' } };
+        const [credsTeam, credsCli, brandCfgRaw] = await Promise.all([fbGet('db/creds').catch(() => ({})), fbGet('creds').catch(() => ({})), fbGet('db/brandCfg').catch(() => ({}))]);
+        const all = Object.assign({}, credsCli || {}, credsTeam || {});
+        const bc = brandCfgRaw || {};
+        const items = [];
+        Object.entries(all).forEach(([u, v]) => {
+          if (!v || v.type !== 'client') return;
+          const b = bc[u] || {};
+          const pass = (credsCli && credsCli[u] && credsCli[u].pass) || (credsTeam && credsTeam[u] && credsTeam[u].pass) || '';
+          items.push({ usuario: u, name: v.name || u, pass, logoLight: b.logoLight || '', logoDark: b.logoDark || '', instagram: b.instagram || '', tiktok: b.tiktok || '' });
+        });
+        items.sort((a, b2) => String(a.name).localeCompare(String(b2.name)));
+        return { ok: true, data: { items } };
       }
       if (p === '/api/marca/wm') {
         // Métricas semanales (seguidores/vistas) conectadas al portal del cliente: db/weekMetrics[CU__ciclo__plat][semana].

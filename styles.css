@@ -466,6 +466,21 @@ a.tag--platform { text-decoration: none; }
 .marca-cal-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .8rem; margin-bottom: 1rem; }
 .marca-cal-counts { display: flex; gap: .6rem; flex-wrap: wrap; }
 .marca-cal-actions { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+/* Admin · tarjetas de marcas y accesos */
+.acc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+.acc-card { border: 1px solid var(--line); border-radius: 16px; padding: 1rem; background: var(--card); display: flex; flex-direction: column; gap: .7rem; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+.acc-card__logo { width: 64px; height: 64px; border-radius: 14px; background: #fff; border: 1px solid rgba(0,0,0,.08); display: flex; align-items: center; justify-content: center; overflow: hidden; font-weight: 800; font-size: 1.5rem; color: var(--red); }
+body.dark .acc-card__logo { background: #111; border-color: rgba(255,255,255,.12); }
+.acc-card__logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.acc-card__name { font-weight: 800; font-size: 1.02rem; }
+.acc-card__user { font-size: .8rem; color: var(--ink-60); font-family: monospace; }
+.acc-card__passrow { display: flex; align-items: center; gap: .5rem; margin-top: .4rem; }
+.acc-card__passlbl { font-size: .72rem; font-weight: 700; text-transform: uppercase; color: var(--ink-40); }
+.acc-pass { font-family: monospace; font-size: .85rem; border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: .2rem .6rem; cursor: pointer; }
+.acc-card__none { font-size: .78rem; color: var(--ink-40); }
+.acc-card__acts { display: flex; gap: .5rem; flex-wrap: wrap; }
+.acc-card__chp { display: flex; flex-direction: column; gap: .45rem; border-top: 1px dashed var(--line); padding-top: .6rem; }
+.acc-card__chp input { font-family: var(--font); font-size: .88rem; padding: .5rem .7rem; border: 1px solid var(--line); border-radius: 8px; }
 .mc-count { font-size: .84rem; color: var(--ink-60); background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: .35rem .8rem; }
 .mc-count b { color: var(--ink); font-size: 1rem; }
 .mc-count--hist b { color: var(--red); }
