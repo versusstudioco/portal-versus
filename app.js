@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260921p';
+const VS_TEAM_BUILD = '20260921q';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -721,7 +721,7 @@ function openPieza(id, prefill) {
  <input id="pzIdea" class="pz-idea" placeholder="La idea / título" value="${esc(p.idea)}">
  <div class="pz-row3" style="margin:.7rem 0">
  <label class="select"><span>Categoría</span><div class="pz-iconsel"><span class="pz-iconsel__ic" id="pzTipoIcon">${tipoIcon(p.tipo)}</span><select id="pzTipo">${CATEGORIAS_PIEZA.map(t => `<option ${p.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div></label>
- <label class="select"><span>N.º de publicación</span><input id="pzNum" type="text" value="${esc(p.numero || '')}" placeholder="1"><div class="pz-numfoot"><span id="pzExtraBadge" class="pz-extra-badge" hidden></span><span id="pzNumFijo" class="pz-num-fijo"${p.numeroManual ? '' : ' hidden'}>📌 fijo · <a href="#" id="pzNumAuto">auto</a></span></div></label>
+ <label class="select"><span>N.º de publicación</span><input id="pzNum" type="text" value="${esc(p.numero || '')}" placeholder="1"><div class="pz-numfoot"><span id="pzNumFijo" class="pz-num-fijo"${p.numeroManual ? '' : ' hidden'}>📌 fijo · <a href="#" id="pzNumAuto">auto</a></span></div></label>
  <label class="select"><span>Responsable</span><div class="pz-iconsel"><span class="pz-iconsel__ic" id="pzRespIcon">${respIcon(p.responsable)}</span><select id="pzResp">${_yo ? `<option value="${esc(_yo)}" ${p.responsable === _yo ? 'selected' : ''}>Yo · ${esc(_yo)}</option>` : ''}${people.filter(n => n !== _yo).map(n => `<option ${p.responsable === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}<option value="Cliente" ${p.responsable === 'Cliente' ? 'selected' : ''}>Cliente</option>${(p.responsable && !people.includes(p.responsable) && p.responsable !== 'Cliente' && p.responsable !== _yo) ? `<option selected>${esc(p.responsable)}</option>` : ''}<option value="">— Sin asignar —</option></select></div></label>
  </div>
  <div class="pz-row2" style="margin:.7rem 0">
@@ -1704,17 +1704,9 @@ function aplicarNumeros(scope, mapa) {
    }
  });
 }
-// Un logo claro (para fondo oscuro) es invisible sobre la caja blanca: le ponemos fondo oscuro.
-function fitLogoBg(img) {
- try {
- const c = document.createElement('canvas'); c.width = c.height = 28;
- const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0, 28, 28);
- const d = ctx.getImageData(0, 0, 28, 28).data;
- let lum = 0, a = 0;
- for (let i = 0; i < d.length; i += 4) { const al = d[i + 3] / 255; if (al < 0.1) continue; lum += (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) * al; a += al; }
- if (a && (lum / a) > 150) { const box = img.parentElement; if (box) box.classList.add('logo--ondark'); }
- } catch (e) {}
-}
+// Ya NO ponemos fondo negro automático: con logo para fondo claro/oscuro por separado, se usa el correcto.
+// (Se conserva la función para no romper llamadas; ahora no hace nada.)
+function fitLogoBg(img) { /* sin fondo automático */ }
 function bindLogoFit(scope) {
  (scope || document).querySelectorAll('.marca-card__logo--img img, .marca-uni-logo--img img, .bcard-av--img img, .tb-logo--img img').forEach(img => {
  if (img.complete && img.naturalWidth) fitLogoBg(img);
