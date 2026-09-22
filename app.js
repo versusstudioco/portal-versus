@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260921o';
+const VS_TEAM_BUILD = '20260921p';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -342,7 +342,6 @@ $$('.nav__item').forEach(btn => {
  if (view === 'inicio') loadInicio();
  if (view === 'calendario') loadCalendario();
  if (view === 'pauta') loadPauta();
- if (view === 'gestion' && !state.gestionLoaded) loadGestion();
  if (view === 'flujo') loadFlujo();
  if (view === 'metricas' && !state.metricasLoaded) loadMetricas();
  if (view === 'archivos') loadArchivos();
@@ -366,6 +365,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNav(); 
 
 /* ---------------- Gestión ---------------- */
 async function loadGestion() {
+ if (!$('#gMarcas')) return; // vista Gestión retirada
  $('#gMarcas').innerHTML = '<div class="loading"><div class="spinner"></div>Armando tu tablero de trabajo…</div>';
  const [g, cal, mt] = await Promise.all([
  api('/api/gestion'), api('/api/gestion/calendario'), api('/api/team/mytasks')

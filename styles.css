@@ -715,13 +715,15 @@ body.dark .ioscard__btn:hover { background: #2c2c2e; }
 .quick__btn:hover { background: #f3f3f3; }
 
 /* ---------- Calendario ---------- */
-.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: .5rem; }
-.cal__dow { font-size: .72rem; font-weight: 700; color: var(--ink-40); text-transform: uppercase; letter-spacing: .05em; text-align: center; padding-bottom: .2rem; }
-.cal__cell { background: var(--card); border: 1px solid var(--line); border-radius: 10px; min-height: 96px; padding: .45rem; min-width: 0; }
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.cal__dow { font-size: .7rem; font-weight: 600; color: var(--ink-40); text-transform: uppercase; letter-spacing: .04em; text-align: center; padding-bottom: .3rem; }
+.cal__cell { background: var(--card); border: 1px solid rgba(0,0,0,.06); border-radius: 12px; min-height: 98px; padding: .5rem; min-width: 0; transition: border-color .12s; }
+body.dark .cal__cell { border-color: rgba(255,255,255,.07); }
 .cal__cell--empty { background: transparent; border: none; }
-.cal__cell--hoy { border-color: var(--ink); }
-.cal__num { font-size: .8rem; font-weight: 700; color: var(--ink-60); margin-bottom: .35rem; }
-.cal__item { font-size: .72rem; display: flex; align-items: center; gap: .3rem; padding: .22rem .32rem; border-radius: 5px; background: var(--bg); margin-bottom: .25rem; min-width: 0; }
+.cal__cell--hoy { background: rgba(10,132,255,.06); border-color: rgba(10,132,255,.35); }
+.cal__num { font-size: .78rem; font-weight: 600; color: var(--ink-40); margin-bottom: .4rem; }
+.cal__cell--hoy .cal__num { color: #0a84ff; }
+.cal__item { font-size: .72rem; display: flex; align-items: center; gap: .32rem; padding: .28rem .4rem; border-radius: 8px; background: var(--bg); margin-bottom: .3rem; min-width: 0; }
 .cal-svg { width: 13px; height: 13px; flex: 0 0 auto; color: var(--ink-60); }
 .cal__txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cal__pnum--fijo { color: #6C00FF; font-weight: 800; }
