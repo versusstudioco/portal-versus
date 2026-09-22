@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260921h';
+const VS_TEAM_BUILD = '20260921i';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -701,12 +701,12 @@ function openPieza(id, prefill) {
  const pubSection = `<div class="pz-plattabs">${PLATS.map(([pk, pl], i) => `<button type="button" class="pz-plattab${i === 0 ? ' active' : ''}${platHasData(pk) ? ' has' : ''}" data-plattab="${pk}">${pl}</button>`).join('')}</div>
  <div class="pz-platpanel">${PLATS.map(([pk]) => platPanel(pk)).join('')}</div>`;
  // Estado con color, iconos de responsable y lista de marcas (para agregar desde el calendario general).
- const ETAPA_COL = { idea: '#8a8a8a', aprobada: '#16a34a', grabada: '#2563eb', editada: '#d97706', publicada: '#6C00FF' };
- const etapaStyle = e => { const c = ETAPA_COL[e] || '#8a8a8a'; return 'color:' + c + ';border-color:' + c + ';font-weight:700'; };
+ const ETAPA_COL = { idea: ['#8a8a8a', 'rgba(138,138,138,.12)'], aprobada: ['#16a34a', 'rgba(22,163,74,.12)'], grabada: ['#2563eb', 'rgba(37,99,235,.12)'], editada: ['#d97706', 'rgba(217,119,6,.14)'], publicada: ['#6C00FF', 'rgba(108,0,255,.12)'] };
+ const etapaStyle = e => { const v = ETAPA_COL[e] || ETAPA_COL.idea; return 'color:' + v[0] + ';border-color:' + v[0] + ';background:' + v[1] + ';font-weight:700'; };
  const _PERSON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>';
  const _CLIENT_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/></svg>';
  const respIcon = r => !r ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>' : (r === 'Cliente' ? _CLIENT_SVG : _PERSON_SVG);
- const marcasList = (state.gestion && state.gestion.marcas ? state.gestion.marcas.map(x => x.marca) : []);
+ const marcasList = (function () { const s = new Set(); if (state.gestion && state.gestion.marcas) state.gestion.marcas.forEach(x => { if (x && x.marca) s.add(x.marca); }); Object.values(state.piezas || {}).forEach(x => { if (x && x.marca) s.add(x.marca); }); return Array.from(s).sort((a, b) => a.localeCompare(b)); })();
  const marcaOpts = (function () { const cur = p.marca || ''; const set = new Set(marcasList); let o = '<option value="">— Elige marca —</option>'; if (cur && !set.has(cur)) o += `<option value="${esc(cur)}" selected>${esc(cur)}</option>`; marcasList.forEach(m => { o += `<option ${m === cur ? 'selected' : ''}>${esc(m)}</option>`; }); return o; })();
  const html = `<div class="g-modal" id="pzModal"><div class="g-modal__box glass pz-box">
  <button type="button" class="g-close" id="pzX" aria-label="Cerrar">✕</button>
@@ -716,17 +716,16 @@ function openPieza(id, prefill) {
  </div>
  ${p.origenCliente ? '<div class="pz-cli-banner">🟢 <b>Idea propuesta por el cliente.</b> Por ahora es solo para su parrilla y <b>no cuenta</b> en las metas. Si la tomamos, apruébala como contenido de Versus y entra al flujo normal.<div style="margin-top:.5rem"><button type="button" class="btn btn--primary btn--sm" id="pzAprobarVersus">✓ Aprobar como contenido de Versus</button></div></div>' : ''}
  <input id="pzIdea" class="pz-idea" placeholder="La idea / título" value="${esc(p.idea)}">
- <div class="pz-row3" style="margin:.6rem 0">
+ <div class="pz-row3" style="margin:.7rem 0">
  <label class="select"><span>Categoría</span><div class="pz-iconsel"><span class="pz-iconsel__ic" id="pzTipoIcon">${tipoIcon(p.tipo)}</span><select id="pzTipo">${CATEGORIAS_PIEZA.map(t => `<option ${p.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div></label>
- <label class="select"><span>N.º de publicación <em style="font-weight:400;color:var(--ink-40)">(del ciclo)</em></span><input id="pzNum" type="text" value="${esc(p.numero || '')}" placeholder="1"><span id="pzExtraBadge" class="pz-extra-badge" hidden></span><span id="pzNumFijo" class="pz-num-fijo"${p.numeroManual ? '' : ' hidden'}>📌 fijo · <a href="#" id="pzNumAuto">volver a automático</a></span></label>
+ <label class="select"><span>N.º de publicación</span><input id="pzNum" type="text" value="${esc(p.numero || '')}" placeholder="1"><div class="pz-numfoot"><span id="pzExtraBadge" class="pz-extra-badge" hidden></span><span id="pzNumFijo" class="pz-num-fijo"${p.numeroManual ? '' : ' hidden'}>📌 fijo · <a href="#" id="pzNumAuto">auto</a></span></div></label>
  <label class="select"><span>Responsable</span><div class="pz-iconsel"><span class="pz-iconsel__ic" id="pzRespIcon">${respIcon(p.responsable)}</span><select id="pzResp"><option value="">— Sin asignar —</option>${people.map(n => `<option ${p.responsable === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}<option value="Cliente" ${p.responsable === 'Cliente' ? 'selected' : ''}>Cliente</option>${(p.responsable && !people.includes(p.responsable) && p.responsable !== 'Cliente') ? `<option selected>${esc(p.responsable)}</option>` : ''}</select></div></label>
  </div>
- <div class="pz-row2" style="margin:.6rem 0">
+ <div class="pz-row2" style="margin:.7rem 0">
  <label class="select"><span>Fecha de entrega</span><input id="pzFechaEntrega" type="date" value="${esc(p.fechaEntrega || '')}"></label>
  <label class="select"><span>Fecha de publicación</span><input id="pzFecha" type="date" value="${esc(p.fecha || '')}"></label>
  </div>
  <div class="pz-cycrow"><span class="pz-cyclbl">Ciclo</span><select id="pzCycle" class="pz-cycsel"><option value="${esc(p.cycle || '')}">${p.cycle ? 'Cargando…' : 'Ciclo activo (automático)'}</option></select></div>
- <div class="pz-count">En este ciclo de <b>${esc(p.marca || 'la marca')}</b>: ${nCreativos} creativo(s) · ${nHistorias} historia(s)${id ? '' : ' — esta sería la #' + esc(p.numero || '?')}</div>
  <div class="pz-field"><span>Guion</span>
         ${rteBarHTML()}
         <div id="pzGuion" class="rte" contenteditable="true" data-ph="El guion del contenido…">${p.guion || ''}</div>
@@ -792,16 +791,6 @@ function openPieza(id, prefill) {
  if (pzNumAuto) pzNumAuto.addEventListener('click', e => { e.preventDefault(); numFijado = false; if (pzNum) pzNum._touched = false; pzNumFijoUI(); sugerirNum(); });
  const sugerirNum = () => { if (!pzNum || pzNum._touched) return; pzNum.value = String(((pzTipo && pzTipo.value === 'Historia') ? nHistorias : nCreativos) + 1); if (pzCount) pzCount.innerHTML = `En este ciclo de <b>${esc(($('#pzMarca') && $('#pzMarca').value) || p.marca || 'la marca')}</b>: ${nCreativos} creativo(s) · ${nHistorias} historia(s) — esta sería la #${esc(pzNum.value)}`; };
  if (!id && pzTipo && pzNum) pzTipo.addEventListener('change', sugerirNum);
- // Si el rango del ciclo no estaba cacheado, tráelo y recalcula el # por ciclo.
- if (!id && p.marca && !cr) {
-   api('/api/marca/ciclo?marca=' + encodeURIComponent(p.marca)).then(r => {
-     if (!r.ok || !document.getElementById('pzModal')) return;
-     cr = { marca: p.marca, inicio: r.data.inicio || '', fin: r.data.fin || '' };
-     state._cicloRange = cr;
-     const cc = contar(); nCreativos = cc.c; nHistorias = cc.h;
-     sugerirNum();
-   }).catch(() => {});
- }
  // Novedad "Adicional": cuando el consecutivo del creativo supera lo pactado.
  const CRE_TIPOS = ['Reel', 'Carrusel', 'Post', 'Banner', 'Pauta'];
  let metaCre = (state._cicloMeta && state._cicloMeta.marca === p.marca) ? state._cicloMeta.creativos : null;
@@ -835,9 +824,11 @@ function openPieza(id, prefill) {
      sel.innerHTML = o;
    }).catch(() => {});
  }
- if (metaCre == null && p.marca) {
+ // UNA sola llamada al ciclo: rango (para el #) + metas (para "adicional"). Antes eran dos → lentitud.
+ if (p.marca && (metaCre == null || !cr)) {
    api('/api/marca/ciclo?marca=' + encodeURIComponent(p.marca)).then(r => {
      if (!r.ok || !document.getElementById('pzModal')) return;
+     if (!cr) { cr = { marca: p.marca, inicio: r.data.inicio || '', fin: r.data.fin || '' }; state._cicloRange = cr; const cc = contar(); nCreativos = cc.c; nHistorias = cc.h; if (!id) sugerirNum(); }
      const pa = r.data.pactado || {}; metaCre = (+pa.reels || 0) + (+pa.carruseles || 0) + (+pa.posts || 0);
      state._cicloMeta = { marca: p.marca, creativos: metaCre }; calcExtra();
    }).catch(() => {});
@@ -1940,8 +1931,10 @@ async function marcaCalendario(marca) {
  <span class="mc-count"><b>${creativos}</b> creativos</span>
  <span class="mc-count mc-count--hist"><b>${historias}</b> historias</span>
  </div>
+ <div class="marca-cal-actions">
  <button class="btn btn--primary btn--sm" id="addCreativo">+ Agregar creativo</button>
  <button class="btn btn--ghost btn--sm" id="addEstrategia">+ Estrategia</button>
+ </div>
  </div>`;
  html += `<div class="marca-cal-nav"><button class="btn btn--ghost btn--sm" id="mcPrev">Anterior</button><div class="marca-cal-month">${cal.label}</div><button class="btn btn--ghost btn--sm" id="mcNext">Siguiente</button></div>` + cal.html;
  if (sinFecha.length) {

@@ -465,6 +465,7 @@ a.tag--platform { text-decoration: none; }
 .marca-cal-sub { font-size: .9rem; font-weight: 700; margin: 1.1rem 0 .5rem; color: var(--ink-60); }
 .marca-cal-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .8rem; margin-bottom: 1rem; }
 .marca-cal-counts { display: flex; gap: .6rem; flex-wrap: wrap; }
+.marca-cal-actions { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
 .mc-count { font-size: .84rem; color: var(--ink-60); background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: .35rem .8rem; }
 .mc-count b { color: var(--ink); font-size: 1rem; }
 .mc-count--hist b { color: var(--red); }
@@ -599,13 +600,21 @@ a.tag--platform { text-decoration: none; }
 .pz-head { display: flex; gap: .6rem; margin-bottom: .6rem; }
 .pz-marca { flex: 1; font-family: var(--font); font-size: 1rem; font-weight: 700; padding: .5rem .7rem; border: 1px solid var(--line); border-radius: 8px; }
 .pz-etapa { font-family: var(--font); font-weight: 700; padding: .5rem .7rem; border: 1.5px solid var(--ink); border-radius: 8px; background: var(--card); color: var(--ink); }
-.pz-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .9rem; align-items: end; }
+.pz-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .9rem; align-items: start; }
 .pz-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; }
 @media (max-width: 560px){ .pz-row3, .pz-row2 { grid-template-columns: 1fr; } }
-.pz-iconsel { display: flex; align-items: center; gap: .45rem; border: 1px solid var(--line); border-radius: 8px; padding: 0 .2rem 0 .55rem; background: var(--card); }
-.pz-iconsel__ic { flex: 0 0 auto; width: 18px; height: 18px; color: var(--ink-60); display: inline-flex; align-items: center; justify-content: center; }
+.pz-row3 > .select, .pz-row2 > .select { margin: 0; }
+.pz-row3 > .select > span, .pz-row2 > .select > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.pz-row3 .select input, .pz-row3 .pz-iconsel { height: 42px; box-sizing: border-box; }
+.pz-iconsel { display: flex; align-items: center; gap: .4rem; border: 1px solid var(--line); border-radius: 8px; padding: 0 .3rem 0 .6rem; background: var(--card); }
+.pz-iconsel:focus-within { border-color: var(--red); }
+.pz-iconsel__ic { flex: 0 0 auto; width: 18px; height: 18px; color: var(--ink); display: inline-flex; align-items: center; justify-content: center; }
 .pz-iconsel__ic svg { width: 18px; height: 18px; }
-.pz-iconsel select { border: 0; background: transparent; padding: .5rem .4rem; font-family: var(--font); font-size: .9rem; flex: 1; min-width: 0; outline: none; color: var(--ink); }
+.pz-iconsel select { border: 0; background: transparent; padding: .5rem .2rem; font-family: var(--font); font-size: .92rem; font-weight: 600; flex: 1; min-width: 0; outline: none; color: var(--ink); }
+.pz-numfoot { min-height: 14px; margin-top: 4px; line-height: 1; }
+.pz-num-fijo { font-size: 10px; font-weight: 600; color: var(--ink-40); }
+.pz-num-fijo a { color: #6C00FF; text-decoration: underline; cursor: pointer; }
+.pz-etapa { min-width: 120px; }
 .pz-idea { width: 100%; font-family: var(--font); font-size: 1.15rem; font-weight: 800; padding: .5rem .7rem; border: 1px solid var(--line); border-radius: 8px; }
 .pz-field { display: block; margin-bottom: .7rem; }
 .pz-field > span { display: block; font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-60); margin-bottom: .3rem; }
@@ -1465,8 +1474,6 @@ body { overflow-x: hidden; }
 
 /* Novedad: contenido adicional sobre lo pactado */
 .pz-extra-badge{display:inline-block;margin-top:.35rem;font-size:10px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;padding:3px 8px;border-radius:9px;background:rgba(108,0,255,.12);color:#6C00FF}
-.pz-num-fijo{display:inline-block;margin-top:.35rem;font-size:11px;font-weight:600;color:var(--ink-60,#6b6b78)}
-.pz-num-fijo a{color:#6C00FF;text-decoration:underline;cursor:pointer}
 .cic-extra{font-size:12px;font-weight:700;color:#15803d;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);border-radius:9px;padding:6px 10px;margin:.35rem 0}
 
 /* Aviso breve (toast) del Team — p. ej. "Guardado como borrador" */
