@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260921m';
+const VS_TEAM_BUILD = '20260921n';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -1347,20 +1347,23 @@ async function loadConfig() {
  const _linked = new Set(); clientes.forEach(c => { _linked.add(_nk(c.name)); _linked.add(_nk(c.usuario)); });
  const _unlinked = _marcas.filter(m => { const k = _nk(m); return k && !_linked.has(k); });
  const _dark = document.body.classList.contains('dark');
- const _cliCard = c => { const logo = _dark ? (c.logoDark || c.logoLight) : (c.logoLight || c.logoDark); return `<div class="acc-card" data-name="${esc(c.name)}" data-user="${esc(c.usuario)}">
-   <div style="display:flex;gap:.7rem;align-items:center">
-     <div class="acc-card__logo${logo ? '' : ' acc-card__logo--ph'}">${logo ? `<img src="${esc(logo)}" alt="logo">` : esc((c.name || '?').charAt(0).toUpperCase())}</div>
-     <div style="min-width:0"><div class="acc-card__name">${esc(c.name)}</div><div class="acc-card__user">@${esc(c.usuario)}</div></div>
+ const _gearSVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>';
+ const _cliCard = c => { const logo = _dark ? (c.logoDark || c.logoLight) : (c.logoLight || c.logoDark); return `<div class="ioscard" data-name="${esc(c.name)}" data-user="${esc(c.usuario)}">
+   <div class="ioscard__top">
+     <div class="ioscard__logo${logo ? '' : ' ioscard__logo--ph'}">${logo ? `<img src="${esc(logo)}" alt="logo">` : esc((c.name || '?').charAt(0).toUpperCase())}</div>
+     <div class="ioscard__id"><div class="ioscard__name">${esc(c.name)}</div><div class="ioscard__sub">@${esc(c.usuario)}</div></div>
+     <button class="ioscard__gear acc-edit" type="button" title="Editar marca y logo" aria-label="Editar">${_gearSVG}</button>
    </div>
-   <div class="acc-card__passrow"><span class="acc-card__passlbl">Contraseña</span>${c.pass ? `<button type="button" class="acc-pass" data-pass="${esc(c.pass)}">••••••</button>` : '<span class="acc-card__none">no guardada</span>'}<button class="acc-mini acc-chpass" type="button">cambiar</button></div>
-   <div class="acc-card__chp" hidden>${c.pass ? '' : '<input class="acc-cur" type="text" placeholder="Contraseña ACTUAL (una vez)">'}<input class="acc-new" type="text" placeholder="Nueva contraseña (mín. 6)"><button class="btn btn--primary btn--sm acc-save" type="button">Guardar clave</button></div>
-   <div class="acc-hd"><label class="acc-hd__f"><span>Instagram</span><input class="acc-ig" value="${esc(c.instagram || '')}" placeholder="usuario"></label><label class="acc-hd__f"><span>TikTok</span><input class="acc-tk" value="${esc(c.tiktok || '')}" placeholder="usuario"></label></div>
-   <div class="acc-card__acts"><button class="btn btn--ghost btn--sm acc-savehd" type="button">Guardar @</button><button class="btn btn--primary btn--sm acc-edit" type="button">Editar / logo</button></div>
+   <button class="ioscard__btn acc-chpass" type="button">Cambiar clave</button>
+   <div class="ioscard__chp" hidden>
+     ${c.pass ? '' : '<input class="acc-cur" type="text" placeholder="Contraseña actual (una vez)">'}
+     <input class="acc-new" type="password" placeholder="Nueva contraseña (mín. 6)">
+     <div class="ioscard__chpacts"><button class="ioscard__btn ioscard__btn--pri acc-save" type="button">Guardar</button></div>
+   </div>
  </div>`; };
- const _unCard = m => `<div class="acc-card acc-card--un" data-name="${esc(m)}">
-   <div style="display:flex;gap:.7rem;align-items:center"><div class="acc-card__logo acc-card__logo--ph">${esc((m || '?').charAt(0).toUpperCase())}</div><div style="min-width:0"><div class="acc-card__name">${esc(m)}</div><div class="acc-card__user" style="color:var(--red)">sin portal de cliente</div></div></div>
-   <p class="hub-hint" style="margin:.2rem 0 .4rem">Esta marca no está enlazada a una cuenta. Créale su portal para que entre a /clientes/.</p>
-   <div class="acc-card__acts"><button class="btn btn--primary btn--sm acc-crear" type="button" data-marca="${esc(m)}">+ Crear portal de clientes</button></div>
+ const _unCard = m => `<div class="ioscard ioscard--un" data-name="${esc(m)}">
+   <div class="ioscard__top"><div class="ioscard__logo ioscard__logo--ph">${esc((m || '?').charAt(0).toUpperCase())}</div><div class="ioscard__id"><div class="ioscard__name">${esc(m)}</div><div class="ioscard__sub ioscard__sub--warn">Sin portal de cliente</div></div></div>
+   <button class="ioscard__btn ioscard__btn--pri acc-crear" type="button" data-marca="${esc(m)}">Crear portal</button>
  </div>`;
  out.innerHTML = AGENDA_PANEL + `
  <div class="glass panel form-panel">
@@ -1406,28 +1409,20 @@ async function loadConfig() {
  if (res.ok) { alert('Cliente creado. Ya puede entrar al Portal de Clientes con su usuario y contraseña.'); loadConfig(); }
  else alert(res.data.error || 'No se pudo crear');
  });
- // Tarjetas de clientes: ver/cambiar contraseña, editar @ y logo, y crear portal para marcas sin enlazar.
- out.querySelectorAll('.acc-pass').forEach(b => b.addEventListener('click', () => { const sh = b.dataset.shown === '1'; b.textContent = sh ? '••••••' : b.dataset.pass; b.dataset.shown = sh ? '0' : '1'; }));
- out.querySelectorAll('.acc-chpass').forEach(b => b.addEventListener('click', () => { const chp = b.closest('.acc-card').querySelector('.acc-card__chp'); chp.hidden = !chp.hidden; }));
+ // Tarjetas de clientes (iOS): cambiar clave, editar marca/logo, y crear portal para marcas sin enlazar.
+ out.querySelectorAll('.acc-chpass').forEach(b => b.addEventListener('click', () => { const chp = b.closest('.ioscard').querySelector('.ioscard__chp'); const opening = chp.hidden; chp.hidden = !chp.hidden; b.textContent = opening ? 'Cancelar' : 'Cambiar clave'; b.classList.toggle('ioscard__btn--open', opening); if (opening) { const f = chp.querySelector('input'); if (f) f.focus(); } }));
  out.querySelectorAll('.acc-save').forEach(b => b.addEventListener('click', async () => {
-   const card = b.closest('.acc-card'); const name = card.dataset.name;
+   const card = b.closest('.ioscard'); const name = card.dataset.name;
    const np = (card.querySelector('.acc-new').value || ''); if (np.length < 6) { alert('La contraseña debe tener 6 o más caracteres.'); return; }
    const curEl = card.querySelector('.acc-cur'); const curVal = curEl ? (curEl.value || '') : '';
-   if (curEl && !curVal) { alert('Escribe la contraseña ACTUAL del cliente para autorizar el cambio.'); return; }
+   if (curEl && !curVal) { alert('Escribe la contraseña actual del cliente para autorizar el cambio.'); return; }
    b.disabled = true; b.textContent = 'Guardando…';
    const rr = await api('/api/marca/cliente', { method: 'POST', body: { marca: name, newPass: np, currentPass: curVal } });
-   b.disabled = false; b.textContent = 'Guardar clave';
+   b.disabled = false; b.textContent = 'Guardar';
    if (rr.ok && !(rr.data && rr.data.error)) { flash('Contraseña actualizada ✓'); loadConfig(); } else alert((rr.data && rr.data.error) || 'No se pudo');
  }));
- out.querySelectorAll('.acc-savehd').forEach(b => b.addEventListener('click', async () => {
-   const card = b.closest('.acc-card'); const name = card.dataset.name;
-   b.disabled = true; b.textContent = 'Guardando…';
-   const rr = await api('/api/marca/logo', { method: 'POST', body: { marca: name, instagram: card.querySelector('.acc-ig').value, tiktok: card.querySelector('.acc-tk').value } });
-   b.disabled = false; b.textContent = 'Guardar @';
-   flash(rr.ok ? 'Redes actualizadas ✓' : 'No se pudo');
- }));
  out.querySelectorAll('.acc-edit').forEach(b => b.addEventListener('click', () => {
-   const name = b.closest('.acc-card').dataset.name;
+   const name = b.closest('.ioscard').dataset.name;
    const nav = document.querySelector('.nav__item[data-view="archivos"]'); if (nav) nav.click();
    setTimeout(() => { openMarca(name, ''); setTimeout(() => { const t = document.querySelector('.hub-tab[data-tab="config"]'); if (t) t.click(); }, 400); }, 350);
  }));

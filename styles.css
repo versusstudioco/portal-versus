@@ -466,27 +466,33 @@ a.tag--platform { text-decoration: none; }
 .marca-cal-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .8rem; margin-bottom: 1rem; }
 .marca-cal-counts { display: flex; gap: .6rem; flex-wrap: wrap; }
 .marca-cal-actions { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
-/* Admin · tarjetas de marcas y accesos */
-.acc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
-.acc-card { border: 1px solid var(--line); border-radius: 16px; padding: 1rem; background: var(--card); display: flex; flex-direction: column; gap: .7rem; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
-.acc-card__logo { width: 64px; height: 64px; border-radius: 14px; background: #fff; border: 1px solid rgba(0,0,0,.08); display: flex; align-items: center; justify-content: center; overflow: hidden; font-weight: 800; font-size: 1.5rem; color: var(--red); }
-body.dark .acc-card__logo { background: #111; border-color: rgba(255,255,255,.12); }
-.acc-card__logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.acc-card__name { font-weight: 800; font-size: 1.02rem; }
-.acc-card__user { font-size: .8rem; color: var(--ink-60); font-family: monospace; }
-.acc-card__passrow { display: flex; align-items: center; gap: .5rem; margin-top: .4rem; }
-.acc-card__passlbl { font-size: .72rem; font-weight: 700; text-transform: uppercase; color: var(--ink-40); }
-.acc-pass { font-family: monospace; font-size: .85rem; border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: .2rem .6rem; cursor: pointer; }
-.acc-card__none { font-size: .78rem; color: var(--ink-40); }
-.acc-card__acts { display: flex; gap: .5rem; flex-wrap: wrap; }
-.acc-card__chp { display: flex; flex-direction: column; gap: .45rem; border-top: 1px dashed var(--line); padding-top: .6rem; }
-.acc-card__chp input { font-family: var(--font); font-size: .88rem; padding: .5rem .7rem; border: 1px solid var(--line); border-radius: 8px; }
-.acc-mini { font-family: var(--font); font-size: .72rem; font-weight: 600; border: 1px solid var(--line); background: transparent; border-radius: 7px; padding: .2rem .5rem; cursor: pointer; color: var(--ink-60); margin-left: auto; }
-.acc-mini:hover { border-color: #6C00FF; color: #6C00FF; }
-.acc-hd { display: flex; gap: .5rem; }
-.acc-hd__f { flex: 1; display: flex; flex-direction: column; gap: .2rem; }
-.acc-hd__f span { font-size: .68rem; font-weight: 700; text-transform: uppercase; color: var(--ink-40); }
-.acc-hd__f input { font-family: var(--font); font-size: .85rem; padding: .4rem .6rem; border: 1px solid var(--line); border-radius: 8px; }
+/* Admin · tarjetas de clientes (estilo iOS: limpio, alineado, hairline + sombra suave) */
+.acc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.ioscard { background: var(--card); border: 1px solid rgba(0,0,0,.06); border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 6px 16px rgba(0,0,0,.04); }
+body.dark .ioscard { border-color: rgba(255,255,255,.08); box-shadow: none; }
+.ioscard__top { display: flex; align-items: center; gap: 12px; }
+.ioscard__logo { width: 48px; height: 48px; flex: 0 0 auto; border-radius: 12px; background: #f2f2f7; display: flex; align-items: center; justify-content: center; overflow: hidden; font-weight: 700; font-size: 1.2rem; color: var(--ink-60); }
+body.dark .ioscard__logo { background: #1c1c1e; }
+.ioscard__logo img { max-width: 100%; max-height: 100%; object-fit: contain; padding: 4px; }
+.ioscard__id { min-width: 0; flex: 1; }
+.ioscard__name { font-weight: 600; font-size: 1.02rem; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ioscard__sub { font-size: .82rem; color: var(--ink-40); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ioscard__sub--warn { color: #ff9f0a; font-weight: 600; }
+.ioscard__gear { flex: 0 0 auto; width: 30px; height: 30px; border: none; background: transparent; color: var(--ink-40); cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 8px; }
+.ioscard__gear svg { width: 18px; height: 18px; }
+.ioscard__gear:hover { background: rgba(0,0,0,.05); color: var(--ink); }
+.ioscard__btn { width: 100%; border: none; border-radius: 12px; padding: 11px 14px; font-family: var(--font); font-size: .92rem; font-weight: 600; cursor: pointer; background: #f2f2f7; color: #0a84ff; transition: background .15s; }
+body.dark .ioscard__btn { background: #1c1c1e; color: #0a84ff; }
+.ioscard__btn:hover { background: #e8e8ed; }
+body.dark .ioscard__btn:hover { background: #2c2c2e; }
+.ioscard__btn--open { color: var(--ink-60); }
+.ioscard__btn--pri { background: #0a84ff; color: #fff; }
+.ioscard__btn--pri:hover { background: #0060df; }
+.ioscard__chp { display: flex; flex-direction: column; gap: 10px; }
+.ioscard__chp input { width: 100%; box-sizing: border-box; font-family: var(--font); font-size: .95rem; padding: 11px 14px; border: 1px solid rgba(0,0,0,.1); border-radius: 12px; background: var(--bg); outline: none; }
+.ioscard__chp input:focus { border-color: #0a84ff; }
+.ioscard__chpacts { display: flex; }
+.ioscard--un .ioscard__logo { background: repeating-linear-gradient(45deg,#f2f2f7,#f2f2f7 6px,transparent 6px,transparent 12px); }
 .acc-card--un { border-style: dashed; }
 .mc-count { font-size: .84rem; color: var(--ink-60); background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: .35rem .8rem; }
 .mc-count b { color: var(--ink); font-size: 1rem; }
