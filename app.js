@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260922f';
+const VS_TEAM_BUILD = '20260926a';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -1606,58 +1606,6 @@ async function loadEquipo() {
  $('#eqEjec').classList.toggle('hidden', m !== 'ejecucion');
  }));
  bindTaskActions();
-}
-// Tarjetas por marca (admin): logo, usuario, contraseña (ver/cambiar) y acceso a editar todo.
-async function renderEqAccesos() {
- const box = $('#eqAccesos'); if (!box) return;
- if (box._loaded) return; box._loaded = true;
- box.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando marcas…</div>';
- const r = await api('/api/admin/accesos');
- if (!r.ok) { box.innerHTML = `<div class="empty">${esc((r.data && r.data.error) || 'Sin acceso')}</div>`; return; }
- const items = (r.data && r.data.items) || [];
- if (!items.length) { box.innerHTML = '<div class="empty">Aún no hay cuentas de cliente. Créalas en Configuración de cada marca.</div>'; return; }
- const dark = document.body.classList.contains('dark');
- box.innerHTML = `<p class="topbar__sub" style="margin:.2rem 0 1rem">Cada marca con su acceso al portal del cliente. Ver/cambiar contraseña, y editar su información y logo.</p>
- <div class="acc-grid">${items.map(it => {
-   const logo = dark ? (it.logoDark || it.logoLight) : (it.logoLight || it.logoDark);
-   return `<div class="acc-card" data-user="${esc(it.usuario)}" data-name="${esc(it.name)}">
-     <div class="acc-card__logo${logo ? '' : ' acc-card__logo--ph'}">${logo ? `<img src="${esc(logo)}" alt="logo">` : esc((it.name || '?').charAt(0).toUpperCase())}</div>
-     <div class="acc-card__body">
-       <div class="acc-card__name">${esc(it.name)}</div>
-       <div class="acc-card__user">@${esc(it.usuario)}</div>
-       <div class="acc-card__passrow">
-         <span class="acc-card__passlbl">Contraseña</span>
-         ${it.pass ? `<button type="button" class="acc-pass" data-pass="${esc(it.pass)}">••••••</button>` : '<span class="acc-card__none">no guardada</span>'}
-       </div>
-     </div>
-     <div class="acc-card__acts">
-       <button class="btn btn--ghost btn--sm acc-chpass">Cambiar clave</button>
-       <button class="btn btn--primary btn--sm acc-edit">Editar / logo</button>
-     </div>
-     <div class="acc-card__chp" hidden>
-       ${it.pass ? '' : '<input class="acc-cur" type="text" placeholder="Contraseña ACTUAL (una vez)">'}
-       <input class="acc-new" type="text" placeholder="Nueva contraseña (mín. 6)">
-       <button class="btn btn--primary btn--sm acc-save">Guardar</button>
-     </div>
-   </div>`;
- }).join('')}</div>`;
- box.querySelectorAll('.acc-pass').forEach(b => b.addEventListener('click', () => { const sh = b.dataset.shown === '1'; b.textContent = sh ? '••••••' : b.dataset.pass; b.dataset.shown = sh ? '0' : '1'; }));
- box.querySelectorAll('.acc-chpass').forEach(b => b.addEventListener('click', () => { const chp = b.closest('.acc-card').querySelector('.acc-card__chp'); chp.hidden = !chp.hidden; }));
- box.querySelectorAll('.acc-save').forEach(b => b.addEventListener('click', async () => {
-   const card = b.closest('.acc-card'); const name = card.dataset.name;
-   const np = (card.querySelector('.acc-new').value || ''); if (np.length < 6) { alert('La contraseña debe tener 6 o más caracteres.'); return; }
-   const curEl = card.querySelector('.acc-cur'); const curVal = curEl ? (curEl.value || '') : '';
-   if (curEl && !curVal) { alert('Escribe la contraseña ACTUAL del cliente para autorizar el cambio.'); return; }
-   b.disabled = true; b.textContent = 'Guardando…';
-   const rr = await api('/api/marca/cliente', { method: 'POST', body: { marca: name, newPass: np, currentPass: curVal } });
-   b.disabled = false; b.textContent = 'Guardar';
-   if (rr.ok && !(rr.data && rr.data.error)) { alert('Contraseña actualizada.'); box._loaded = false; renderEqAccesos(); } else alert((rr.data && rr.data.error) || 'No se pudo');
- }));
- box.querySelectorAll('.acc-edit').forEach(b => b.addEventListener('click', () => {
-   const name = b.closest('.acc-card').dataset.name;
-   const nav = document.querySelector('.nav__item[data-view="archivos"]'); if (nav) nav.click();
-   setTimeout(() => { openMarca(name, ''); setTimeout(() => { const t = document.querySelector('.hub-tab[data-tab="config"]'); if (t) t.click(); }, 400); }, 350);
- }));
 }
 
 /* ---------------- Marcas: cada marca es su universo ---------------- */

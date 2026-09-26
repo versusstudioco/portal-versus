@@ -10,8 +10,10 @@
   const EMAIL_DOM = '@portal.versusstudio.co';
   const FBCFG = { apiKey: 'AIzaSyAKgL0la08wjXBL4VhlcqRlE8Ory1KKC80', authDomain: 'versus-portal.firebaseapp.com', databaseURL: 'https://versus-portal-default-rtdb.firebaseio.com', projectId: 'versus-portal', storageBucket: 'versus-portal.firebasestorage.app', messagingSenderId: '689127935637', appId: '1:689127935637:web:0d42a61192c4e1440b559c' };
   try { if (window.firebase && !firebase.apps.length) firebase.initializeApp(FBCFG); } catch (_) {}
-  // Resuelve aunque onAuthStateChanged nunca dispare (p. ej. Safari con storage restringido).
-  const _authReady = new Promise(res => { let done = false; const d = u => { if (!done) { done = true; res(u); } }; try { firebase.auth().onAuthStateChanged(d); } catch (_) { d(null); } setTimeout(() => d(null), 6000); });
+  // Persistencia LOCAL explícita (sesión estable; en Safari evita esperas por storage restringido).
+  try { firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {}); } catch (_) {}
+  // Resuelve aunque onAuthStateChanged nunca dispare (Safari con storage restringido): espera máx. 2.5 s.
+  const _authReady = new Promise(res => { let done = false; const d = u => { if (!done) { done = true; res(u); } }; try { firebase.auth().onAuthStateChanged(d); } catch (_) { d(null); } setTimeout(() => d(null), 2500); });
   function _withTimeout(promise, ms, fallback) { return Promise.race([promise, new Promise(res => setTimeout(() => res(fallback), ms))]); }
   async function token() { try { const u = firebase.auth().currentUser; if (!u) return null; return await _withTimeout(u.getIdToken(), 8000, null); } catch (_) { return null; } }
   async function _fetchT(url, opts, ms) { const c = new AbortController(); const id = setTimeout(() => c.abort(), ms || 12000); try { return await fetch(url, { ...(opts || {}), signal: c.signal }); } finally { clearTimeout(id); } }
