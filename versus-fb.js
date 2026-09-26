@@ -905,6 +905,36 @@
         items.sort((a, b2) => String(a.name).localeCompare(String(b2.name)));
         return { ok: true, data: { items } };
       }
+      // Limpieza de métricas viejas: elimina ciclos (y sus publicaciones y métricas semanales)
+      // ANTERIORES a una fecha de corte. GET = vista previa (no borra). POST con confirm = borra. Solo admin.
+      if (p === '/api/marca/limpiar-ciclos') {
+        const s = await sesionActual();
+        if (!s || s.role !== 'admin') return { ok: false, status: 403, data: { error: 'Solo el administrador' } };
+        const marca = q.get('marca') || body.marca || '';
+        const cutoff = String(body.cutoff || q.get('cutoff') || '2026-09-01');
+        const norm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+        const [credsTeam, credsCli] = await Promise.all([fbGet('db/creds').catch(() => ({})), fbGet('creds').catch(() => ({}))]);
+        const creds = Object.assign({}, credsCli || {}, credsTeam || {});
+        const km = norm(marca); let cu = '';
+        Object.entries(creds).forEach(([u, v]) => { if (!cu && v && v.type === 'client' && (norm(v.name) === km || norm(u) === km || (km && norm(v.name).indexOf(km) >= 0) || (km && km.indexOf(norm(v.name)) >= 0))) cu = u; });
+        if (!cu) return { ok: false, status: 400, data: { error: 'La marca no tiene portal de cliente.' } };
+        const [cyclesRaw, pubsRaw, wmRaw] = await Promise.all([fbGet('db/cycles').catch(() => null), fbGet('db/publications').catch(() => null), fbGet('db/weekMetrics').catch(() => null)]);
+        const cyclesArr = (Array.isArray(cyclesRaw) ? cyclesRaw : Object.values(cyclesRaw || {})).filter(Boolean);
+        const pubsArr = (Array.isArray(pubsRaw) ? pubsRaw : Object.values(pubsRaw || {})).filter(Boolean);
+        const wm = wmRaw || {};
+        // Ciclos a borrar: de esta marca y ENTERAMENTE antes del corte (su fin < corte). Los que tocan sept+ se conservan.
+        const toDelete = cyclesArr.filter(c => c.brand === cu && String(c.end || c.start || '') && String(c.end || c.start) < cutoff);
+        const delIds = new Set(toDelete.map(c => c.id));
+        const pubsDel = pubsArr.filter(x => x.brand === cu && (delIds.has(x.cycle) || (!x.cycle && String(x.date || '') && String(x.date) < cutoff)));
+        const wmKeys = Object.keys(wm).filter(k => k.indexOf(cu + '__') === 0 && [...delIds].some(id => k.indexOf(cu + '__' + id + '__') === 0));
+        const resumen = { cu, cutoff, ciclos: toDelete.map(c => ({ id: c.id, name: c.name, start: c.start, end: c.end })), publicaciones: pubsDel.length, semanas: wmKeys.length };
+        if (method !== 'POST' || !body.confirm) return { ok: true, data: Object.assign({ preview: true }, resumen) };
+        // EJECUTA (irreversible): conserva todo MENOS lo marcado.
+        if (toDelete.length) await fbPut('db/cycles', cyclesArr.filter(c => !delIds.has(c.id)));
+        if (pubsDel.length) await fbPut('db/publications', pubsArr.filter(x => !pubsDel.includes(x)));
+        for (const k of wmKeys) await fbDelete('db/weekMetrics/' + k).catch(() => {});
+        return { ok: true, data: { ok: true, ciclos: toDelete.length, publicaciones: pubsDel.length, semanas: wmKeys.length } };
+      }
       if (p === '/api/marca/wm') {
         // Métricas semanales (seguidores/vistas) conectadas al portal del cliente: db/weekMetrics[CU__ciclo__plat][semana].
         const s = await sesionActual();

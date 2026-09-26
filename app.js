@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260926c';
+const VS_TEAM_BUILD = '20260926d';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -1781,7 +1781,34 @@ async function marcaCiclo(marca) {
  </div>`;
  }).join('') || '<div class="hub-empty">Define lo pactado arriba para ver el avance.</div>'}
  <p class="hub-hint" style="margin-top:.6rem">El "realizado" se cuenta solo: cada pieza que llega a <b>Publicada</b> suma aquí. No se digita.</p>
- </div>`;
+ </div>${isAdmin ? `
+ <div class="est-ctx" style="margin-top:1rem;border-color:rgba(249,0,0,.25)">
+   <h4>🧹 Limpiar métricas viejas <span class="hub-hint" style="display:inline;margin:0">— borra ciclos anteriores a una fecha (irreversible)</span></h4>
+   <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-top:.4rem">
+     <label class="select" style="min-width:170px"><span>Conservar desde</span><input id="cmFecha" type="date" value="2026-09-01"></label>
+     <button class="btn btn--ghost btn--sm" id="cmPrev" style="color:#c0392b">Ver qué se borraría</button>
+   </div>
+   <div id="cmOut" class="hub-hint" style="margin-top:.5rem"></div>
+ </div>` : ''}`;
+ // Limpieza de métricas viejas (admin): vista previa obligatoria antes de borrar.
+ const cmPrev = $('#cmPrev');
+ if (cmPrev) cmPrev.addEventListener('click', async () => {
+   const cutoff = $('#cmFecha').value || '2026-09-01';
+   const out = $('#cmOut'); out.textContent = 'Revisando…';
+   const r = await api('/api/marca/limpiar-ciclos?marca=' + encodeURIComponent(marca) + '&cutoff=' + cutoff);
+   if (!r.ok || (r.data && r.data.error)) { out.textContent = (r.data && r.data.error) || 'No se pudo'; return; }
+   const d = r.data;
+   if (!d.ciclos.length) { out.innerHTML = '<b>Nada que borrar</b> antes de ' + esc(cutoff) + '. Todo lo que hay es de esa fecha en adelante.'; return; }
+   const lista = d.ciclos.map(c => '• ' + esc(c.name || c.id) + (c.start ? ' (' + esc(c.start) + '–' + esc(c.end || '') + ')' : '')).join('<br>');
+   out.innerHTML = `Se borrarían <b>${d.ciclos.length} ciclo(s)</b>, <b>${d.publicaciones}</b> publicación(es) y <b>${d.semanas}</b> registro(s) de semanas:<br>${lista}<br><button class="btn btn--sm" id="cmGo" style="margin-top:.6rem;background:#c0392b;color:#fff;border-color:#c0392b">Sí, borrar definitivamente</button>`;
+   const go = $('#cmGo'); if (go) go.addEventListener('click', async () => {
+     if (!confirm('Esto BORRA para siempre esos ciclos y sus métricas de ' + marca + '. ¿Continuar?')) return;
+     go.disabled = true; go.textContent = 'Borrando…';
+     const rr = await api('/api/marca/limpiar-ciclos', { method: 'POST', body: { marca, cutoff, confirm: true } });
+     if (!rr.ok || (rr.data && rr.data.error)) { go.disabled = false; go.textContent = 'Sí, borrar definitivamente'; alert((rr.data && rr.data.error) || 'No se pudo'); return; }
+     flash('Métricas viejas eliminadas ✓'); bustCiclos(marca); marcaCiclo(marca);
+   });
+ });
  const clSave = $('#clSave');
  if (clSave) clSave.addEventListener('click', async () => {
  const body = { marca, periodo: $('#clPeriodo').value, inicio: $('#clInicio').value, fin: $('#clFin').value };
