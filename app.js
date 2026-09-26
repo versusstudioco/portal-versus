@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260926b';
+const VS_TEAM_BUILD = '20260926c';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -363,6 +363,27 @@ $('#hambBtn')?.addEventListener('click', toggleNav);
 $('#navBackdrop')?.addEventListener('click', closeNav);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNav(); });
 
+// Utilidades compartidas (calendario, tarjetas, normalización).
+function normStr(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(); }
+// Iconos de línea (estilo del menú lateral), pequeños, para las tarjetas del calendario.
+const _svg = p => '<svg class="cal-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
+const TIPO_SVG = {
+ Reel: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/>',
+ Video: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/>',
+ Carrusel: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+ Post: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>',
+ Banner: '<rect x="3" y="5" width="18" height="10" rx="1"/><path d="M12 15v4M8 19h8"/>',
+ Historia: '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M10.5 18h3"/>',
+ Historias: '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M10.5 18h3"/>',
+ Pauta: '<path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 4-6"/>',
+ Short: '<path d="M13 3L5 13h5l-1 8 8-11h-5z"/>'
+};
+function tipoIcon(t) { return _svg(TIPO_SVG[t] || '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h4"/>'); }
+const ESTADO_INFO = {
+ retrasado: { label: 'Retrasado', cls: 'st-red' },
+ en_proceso: { label: 'En proceso', cls: 'st-blue' },
+ al_dia: { label: 'Al día', cls: 'st-green' }
+};
 
 /* ---------------- Flujo de piezas (tablero por etapa) ---------------- */
 const ETAPA_CLS = { idea: '', aprobada: 'st-blue', grabada: 'st-blue', editada: 'st-blue', publicada: 'st-green' };
