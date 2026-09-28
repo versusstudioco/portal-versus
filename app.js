@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260928c';
+const VS_TEAM_BUILD = '20260928d';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -654,8 +654,8 @@ function openPieza(id, prefill) {
  const ETAPA_COL = { idea: ['#8a8a8a', 'rgba(138,138,138,.12)'], aprobada: ['#16a34a', 'rgba(22,163,74,.12)'], grabada: ['#2563eb', 'rgba(37,99,235,.12)'], editada: ['#d97706', 'rgba(217,119,6,.14)'], publicada: ['#6C00FF', 'rgba(108,0,255,.12)'] };
  const etapaStyle = e => { const v = ETAPA_COL[e] || ETAPA_COL.idea; return 'color:' + v[0] + ';border-color:' + v[0] + ';background:' + v[1] + ';font-weight:700'; };
  const TIPO_COL = { Post: '#16a34a', Reel: '#6C00FF', Carrusel: '#2563eb', Historia: '#d97706', Banner: '#db2777' };
- // Mini-tarjetas de color (segmentado) para elegir opción con un toque; cambia de color al pasar/elegir.
- const segBtns = (arr, cur, colorOf, iconOf) => arr.map(o => { const v = Array.isArray(o) ? o[0] : o, l = Array.isArray(o) ? o[1] : o, c = colorOf(v); return `<button type="button" class="pz-seg__b${v === cur ? ' active' : ''}" data-v="${esc(v)}" style="--c:${c}">${iconOf ? iconOf(v) : ''}<span>${esc(l)}</span></button>`; }).join('');
+ // Desplegable de categoría con color según el tipo (cambia al elegir).
+ const tipoStyle = t => { const c = TIPO_COL[t] || '#6C00FF'; return 'border-color:' + c + ';color:' + c; };
  const _PERSON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>';
  const _CLIENT_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/></svg>';
  const respIcon = r => !r ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>' : (r === 'Cliente' ? _CLIENT_SVG : _PERSON_SVG);
@@ -665,16 +665,12 @@ function openPieza(id, prefill) {
  <button type="button" class="g-close" id="pzX" aria-label="Cerrar">✕</button>
  <div class="pz-head">
  <div class="pz-iconsel pz-marca"><span class="pz-iconsel__ic" id="pzMarcaIcon">${marcaIcon(p.marca)}</span><select id="pzMarca">${marcaOpts}</select></div>
+ <select id="pzEtapa" class="pz-etapa" style="${etapaStyle(p.etapa)}">${et.map(([v, l]) => `<option value="${v}" ${p.etapa === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
  </div>
  ${p.origenCliente ? '<div class="pz-cli-banner">🟢 <b>Idea propuesta por el cliente.</b> Por ahora es solo para su parrilla y <b>no cuenta</b> en las metas. Si la tomamos, apruébala como contenido de Versus y entra al flujo normal.<div style="margin-top:.5rem"><button type="button" class="btn btn--primary btn--sm" id="pzAprobarVersus">✓ Aprobar como contenido de Versus</button></div></div>' : ''}
  <input id="pzIdea" class="pz-idea" placeholder="La idea / título" value="${esc(p.idea)}">
- <div class="pz-lblrow"><span class="pz-lbl">Estado</span></div>
- <div class="pz-seg pz-seg--estado" id="pzEtapaSeg">${segBtns(et, p.etapa, v => ETAPA_COL[v] ? ETAPA_COL[v][0] : '#6C00FF')}</div>
- <select id="pzEtapa" hidden>${et.map(([v, l]) => `<option value="${v}" ${p.etapa === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
- <div class="pz-lblrow"><span class="pz-lbl">Categoría</span></div>
- <div class="pz-seg pz-seg--cat" id="pzTipoSeg">${segBtns(CATEGORIAS_PIEZA, p.tipo, v => TIPO_COL[v] || '#6C00FF', v => tipoIcon(v))}</div>
- <select id="pzTipo" hidden>${CATEGORIAS_PIEZA.map(t => `<option ${p.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
- <div class="pz-row2" style="margin:.7rem 0">
+ <div class="pz-row3" style="margin:.6rem 0">
+ <label class="select"><span>Categoría</span><div class="pz-iconsel" id="pzTipoSel" style="${tipoStyle(p.tipo)}"><span class="pz-iconsel__ic" id="pzTipoIcon">${tipoIcon(p.tipo)}</span><select id="pzTipo">${CATEGORIAS_PIEZA.map(t => `<option ${p.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div></label>
  <label class="select"><span>N.º de publicación</span><input id="pzNum" type="text" value="${esc(p.numero || '')}" placeholder="1"><div class="pz-numfoot"><span id="pzNumFijo" class="pz-num-fijo"${p.numeroManual ? '' : ' hidden'}>📌 fijo · <a href="#" id="pzNumAuto">auto</a></span></div></label>
  <label class="select"><span>Responsable</span><div class="pz-iconsel"><span class="pz-iconsel__ic" id="pzRespIcon">${respIcon(p.responsable)}</span><select id="pzResp">${_yo ? `<option value="${esc(_yo)}" ${p.responsable === _yo ? 'selected' : ''}>${esc(_yo)}</option>` : ''}${people.filter(n => n !== _yo).map(n => `<option ${p.responsable === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}<option value="Cliente" ${p.responsable === 'Cliente' ? 'selected' : ''}>Cliente</option>${(p.responsable && !people.includes(p.responsable) && p.responsable !== 'Cliente' && p.responsable !== _yo) ? `<option selected>${esc(p.responsable)}</option>` : ''}</select></div></label>
  </div>
@@ -761,21 +757,12 @@ function openPieza(id, prefill) {
  if (pzTipo) pzTipo.addEventListener('change', calcExtra);
  // Iconos vivos (categoría, responsable) y color del estado.
  const _pzTipoIc = $('#pzTipoIcon');
- if (pzTipo && _pzTipoIc) pzTipo.addEventListener('change', () => { _pzTipoIc.innerHTML = tipoIcon(pzTipo.value); });
+ const _pzTipoSel = $('#pzTipoSel');
+ if (pzTipo && _pzTipoIc) pzTipo.addEventListener('change', () => { _pzTipoIc.innerHTML = tipoIcon(pzTipo.value); if (_pzTipoSel) _pzTipoSel.setAttribute('style', tipoStyle(pzTipo.value)); });
  const _pzResp = $('#pzResp'), _pzRespIc = $('#pzRespIcon');
  if (_pzResp && _pzRespIc) _pzResp.addEventListener('change', () => { _pzRespIc.innerHTML = respIcon(_pzResp.value); });
  const _pzEtapa = $('#pzEtapa');
  if (_pzEtapa) _pzEtapa.addEventListener('change', () => { _pzEtapa.setAttribute('style', etapaStyle(_pzEtapa.value)); });
- // Mini-tarjetas de color → escriben en el <select> oculto y disparan sus listeners.
- const wireSeg = (segId, selId) => {
-   const seg = $('#' + segId), sel = $('#' + selId); if (!seg || !sel) return;
-   seg.querySelectorAll('.pz-seg__b').forEach(b => b.addEventListener('click', () => {
-     seg.querySelectorAll('.pz-seg__b').forEach(x => x.classList.toggle('active', x === b));
-     sel.value = b.dataset.v; sel.dispatchEvent(new Event('change'));
-   }));
- };
- wireSeg('pzEtapaSeg', 'pzEtapa');
- wireSeg('pzTipoSeg', 'pzTipo');
  // Icono de la marca junto al selector (cambia al elegir otra marca).
  const _pzMarcaIc = $('#pzMarcaIcon'), _pzMarcaSel = $('#pzMarca');
  if (_pzMarcaIc && _pzMarcaSel) _pzMarcaSel.addEventListener('change', () => { _pzMarcaIc.innerHTML = marcaIcon(_pzMarcaSel.value); });

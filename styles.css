@@ -634,20 +634,12 @@ body.dark .ioscard__btn:hover { background: #2c2c2e; }
 /* Modal de pieza */
 .pz-box { max-width: 580px; text-align: left; }
 .pz-head { display: flex; gap: .6rem; margin-bottom: .8rem; }
-.pz-marca { flex: 1; min-width: 0; height: 46px; }
+.pz-marca { flex: 1; min-width: 0; height: 44px; }
 .pz-head .pz-marca select { font-size: 1rem; font-weight: 600; }
-.pz-etapa { font-family: var(--font); font-weight: 700; font-size: .9rem; padding: .6rem .9rem; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--card); color: var(--ink); min-width: 118px; }
-/* Etiqueta pequeña sobre las mini-tarjetas */
-.pz-lblrow { margin: .8rem 0 .35rem; }
-.pz-lbl { font-size: .78rem; font-weight: 600; color: var(--ink-40); text-transform: none; }
-/* Mini-tarjetas de color (segmentado): Estado y Categoría */
-.pz-seg { display: flex; flex-wrap: wrap; gap: .4rem; }
-.pz-seg__b { display: inline-flex; align-items: center; gap: .35rem; font-family: var(--font); font-size: .82rem; font-weight: 600; color: var(--ink-60); background: var(--card); border: 1.5px solid var(--line); border-radius: 10px; padding: .4rem .65rem; cursor: pointer; transition: color .15s, border-color .15s, background .15s; }
-.pz-seg__b .cal-svg, .pz-seg__b svg { width: 15px; height: 15px; flex: 0 0 auto; }
-.pz-seg__b:hover { color: var(--c); border-color: var(--c); }
-.pz-seg__b.active { color: #fff; background: var(--c); border-color: var(--c); }
-.pz-seg__b.active svg, .pz-seg__b.active .cal-svg { color: #fff; }
-body.dark .pz-seg__b { background: rgba(255,255,255,.04); }
+.pz-etapa { font-family: var(--font); font-weight: 700; font-size: .88rem; padding: 0 .9rem; height: 44px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--card); color: var(--ink); min-width: 120px; transition: color .15s, border-color .15s, background .15s; cursor: pointer; }
+/* Categoría: el color del tipo se ve en el borde, el texto y el icono */
+#pzTipoSel { transition: color .15s, border-color .15s; }
+#pzTipoSel select, #pzTipoSel .pz-iconsel__ic { color: inherit; }
 .pz-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .8rem; align-items: start; }
 .pz-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
 @media (max-width: 560px){ .pz-row3, .pz-row2 { grid-template-columns: 1fr; } }
@@ -665,8 +657,8 @@ body.dark .pz-seg__b { background: rgba(255,255,255,.04); }
 .pz-num-fijo a { color: #6C00FF; text-decoration: underline; cursor: pointer; }
 .pz-idea { width: 100%; box-sizing: border-box; font-family: var(--font); font-size: 1.15rem; font-weight: 700; letter-spacing: -.01em; padding: .7rem .9rem; border: 1px solid rgba(0,0,0,.1); border-radius: 12px; background: var(--card); }
 .pz-idea:focus { outline: none; border-color: #0a84ff; }
-.pz-field { display: block; margin-bottom: .7rem; }
-.pz-field > span { display: block; font-size: .78rem; font-weight: 600; color: var(--ink-40); margin-bottom: .35rem; }
+.pz-field { display: block; margin-bottom: .5rem; }
+.pz-field > span { display: block; font-size: .76rem; font-weight: 600; color: var(--ink-40); margin-bottom: .25rem; }
 .pz-field textarea { width: 100%; font-family: var(--font); font-size: .92rem; padding: .6rem .7rem; border: 1px solid var(--line); border-radius: 8px; resize: vertical; line-height: 1.5; }
 .pz-comments { display: flex; flex-direction: column; gap: .35rem; margin-bottom: .5rem; max-height: 160px; overflow-y: auto; }
 .pz-comment { font-size: .84rem; background: var(--bg); border-radius: 7px; padding: .4rem .6rem; }
