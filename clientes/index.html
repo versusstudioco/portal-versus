@@ -1450,7 +1450,7 @@ var PLATS = ["Instagram","YouTube","TikTok","LinkedIn"];
 var TCLS = {Reel:"t-reel",Carrusel:"t-carr",Post:"t-post",Historia:"t-hist",Video:"t-vid",Short:"t-sho",Pauta:"t-pauta",Banner:"t-banner"};
 
 // ===== AUTO-ACTUALIZACIÓN (evita quedarse con una versión vieja en caché) =====
-var VS_BUILD = '20260921j';
+var VS_BUILD = '20260928a';
 (function(){
  try{
   if(new URLSearchParams(location.search).get('v') === VS_BUILD) return; // ya estamos en la versión fresca
@@ -2208,23 +2208,25 @@ function clearUserForm() {
 }
 function loadFromFirebase(callback) {
  if(!FBDB || typeof FBDB.ref !== "function") { DB=loadDB(); sanitizeDB(); FB_LOADED=true; callback(false); return; }
- FBDB.ref("vsportal").once("value", function(snap) {
- var data = snap.val();
- if(data) {
- if(data.db) { DB=data.db; sanitizeDB(); _dbStr=JSON.stringify(DB); try{localStorage.setItem(DB_KEY,_dbStr);}catch(e){} }
+ // IMPORTANTE: leer SOLO db y creds (NO todo "vsportal"). "vsportal" incluye gestor/piezas
+ // con imagenes en base64 dentro de los guiones -> en un movil con poca memoria Safari revienta
+ // y muestra "A problem repeatedly occurred". Leyendo solo lo necesario, el portal abre liviano.
+ var data={}, done=0, any=false;
+ function fin(){
+ if(data.db) { DB=data.db; sanitizeDB(); _dbStr=JSON.stringify(DB); try{localStorage.setItem(DB_KEY,_dbStr);}catch(e){} any=true; }
+ else { DB=loadDB(); sanitizeDB(); }
  if(data.creds) {
- // Firebase es la fuente de verdad: REEMPLAZAR (no fusionar) para respetar eliminaciones
- // (antes las marcas quemadas por defecto, como 90minuti, reaparecian al cargar)
+ // Firebase es la fuente de verdad: REEMPLAZAR (no fusionar) para respetar eliminaciones.
  Object.keys(CREDS).forEach(function(k){ delete CREDS[k]; });
  Object.keys(data.creds).forEach(function(k){CREDS[k]=data.creds[k];});
  BRANDS.length=0; Object.keys(CREDS).forEach(function(k){if(CREDS[k]&&CREDS[k].type==="client")BRANDS.push(k);});
  try{localStorage.setItem(DB_KEY+"_creds",JSON.stringify(CREDS));}catch(e){}
+ any=true;
  }
- } else { DB=loadDB(); sanitizeDB(); }
- FB_LOADED=true; callback(!!data);
- }, function(err) {
- console.warn("Firebase:",err.message); DB=loadDB(); sanitizeDB(); FB_LOADED=true; callback(false);
- });
+ FB_LOADED=true; callback(any);
+ }
+ FBDB.ref("vsportal/db").once("value", function(s){ data.db=s.val(); if(++done===2) fin(); }, function(err){ console.warn("Firebase db:",err.message); if(++done===2) fin(); });
+ FBDB.ref("vsportal/creds").once("value", function(s){ data.creds=s.val(); if(++done===2) fin(); }, function(err){ console.warn("Firebase creds:",err.message); if(++done===2) fin(); });
 }
 function startFirebaseSync() {
  if(!FBDB || typeof FBDB.ref !== "function") return;
