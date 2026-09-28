@@ -787,11 +787,13 @@
         return { ok: true, data: cfg };
       }
       if (p === '/api/marca/cliente') {
-        // Acceso del cliente de una marca (usuario + contraseña). Solo admin.
+        // Cambio de contraseña del cliente. Lo puede hacer el admin, Michelle y Vero (con el código 2020 en la interfaz).
         const s = await sesionActual();
-        if (!s || s.role !== 'admin') return { ok: false, status: 403, data: { error: 'Solo el administrador' } };
-        const marca = q.get('marca') || body.marca || '';
         const norm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+        const quien = norm((s && s.name) || '') + '|' + norm((s && s.username) || '');
+        const puede = s && (s.role === 'admin' || (s.esEquipo && /michelle|vero/.test(quien)));
+        if (!puede) return { ok: false, status: 403, data: { error: 'No autorizado para cambiar contraseñas de clientes' } };
+        const marca = q.get('marca') || body.marca || '';
         const [credsTeam, credsCli] = await Promise.all([fbGet('db/creds').catch(() => ({})), fbGet('creds').catch(() => ({}))]);
         const km = norm(marca);
         let cu = '';

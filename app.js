@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260926e';
+const VS_TEAM_BUILD = '20260928a';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -1066,6 +1066,12 @@ const DEFAULT_ONB = {
 };
 const TIPOS = { text: 'Texto corto', area: 'Texto largo', choice: 'Opciones', manual: 'Sí/No + adjunto' };
 function isAdmin() { return state.me && state.me.role === 'admin'; }
+// Cambiar la contraseña de un cliente: lo puede hacer el admin, Michelle y Vero (con el código 2020).
+function puedeCambiarClave() {
+ if (isAdmin()) return true;
+ const n = normStr((state.me && (state.me.name || state.me.username)) || '');
+ return /michelle|vero/.test(n);
+}
 function esEstrategia() {
  const m = state.me || {};
  if (m.role === 'admin') return true;
@@ -1227,55 +1233,14 @@ const AGENDA_PANEL = `
 async function loadConfig() {
  const out = $('#configOut');
  if (!isAdmin()) { out.innerHTML = AGENDA_PANEL; renderAgenda(); return; }
- out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando configuración…</div>';
- const [r, gv] = await Promise.all([api('/api/admin/accesos'), api('/api/gestion').catch(() => ({ data: {} }))]);
- const clientes = (r.ok && r.data.items) || [];
- const _marcas = ((gv.data && gv.data.marcas) || []).map(x => x.marca);
- const _nk = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
- const _linked = new Set(); clientes.forEach(c => { _linked.add(_nk(c.name)); _linked.add(_nk(c.usuario)); });
- const _unlinked = _marcas.filter(m => { const k = _nk(m); return k && !_linked.has(k); });
- const _dark = document.body.classList.contains('dark');
- const _gearSVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>';
- const _cliCard = c => { const logo = _dark ? (c.logoDark || c.logoLight) : (c.logoLight || c.logoDark); return `<div class="ioscard" data-name="${esc(c.name)}" data-user="${esc(c.usuario)}">
-   <div class="ioscard__top">
-     <div class="ioscard__logo${logo ? '' : ' ioscard__logo--ph'}">${logo ? `<img src="${esc(logo)}" alt="logo">` : esc((c.name || '?').charAt(0).toUpperCase())}</div>
-     <div class="ioscard__id"><div class="ioscard__name">${esc(c.name)}</div><div class="ioscard__sub">@${esc(c.usuario)}</div></div>
-     <button class="ioscard__gear acc-edit" type="button" title="Editar marca y logo" aria-label="Editar">${_gearSVG}</button>
-   </div>
-   <button class="ioscard__btn acc-chpass" type="button">Cambiar clave</button>
-   <div class="ioscard__chp" hidden>
-     ${c.pass ? '' : '<input class="acc-cur" type="text" placeholder="Contraseña actual (una vez)">'}
-     <input class="acc-new" type="password" placeholder="Nueva contraseña (mín. 6)">
-     <div class="ioscard__chpacts"><button class="ioscard__btn ioscard__btn--pri acc-save" type="button">Guardar</button></div>
-   </div>
- </div>`; };
- const _unCard = m => `<div class="ioscard ioscard--un" data-name="${esc(m)}">
-   <div class="ioscard__top"><div class="ioscard__logo ioscard__logo--ph">${esc((m || '?').charAt(0).toUpperCase())}</div><div class="ioscard__id"><div class="ioscard__name">${esc(m)}</div><div class="ioscard__sub ioscard__sub--warn">Sin portal de cliente</div></div></div>
-   <button class="ioscard__btn ioscard__btn--pri acc-crear" type="button" data-marca="${esc(m)}">Crear portal</button>
- </div>`;
  out.innerHTML = AGENDA_PANEL + `
  <div class="glass panel form-panel">
- <h3 class="live-h3" style="margin-top:0"> Crear cuenta de cliente</h3>
- <p class="hub-hint" style="margin:.1rem 0 .8rem">Crea el acceso al Portal de Clientes. Queda disponible al instante y aparece como marca en el Team.</p>
- <div class="form-grid">
- <label class="select"><span>Nombre de la marca</span><input id="ccNombre" placeholder="Logybox"></label>
- <label class="select"><span>Usuario</span><input id="ccUser" placeholder="logybox"></label>
- <label class="select"><span>Contraseña (mín. 6)</span><input id="ccPass" placeholder="••••••"></label>
- <label class="select"><span>Sector (opcional)</span><input id="ccSector" placeholder="Logística"></label>
- <label class="select"><span>Instagram (opcional)</span><input id="ccIg" placeholder="@logybox"></label>
- <label class="select"><span>TikTok (opcional)</span><input id="ccTk" placeholder="@logybox"></label>
- </div>
- <button class="btn btn--primary" id="ccSave">Crear cliente</button>
- </div>
- <h3 class="live-h3">Clientes (${clientes.length})</h3>
- <p class="hub-hint" style="margin:-.3rem 0 .8rem">Cada marca con su acceso a <b>/clientes/</b>. Ver/cambiar contraseña, editar sus @ y su logo. Las marcas sin portal aparecen al final para crearlo.</p>
- <div class="acc-grid">${(clientes.map(_cliCard).join('') + _unlinked.map(_unCard).join('')) || '<div class="empty">Aún no hay clientes.</div>'}</div>
- <div class="glass panel form-panel" style="margin-top:1.2rem">
- <h3 class="live-h3" style="margin-top:0"> Otras acciones</h3>
+ <h3 class="live-h3" style="margin-top:0">⚙️ Configuración del equipo</h3>
+ <p class="hub-hint" style="margin:.1rem 0 .8rem">Todo lo de cada marca (calendario, ciclos, métricas y pauta, estrategia, archivos, acceso y contraseña del cliente) vive ahora dentro de la marca, en <b>Marcas → (marca) → Configuración</b>.</p>
  <ul style="margin:.2rem 0 0 1.1rem;color:var(--ink-60);font-size:.9rem;line-height:1.7">
- <li><b>Crear usuario del equipo:</b> en <b>Equipo (admin) → Personas</b>.</li>
- <li><b>Crear/eliminar marca:</b> en <b>Marcas → + Agregar marca</b>.</li>
- <li><b>¿Un cliente olvidó su contraseña?</b> Que nos escriba y el admin se la restablece desde la consola de Firebase (Authentication → el usuario → restablecer). Es un caso puntual, no vive en el portal por seguridad.</li>
+ <li><b>Usuarios del equipo:</b> se crean y editan en <b>Equipo (admin) → Personas</b>.</li>
+ <li><b>Crear o eliminar una marca:</b> en <b>Marcas → + Agregar marca</b>.</li>
+ <li><b>Acceso y contraseña de un cliente:</b> entra a <b>Marcas → la marca → Configuración</b>. Ahí se crea el portal o se cambia su contraseña (pide un código).</li>
  </ul>
  <button class="btn btn--ghost btn--sm" id="cfgLimpiar" style="margin-top:.6rem">Limpiar piezas de ejemplo</button>
  <p class="hub-hint" style="margin-top:.4rem">Elimina las piezas placeholder ("Contenido de…") que quedaron de la carga inicial, para dejar solo el contenido real.</p>
@@ -1288,39 +1253,6 @@ async function loadConfig() {
    lp.disabled = false; lp.textContent = 'Limpiar piezas de ejemplo';
    alert(r.ok ? ('Listo. Eliminadas: ' + (r.data.eliminadas || 0)) : (r.data.error || 'No se pudo'));
  });
- $('#ccSave').addEventListener('click', async () => {
- const body = { nombre: $('#ccNombre').value.trim(), usuario: $('#ccUser').value.trim(), password: $('#ccPass').value, sector: $('#ccSector').value.trim(), instagram: $('#ccIg').value.trim(), tiktok: $('#ccTk').value.trim() };
- if (!body.nombre || !body.usuario || (body.password || '').length < 6) { alert('Nombre, usuario y contraseña (mín. 6) son obligatorios.'); return; }
- const btn = $('#ccSave'); btn.disabled = true; btn.textContent = 'Creando…';
- const res = await api('/api/admin/crear-cliente', { method: 'POST', body });
- btn.disabled = false; btn.textContent = 'Crear cliente';
- if (res.ok) { alert('Cliente creado. Ya puede entrar al Portal de Clientes con su usuario y contraseña.'); loadConfig(); }
- else alert(res.data.error || 'No se pudo crear');
- });
- // Tarjetas de clientes (iOS): cambiar clave, editar marca/logo, y crear portal para marcas sin enlazar.
- out.querySelectorAll('.acc-chpass').forEach(b => b.addEventListener('click', () => { const chp = b.closest('.ioscard').querySelector('.ioscard__chp'); const opening = chp.hidden; chp.hidden = !chp.hidden; b.textContent = opening ? 'Cancelar' : 'Cambiar clave'; b.classList.toggle('ioscard__btn--open', opening); if (opening) { const f = chp.querySelector('input'); if (f) f.focus(); } }));
- out.querySelectorAll('.acc-save').forEach(b => b.addEventListener('click', async () => {
-   const card = b.closest('.ioscard'); const name = card.dataset.name;
-   const np = (card.querySelector('.acc-new').value || ''); if (np.length < 6) { alert('La contraseña debe tener 6 o más caracteres.'); return; }
-   const curEl = card.querySelector('.acc-cur'); const curVal = curEl ? (curEl.value || '') : '';
-   if (curEl && !curVal) { alert('Escribe la contraseña actual del cliente para autorizar el cambio.'); return; }
-   b.disabled = true; b.textContent = 'Guardando…';
-   const rr = await api('/api/marca/cliente', { method: 'POST', body: { marca: name, newPass: np, currentPass: curVal } });
-   b.disabled = false; b.textContent = 'Guardar';
-   if (rr.ok && !(rr.data && rr.data.error)) { flash('Contraseña actualizada ✓'); loadConfig(); } else alert((rr.data && rr.data.error) || 'No se pudo');
- }));
- out.querySelectorAll('.acc-edit').forEach(b => b.addEventListener('click', () => {
-   const name = b.closest('.ioscard').dataset.name;
-   const nav = document.querySelector('.nav__item[data-view="archivos"]'); if (nav) nav.click();
-   setTimeout(() => { openMarca(name, ''); setTimeout(() => { const t = document.querySelector('.hub-tab[data-tab="config"]'); if (t) t.click(); }, 400); }, 350);
- }));
- out.querySelectorAll('.acc-crear').forEach(b => b.addEventListener('click', () => {
-   const m = b.dataset.marca;
-   const n = $('#ccNombre'), u = $('#ccUser'); if (n) n.value = m; if (u) u.value = _nk(m);
-   const form = $('#ccNombre'); if (form) { form.closest('.form-panel').scrollIntoView({ behavior: 'smooth', block: 'center' }); }
-   const pass = $('#ccPass'); if (pass) pass.focus();
-   flash('Completa la contraseña y crea el portal de ' + m);
- }));
  renderNotifPanel();
  renderAgenda();
 }
@@ -2013,8 +1945,10 @@ async function marcaMetricas(marca) {
  <div class="m-ia-out" id="mia-${idx}"></div>
  </div>`
  : '<div class="est-ctx" style="margin-top:1rem"><div class="hub-empty">Aún no hay métricas de publicaciones del Portal de clientes para esta marca.</div></div>';
- pane.innerHTML = balanceCard + semanalCard + pubCard;
+ const pautaCard = '<div class="est-ctx" style="margin-top:1rem"><h4>📢 Campañas de pauta <span class="hub-hint" style="display:inline;margin:0">— el resumen que ve el cliente en su pestaña Pauta</span></h4><div id="cfPauta"><div class="hub-hint">Cargando…</div></div></div>';
+ pane.innerHTML = balanceCard + semanalCard + pubCard + pautaCard;
  wmRender(marca);
+ marcaPautaAdmin(marca);
  if (m) { const b = pane.querySelector('.m-ia'); if (b) b.addEventListener('click', (e) => analizarMarca(idx, e.target)); }
 }
 
@@ -2141,10 +2075,44 @@ async function marcaArchivos(marca) {
 }
 
 /* --- Configuración de la marca: logo + usuarios de redes (cualquiera del equipo puede editar) --- */
-async function marcaClienteAcceso(marca) {
+async function marcaClienteAcceso(marca, _unlocked) {
  const box = $('#cfCliente'); if (!box) return;
  const { ok, data } = await api('/api/marca/cliente?marca=' + encodeURIComponent(marca));
- if (!ok || !data.usuario) { box.innerHTML = '<div class="md-none">Esta marca no está enlazada a una cuenta de cliente (el nombre debe coincidir con el cliente).</div>'; return; }
+ if (!ok || !data.usuario) {
+   if (!isAdmin()) { box.innerHTML = '<div class="md-none">Esta marca no está enlazada a una cuenta de cliente.</div>'; return; }
+   const _slug = normStr(marca).replace(/[^a-z0-9]/g, '');
+   box.innerHTML = `
+   <div class="md-none" style="margin-bottom:.6rem">Esta marca aún no tiene portal de cliente. Créalo para que el cliente entre a <b>/clientes/</b>.</div>
+   <div class="est-ctx-grid">
+     <label class="select"><span>Usuario</span><input id="ccBUser" value="${esc(_slug)}" placeholder="usuario"></label>
+     <label class="select"><span>Contraseña (mín. 6)</span><input id="ccBPass" placeholder="••••••"></label>
+   </div>
+   <button class="btn btn--primary btn--sm" id="ccBSave" style="margin-top:.6rem">Crear portal de cliente</button>`;
+   const b = $('#ccBSave'); if (b) b.addEventListener('click', async () => {
+     const usuario = ($('#ccBUser').value || '').trim(), password = ($('#ccBPass').value || '');
+     if (!usuario || password.length < 6) { alert('Usuario y contraseña (mín. 6) son obligatorios.'); return; }
+     b.disabled = true; b.textContent = 'Creando…';
+     const r = await api('/api/admin/crear-cliente', { method: 'POST', body: { nombre: marca, usuario, password } });
+     b.disabled = false; b.textContent = 'Crear portal de cliente';
+     if (r.ok && !(r.data && r.data.error)) { alert('Portal creado. El cliente ya puede entrar con su usuario y contraseña.'); marcaClienteAcceso(marca, true); } else alert((r.data && r.data.error) || 'No se pudo crear');
+   });
+   return;
+ }
+ // Paso 1: pedir el código antes de mostrar/cambiar nada.
+ if (!_unlocked) {
+   box.innerHTML = `
+   <div class="cl-acc"><div class="cl-acc__row"><span>Usuario</span><b>@${esc(data.usuario)}</b></div></div>
+   <div class="plat-row" style="margin-top:.6rem">
+     <input class="plat-row__user" id="cfCliCode" type="password" inputmode="numeric" placeholder="Código para cambiar la clave">
+     <button class="btn btn--ghost btn--sm" id="cfCliUnlock">Continuar</button>
+   </div>
+   <div class="hub-hint" style="margin:.35rem 0 0">Pide el código al administrador. Lo pueden usar el admin, Michelle y Vero.</div>`;
+   const go = () => { const c = ($('#cfCliCode').value || '').trim(); if (c !== '2020') { alert('Código incorrecto.'); return; } marcaClienteAcceso(marca, true); };
+   const ub = $('#cfCliUnlock'); if (ub) ub.addEventListener('click', go);
+   const ci = $('#cfCliCode'); if (ci) ci.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+   return;
+ }
+ // Paso 2: código correcto → ver la contraseña y cambiarla.
  const tienePass = !!data.pass;
  box.innerHTML = `
  <div class="cl-acc">
@@ -2162,9 +2130,9 @@ async function marcaClienteAcceso(marca) {
    const curEl = $('#cfCliCur'); const curVal = curEl ? (curEl.value || '') : '';
    if (curEl && !curVal) { alert('Escribe la contraseña ACTUAL del cliente para autorizar el cambio.'); return; }
    save.disabled = true; save.textContent = 'Cambiando…';
-   const r = await api('/api/marca/cliente', { method: 'POST', body: { marca, newPass: np, currentPass: curVal } });
+   const r = await api('/api/marca/cliente', { method: 'POST', body: { marca, newPass: np, currentPass: curVal, code: '2020' } });
    save.disabled = false; save.textContent = 'Cambiar contraseña';
-   if (r.ok && !(r.data && r.data.error)) { alert('Contraseña actualizada. El cliente ya entra con la nueva.'); marcaClienteAcceso(marca); } else alert((r.data && r.data.error) || 'No se pudo');
+   if (r.ok && !(r.data && r.data.error)) { alert('Contraseña actualizada. El cliente ya entra con la nueva.'); marcaClienteAcceso(marca, true); } else alert((r.data && r.data.error) || 'No se pudo');
  });
 }
 // Campañas de pauta (equipo): agrega/edita el resumen que ve el cliente en su pestaña Pauta.
@@ -2250,7 +2218,16 @@ async function marcaConfig(marca) {
  </div>
 
  <div class="est-ctx" style="margin-top:1rem">
- <h4> Usuarios de las redes <span class="hub-hint" style="display:inline;margin:0">— el @ y el link de cada perfil, y si lleva pauta</span></h4>
+ <h4>📱 @ de las redes <span class="hub-hint" style="display:inline;margin:0">— lo que ve el cliente en su portal; enlaza a su perfil</span></h4>
+ <div class="est-plats">
+ <div class="plat-row"><span class="plat-row__name">Instagram</span><input class="plat-row__user" id="cfgIg" placeholder="@usuario"></div>
+ <div class="plat-row"><span class="plat-row__name">TikTok</span><input class="plat-row__user" id="cfgTk" placeholder="@usuario"></div>
+ </div>
+ <button class="btn btn--primary btn--sm" id="cfgHdlSave" style="margin-top:.7rem">Guardar @</button>
+ </div>
+
+ <div class="est-ctx" style="margin-top:1rem">
+ <h4> Usuarios de las redes (agente) <span class="hub-hint" style="display:inline;margin:0">— para la estrategia con IA; no es lo que ve el cliente</span></h4>
  <div class="est-plats">
  ${[['ig', 'Instagram'], ['tiktok', 'TikTok'], ['linkedin', 'LinkedIn']].map(([k, l]) => `
  <div class="plat-row">
@@ -2268,19 +2245,27 @@ async function marcaConfig(marca) {
  <div id="cfPlatInner"><div class="hub-hint">Cargando…</div></div>
  </div>
 
- <div class="est-ctx" style="margin-top:1rem"><h4> Campañas de pauta <span class="hub-hint" style="display:inline;margin:0">— el resumen que ve el cliente en su pestaña Pauta</span></h4><div id="cfPauta"><div class="hub-hint">Cargando…</div></div></div>
-
- ${isAdmin() ? `<div class="est-ctx" style="margin-top:1rem"><h4> Acceso del cliente <span class="hub-hint" style="display:inline;margin:0">— con esto entra a /clientes/</span></h4><div id="cfCliente"><div class="hub-hint">Cargando…</div></div></div>` : ''}`;
+ ${puedeCambiarClave() ? `<div class="est-ctx" style="margin-top:1rem"><h4>🔑 Acceso del cliente <span class="hub-hint" style="display:inline;margin:0">— entra a /clientes/; el cambio de clave pide un código</span></h4><div id="cfCliente"><div class="hub-hint">Cargando…</div></div></div>` : ''}`;
 
  marcaPlataformas(marca);
- marcaPautaAdmin(marca);
- if (isAdmin()) marcaClienteAcceso(marca);
+ if (puedeCambiarClave()) marcaClienteAcceso(marca);
  // Logos claro/oscuro → db/brandCfg (lo que ve el cliente). Cualquiera del equipo.
  const setLogoPrev = (id, uri) => { const el = $('#' + id); if (el) el.innerHTML = uri ? `<img src="${uri}" alt="logo">` : '<span class="gw-none">Sin logo</span>'; };
  api('/api/marca/logo?marca=' + encodeURIComponent(marca)).then(r => {
    if (!r.ok || !document.getElementById('cfgLogoLightPrev')) return;
    setLogoPrev('cfgLogoLightPrev', r.data.logoLight || ''); setLogoPrev('cfgLogoDarkPrev', r.data.logoDark || '');
+   const ig = $('#cfgIg'); if (ig) ig.value = r.data.instagram ? '@' + r.data.instagram : '';
+   const tk = $('#cfgTk'); if (tk) tk.value = r.data.tiktok ? '@' + r.data.tiktok : '';
  }).catch(() => {});
+ const hsb = $('#cfgHdlSave');
+ if (hsb) hsb.addEventListener('click', async () => {
+   hsb.disabled = true; hsb.textContent = 'Guardando…';
+   const r = await api('/api/marca/logo', { method: 'POST', body: { marca, instagram: ($('#cfgIg').value || '').replace(/^@/, '').trim(), tiktok: ($('#cfgTk').value || '').replace(/^@/, '').trim() } });
+   hsb.disabled = false;
+   if (!r.ok || (r.data && r.data.error)) { hsb.textContent = 'Guardar @'; alert((r.data && r.data.error) || (r.data && r.data.cliente === '' ? 'Esta marca aún no tiene portal de cliente enlazado, así que el @ no se puede mostrar todavía.' : 'No se pudo guardar')); return; }
+   hsb.textContent = 'Guardado ✓'; setTimeout(() => { const b = $('#cfgHdlSave'); if (b) b.textContent = 'Guardar @'; }, 1500);
+   flash('@ guardado ✓ · el cliente ya lo ve');
+ });
  // Se PREPARA la imagen al elegirla (preview) y se sube con el botón "Guardar logos".
  const _staged = {};
  const stageLogo = (inputId, field, prevId) => {
