@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260928a';
+const VS_TEAM_BUILD = '20260928b';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -636,23 +636,23 @@ function openPieza(id, prefill) {
  <div class="pz-row3" style="margin:.7rem 0">
  <label class="select"><span>Categoría</span><div class="pz-iconsel"><span class="pz-iconsel__ic" id="pzTipoIcon">${tipoIcon(p.tipo)}</span><select id="pzTipo">${CATEGORIAS_PIEZA.map(t => `<option ${p.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div></label>
  <label class="select"><span>N.º de publicación</span><input id="pzNum" type="text" value="${esc(p.numero || '')}" placeholder="1"><div class="pz-numfoot"><span id="pzNumFijo" class="pz-num-fijo"${p.numeroManual ? '' : ' hidden'}>📌 fijo · <a href="#" id="pzNumAuto">auto</a></span></div></label>
- <label class="select"><span>Responsable</span><div class="pz-iconsel"><span class="pz-iconsel__ic" id="pzRespIcon">${respIcon(p.responsable)}</span><select id="pzResp">${_yo ? `<option value="${esc(_yo)}" ${p.responsable === _yo ? 'selected' : ''}>Yo · ${esc(_yo)}</option>` : ''}${people.filter(n => n !== _yo).map(n => `<option ${p.responsable === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}<option value="Cliente" ${p.responsable === 'Cliente' ? 'selected' : ''}>Cliente</option>${(p.responsable && !people.includes(p.responsable) && p.responsable !== 'Cliente' && p.responsable !== _yo) ? `<option selected>${esc(p.responsable)}</option>` : ''}<option value="">— Sin asignar —</option></select></div></label>
+ <label class="select"><span>Responsable</span><div class="pz-iconsel"><span class="pz-iconsel__ic" id="pzRespIcon">${respIcon(p.responsable)}</span><select id="pzResp">${_yo ? `<option value="${esc(_yo)}" ${p.responsable === _yo ? 'selected' : ''}>Yo · ${esc(_yo)}</option>` : ''}${people.filter(n => n !== _yo).map(n => `<option ${p.responsable === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}<option value="Cliente" ${p.responsable === 'Cliente' ? 'selected' : ''}>Cliente</option>${(p.responsable && !people.includes(p.responsable) && p.responsable !== 'Cliente' && p.responsable !== _yo) ? `<option selected>${esc(p.responsable)}</option>` : ''}</select></div></label>
  </div>
- <div class="pz-row2" style="margin:.7rem 0">
+ <div class="pz-row3" style="margin:.7rem 0">
  <label class="select"><span>Fecha de entrega</span><input id="pzFechaEntrega" type="date" value="${esc(p.fechaEntrega || '')}"></label>
  <label class="select"><span>Fecha de publicación</span><input id="pzFecha" type="date" value="${esc(p.fecha || '')}"></label>
+ <label class="select"><span>Ciclo</span><select id="pzCycle"><option value="${esc(p.cycle || '')}">${p.cycle ? 'Cargando…' : 'Automático'}</option></select></label>
  </div>
- <div class="pz-cycrow"><span class="pz-cyclbl">Ciclo</span><select id="pzCycle" class="pz-cycsel"><option value="${esc(p.cycle || '')}">${p.cycle ? 'Cargando…' : 'Ciclo activo (automático)'}</option></select></div>
  <div class="pz-field"><span>Guion</span>
         ${rteBarHTML()}
         <div id="pzGuion" class="rte" contenteditable="true" data-ph="El guion del contenido…">${p.guion || ''}</div>
       </div>
- <label class="pz-field"><span>Links de referencia <em>(brief, Drive, inspiración… uno por línea)</em></span><textarea id="pzRefLinks" rows="2" placeholder="https://…">${esc(p.refLinks || '')}</textarea></label>
+ <label class="pz-field"><span>Links de referencia</span><textarea id="pzRefLinks" rows="2" placeholder="https://…">${esc(p.refLinks || '')}</textarea></label>
  <div class="pz-field"><span>Fotos / adjuntos</span>
  <div id="pzFotos" class="pz-fotos">${id ? '<div class="gw-none">Cargando…</div>' : '<div class="gw-none">Guarda la pieza para poder adjuntar fotos.</div>'}</div>
  ${id ? '<label class="hub-up pz-foto-add"><input type="file" id="pzFotoInput" accept="image/*" multiple hidden><span>+ Adjuntar foto</span></label>' : ''}
  </div>
- <div class="pz-field pz-pub"><span> Publicación y métricas <em>(aparece en el portal del cliente al llegar a Editada/Publicada)</em></span>
+ <div class="pz-field pz-pub"><span>Publicación y métricas</span>
  ${pubSection}
  </div>
  ${id ? `<div class="pz-field"><span>Comentarios</span>
@@ -856,7 +856,7 @@ function rteBarHTML() {
    <button type="button" class="rte-b" data-cmd="insertUnorderedList" title="Lista">• Lista</button>
    <span class="rte-sep"></span>
    <button type="button" class="rte-img-add" title="Insertar foto">🖼 Foto</button>
-   <span class="rte-imgsize" hidden>Tamaño foto: <button type="button" data-w="30">S</button><button type="button" data-w="50">M</button><button type="button" data-w="75">L</button><button type="button" data-w="100">Full</button></span>
+   <span class="rte-imghint" hidden>Arrastra la esquina ↘ para el tamaño</span>
    <input type="file" class="rte-img-file" accept="image/*" hidden>
  </div>`;
 }
@@ -882,22 +882,33 @@ function wireRte(rte) {
      catch (_) { alert('No se pudo insertar la imagen.'); }
    });
  }
- // Seleccionar una foto muestra los botones de tamaño; aplicarlos cambia el ancho.
- const sizeBox = bar.querySelector('.rte-imgsize');
- let imgSel = null;
+ // Redimensionar la foto MANUALMENTE: se selecciona al tocarla y se arrastra su esquina inferior derecha.
+ const hint = bar.querySelector('.rte-imghint');
+ let imgSel = null, rz = null;
+ const onMove = e => {
+   if (!rz) return;
+   const w = Math.max(40, Math.min(rz.startW + (e.clientX - rz.startX), rz.parentW || (rz.startW + 9999)));
+   rz.img.style.width = Math.round(w / (rz.parentW || w) * 100) + '%'; rz.img.style.height = 'auto';
+ };
+ const onUp = () => { if (rz) { rz = null; document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); } };
  rte.addEventListener('click', e => {
    if (e.target && e.target.tagName === 'IMG') {
      if (imgSel) imgSel.classList.remove('rte-img--sel');
-     imgSel = e.target; imgSel.classList.add('rte-img--sel');
-     if (sizeBox) sizeBox.hidden = false;
+     imgSel = e.target; imgSel.classList.add('rte-img--sel'); if (hint) hint.hidden = false;
    } else {
      if (imgSel) imgSel.classList.remove('rte-img--sel');
-     imgSel = null; if (sizeBox) sizeBox.hidden = true;
+     imgSel = null; if (hint) hint.hidden = true;
    }
  });
- if (sizeBox) sizeBox.querySelectorAll('button').forEach(b => b.addEventListener('mousedown', e => {
-   e.preventDefault(); if (imgSel) { imgSel.style.width = b.dataset.w + '%'; imgSel.style.height = 'auto'; }
- }));
+ rte.addEventListener('mousedown', e => {
+   if (!e.target || e.target.tagName !== 'IMG') return;
+   const img = e.target, r = img.getBoundingClientRect();
+   if (e.clientX >= r.right - 26 && e.clientY >= r.bottom - 26) { // esquina inferior derecha
+     e.preventDefault();
+     rz = { img, startX: e.clientX, startW: r.width, parentW: (img.parentElement && img.parentElement.getBoundingClientRect().width) || r.width };
+     document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+   }
+ });
 }
 
 
@@ -2098,15 +2109,19 @@ async function marcaClienteAcceso(marca, _unlocked) {
    });
    return;
  }
- // Paso 1: pedir el código antes de mostrar/cambiar nada.
+ // Paso 1: botón "Cambiar contraseña". Al tocarlo pide el código antes de mostrar/cambiar nada.
  if (!_unlocked) {
    box.innerHTML = `
    <div class="cl-acc"><div class="cl-acc__row"><span>Usuario</span><b>@${esc(data.usuario)}</b></div></div>
-   <div class="plat-row" style="margin-top:.6rem">
-     <input class="plat-row__user" id="cfCliCode" type="password" inputmode="numeric" placeholder="Código para cambiar la clave">
-     <button class="btn btn--ghost btn--sm" id="cfCliUnlock">Continuar</button>
-   </div>
-   <div class="hub-hint" style="margin:.35rem 0 0">Pide el código al administrador. Lo pueden usar el admin, Michelle y Vero.</div>`;
+   <button class="btn btn--ghost btn--sm" id="cfCliBtn" style="margin-top:.6rem">Cambiar contraseña</button>
+   <div id="cfCliCodeWrap" hidden>
+     <div class="plat-row" style="margin-top:.6rem">
+       <input class="plat-row__user" id="cfCliCode" type="password" inputmode="numeric" placeholder="Código para cambiar la clave">
+       <button class="btn btn--ghost btn--sm" id="cfCliUnlock">Continuar</button>
+     </div>
+     <div class="hub-hint" style="margin:.35rem 0 0">Lo pueden hacer el admin, Michelle y Vero.</div>
+   </div>`;
+   const btn = $('#cfCliBtn'); if (btn) btn.addEventListener('click', () => { const w = $('#cfCliCodeWrap'); if (w) w.hidden = false; btn.hidden = true; const ci = $('#cfCliCode'); if (ci) ci.focus(); });
    const go = () => { const c = ($('#cfCliCode').value || '').trim(); if (c !== '2020') { alert('Código incorrecto.'); return; } marcaClienteAcceso(marca, true); };
    const ub = $('#cfCliUnlock'); if (ub) ub.addEventListener('click', go);
    const ci = $('#cfCliCode'); if (ci) ci.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
@@ -3030,24 +3045,25 @@ function openLista(title, rowsHtml) {
 function openTarea() {
   const people = (state.teamPeople || []); const me = state.me || {};
   const hoy = new Date().toISOString().slice(0, 10);
+  const team = [{ username: me.username || '', name: 'Yo' }].concat(people.filter(p => p.username !== me.username));
   const html = `<div class="g-modal" id="tkModal"><div class="g-modal__box glass">
     <button type="button" class="g-close" id="tkX" aria-label="Cerrar">✕</button>
     <h3>Nueva tarea</h3>
-    <div class="form-grid" style="margin:.6rem 0">
-      <label class="select select--grow"><span>Tarea</span><input id="tkTitle" placeholder="Enviar cuentas de cobro / Reunión con cliente"></label>
-      <label class="select"><span>Asignar a</span><select id="tkWho"><option value="${esc(me.username || '')}">Yo</option>${people.filter(p => p.username !== me.username).map(p => `<option value="${esc(p.username)}">${esc(p.name)}</option>`).join('')}</select></label>
-      <label class="select"><span>Categoría</span><select id="tkCat"><option>General</option><option>Contenido</option><option>Administrativa</option><option>Reunión</option><option>Pauta</option></select></label>
+    <label class="select select--grow" style="margin:.6rem 0"><span>Tarea</span><input id="tkTitle" placeholder="Enviar cuentas de cobro / Reunión con cliente"></label>
+    <div class="tk-colabs"><span class="tk-colabs__h">Asignar</span><div class="tk-colabs__list">${team.map(p => `<label class="tk-chip"><input type="checkbox" class="tkColab" value="${esc(p.username)}" ${p.name === 'Yo' ? 'checked' : ''}> ${esc(p.name)}</label>`).join('')}</div></div>
+    <div class="pz-row2" style="margin:.7rem 0">
       <label class="select"><span>Fecha</span><input id="tkDue" type="date" value="${hoy}"></label>
-      <label class="select"><span>Inicio</span><input id="tkHi" type="time"></label>
-      <label class="select"><span>Fin</span><input id="tkHf" type="time"></label>
       <label class="select"><span>Prioridad</span><select id="tkPrio"><option value="media">Media</option><option value="alta">Alta</option><option value="baja">Baja</option></select></label>
     </div>
-    ${people.filter(p => p.username !== me.username).length ? `<div class="tk-colabs"><span class="tk-colabs__h">¿Quién más está en esta tarea? <em>(la ven en su día)</em></span><div class="tk-colabs__list">${people.filter(p => p.username !== me.username).map(p => `<label class="tk-chip"><input type="checkbox" class="tkColab" value="${esc(p.username)}"> ${esc(p.name)}</label>`).join('')}</div></div>` : ''}
     <div class="g-modal__actions"><button class="btn btn--ghost btn--sm" id="tkCancel">Cancelar</button><button class="btn btn--primary btn--sm" id="tkSave">Crear tarea</button></div>
   </div></div>`;
   document.body.insertAdjacentHTML('beforeend', html);
   let tkGuardado = false;
-  const tkBody = () => ({ title: $('#tkTitle').value.trim(), assignedTo: $('#tkWho').value, colaboradores: $$('.tkColab').filter(c => c.checked).map(c => c.value), categoria: $('#tkCat').value, dueDate: $('#tkDue').value, horaInicio: $('#tkHi').value, horaFin: $('#tkHf').value, priority: $('#tkPrio').value });
+  const tkBody = () => {
+    let sel = $$('.tkColab').filter(c => c.checked).map(c => c.value);
+    if (!sel.length) sel = [me.username || ''];
+    return { title: $('#tkTitle').value.trim(), assignedTo: sel[0], colaboradores: sel.slice(1), categoria: 'General', dueDate: $('#tkDue').value, horaInicio: '', horaFin: '', priority: $('#tkPrio').value };
+  };
   // Al cerrar sin guardar: si ya escribiste el título, la tarea se guarda sola (no se pierde).
   const close = () => {
     const modal = $('#tkModal'); if (!modal) return;

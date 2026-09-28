@@ -642,7 +642,8 @@ body.dark .ioscard__btn:hover { background: #2c2c2e; }
 @media (max-width: 560px){ .pz-row3, .pz-row2 { grid-template-columns: 1fr; } }
 .pz-row3 > .select, .pz-row2 > .select { margin: 0; gap: .3rem; }
 .pz-row3 > .select > span, .pz-row2 > .select > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; text-transform: none; letter-spacing: 0; font-size: .78rem; color: var(--ink-40); }
-.pz-row3 .select input, .pz-row3 .pz-iconsel, .pz-row2 .select input { height: 44px; box-sizing: border-box; border-radius: 12px; }
+.pz-row3 .select input, .pz-row3 .select select, .pz-row3 .pz-iconsel, .pz-row2 .select input, .pz-row2 .select select { height: 44px; width: 100%; box-sizing: border-box; border-radius: 12px; }
+.pz-row3 .select input[type=date], .pz-row2 .select input[type=date] { -webkit-appearance: none; appearance: none; line-height: normal; }
 .pz-iconsel { display: flex; align-items: center; gap: .45rem; border: 1px solid rgba(0,0,0,.1); border-radius: 12px; padding: 0 .35rem 0 .7rem; background: var(--card); }
 .pz-iconsel:focus-within { border-color: #0a84ff; }
 .pz-iconsel__ic { flex: 0 0 auto; width: 18px; height: 18px; color: var(--ink-60); display: inline-flex; align-items: center; justify-content: center; }
@@ -1173,13 +1174,11 @@ textarea.fe-in { min-height:70px; resize:vertical; }
 .rte:focus { border-color: var(--red); }
 .rte:empty:before { content: attr(data-ph); color: var(--ink-40); }
 .rte img, .rte-img { max-width: 100%; height: auto; border-radius: 8px; display: block; margin: .4rem 0; cursor: pointer; }
-.rte-img--sel { outline: 2px solid var(--red); outline-offset: 2px; }
+.rte-img--sel { outline: 2px solid var(--red); outline-offset: 2px; cursor: nwse-resize; }
 .rte-sep { width: 1px; height: 20px; background: var(--line); margin: 0 .15rem; }
 .rte-img-add { font-family: var(--font); font-size: .8rem; height: 30px; border: 1px solid var(--line); background: var(--card); border-radius: 8px; cursor: pointer; color: var(--ink); padding: 0 .6rem; }
 .rte-img-add:hover { border-color: var(--red); }
-.rte-imgsize { display: inline-flex; align-items: center; gap: .25rem; font-size: .72rem; color: var(--ink-60); }
-.rte-imgsize button { font-family: var(--font); font-size: .72rem; font-weight: 700; min-width: 26px; height: 26px; border: 1px solid var(--line); background: var(--card); border-radius: 7px; cursor: pointer; color: var(--ink); }
-.rte-imgsize button:hover { border-color: #6C00FF; color: #6C00FF; }
+.rte-imghint { font-size: .72rem; color: var(--ink-60); }
 
 /* Tarjetas de estrategia (texto libre + fotos) */
 .est-cards { background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 1rem 1.1rem; margin-bottom: 1.1rem; }
