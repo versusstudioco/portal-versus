@@ -665,6 +665,16 @@
         return { ok: true, data: { ok: true } };
       }
       if (p === '/api/marca/logos') return { ok: true, data: { logos: await logos() } };
+      // @ de Instagram/TikTok de cada cliente (para mostrar el @ real en las tarjetas de marca).
+      if (p === '/api/marca/handles') {
+        const s = await sesionActual();
+        if (!s || !s.esEquipo) return { ok: false, status: 403, data: { error: 'Solo el equipo' } };
+        const [bc, credsCli, credsTeam] = await Promise.all([fbGet('db/brandCfg').catch(() => ({})), fbGet('creds').catch(() => ({})), fbGet('db/creds').catch(() => ({}))]);
+        const nameOf = {};
+        Object.entries(Object.assign({}, credsCli || {}, credsTeam || {})).forEach(([u, v]) => { if (v && v.type === 'client') nameOf[u] = v.name || u; });
+        const items = Object.entries(bc || {}).map(([u, v]) => ({ user: u, name: nameOf[u] || u, instagram: (v && v.instagram) || '', tiktok: (v && v.tiktok) || '' }));
+        return { ok: true, data: { items } };
+      }
       if (p === '/api/onboarding') {
         const obj = (await fbGet('onboarding').catch(() => null)) || {};
         const altas = Object.entries(obj).map(([id, v]) => ({ id, ...v })).sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));

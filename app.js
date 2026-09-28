@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260928b';
+const VS_TEAM_BUILD = '20260928c';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -379,6 +379,39 @@ const TIPO_SVG = {
  Short: '<path d="M13 3L5 13h5l-1 8 8-11h-5z"/>'
 };
 function tipoIcon(t) { return _svg(TIPO_SVG[t] || '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h4"/>'); }
+// Icono propio de cada marca (para seleccionarla en contenido; NO es el logo).
+const BRAND_SVG = {
+ robot: '<rect x="5" y="9" width="14" height="9" rx="2"/><path d="M12 9V5M12 5a1.4 1.4 0 1 0 0-2.8A1.4 1.4 0 0 0 12 5z"/><circle cx="9.5" cy="13.5" r="1"/><circle cx="14.5" cy="13.5" r="1"/><path d="M3 12v3M21 12v3"/>',
+ wave: '<path d="M3 13c2 0 2-2 4.5-2s2.5 2 4.5 2 2-2 4.5-2 2.5 2 4.5 2"/><path d="M3 17c2 0 2-2 4.5-2s2.5 2 4.5 2 2-2 4.5-2 2.5 2 4.5 2"/>',
+ box: '<path d="M3 7.5l9-4.5 9 4.5v9L12 21 3 16.5z"/><path d="M3 7.5l9 4.5 9-4.5M12 12v9"/>',
+ person: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+ doctor: '<path d="M6 3v5a4 4 0 0 0 8 0V3"/><path d="M5 3h2M13 3h2"/><circle cx="18" cy="15" r="2.5"/><path d="M18 12.5V9a5 5 0 0 1-8 0"/>',
+ house: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
+ bulb: '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10c.7.8 1 1.6 1 2.6h6c0-1 .3-1.8 1-2.6A6 6 0 0 0 12 3z"/>',
+ coffee: '<path d="M4 8h13v4a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M17 9h2a2 2 0 0 1 0 4h-2"/><path d="M8 2v2M11 2v2"/>',
+ gavel: '<path d="M14 4l6 6M17 7l-8 8"/><path d="M4 20h7M6 15l4 4"/><path d="M12 3l4 4-2 2-4-4z"/>',
+ phone: '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/>',
+ notebook: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v18M5 8h4M5 12h4M5 16h4"/>',
+ bolt: '<path d="M13 3L5 13h5l-1 8 8-11h-5z"/>'
+};
+function _brandKey(m) {
+ const k = normStr(m).replace(/[^a-z0-9]/g, '');
+ if (!k) return null;
+ if (k.includes('aqua')) return 'wave';
+ if (k.includes('agora')) return 'robot';
+ if (k.includes('logybox')) return 'box';
+ if (k.includes('daniela')) return 'person';
+ if (k === 'ml' || k.includes('mauriciolinares') || k.includes('linares')) return 'doctor';
+ if (k.includes('comprocasa')) return 'house';
+ if (k.includes('contacto') || k.includes('contact')) return 'bulb';
+ if (k.includes('perse')) return 'coffee';
+ if (k.includes('referencia')) return 'gavel';
+ if (k.includes('unlulo')) return 'phone';
+ if (k.includes('versuslab')) return 'notebook';
+ if (k.includes('versus')) return 'bolt';
+ return null;
+}
+function marcaIcon(m) { const key = _brandKey(m); return key ? _svg(BRAND_SVG[key]) : _svg('<path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/>'); }
 const ESTADO_INFO = {
  retrasado: { label: 'Retrasado', cls: 'st-red' },
  en_proceso: { label: 'En proceso', cls: 'st-blue' },
@@ -564,7 +597,7 @@ function openPiezaHistorico(p) {
  const sel = $('#phCycle'); if (!sel || !document.getElementById('pzModal')) return;
  const cycles = (r.ok && r.data.cycles) || [];
  const fD = s => { if (!s) return ''; const [y, mm, d] = s.split('-'); return d + '/' + mm; };
- const opts = ['<option value="">— Sin ciclo asignado —</option>'].concat(cycles.map(c =>
+ const opts = ['<option value="">Sin ciclo asignado</option>'].concat(cycles.map(c =>
  `<option value="${esc(c.id)}" ${p.cycle === c.id ? 'selected' : ''}>${esc(c.name)}${c.start ? ' (' + fD(c.start) + '–' + fD(c.end) + ')' : ''}${c.activo ? ' · activo' : ''}</option>`));
  // Si el ciclo actual de la pub no está en la lista, consérvalo como opción.
  if (p.cycle && !cycles.some(c => c.id === p.cycle)) opts.push(`<option value="${esc(p.cycle)}" selected>${esc(p.cycle)} (actual)</option>`);
@@ -620,23 +653,30 @@ function openPieza(id, prefill) {
  // Estado con color, iconos de responsable y lista de marcas (para agregar desde el calendario general).
  const ETAPA_COL = { idea: ['#8a8a8a', 'rgba(138,138,138,.12)'], aprobada: ['#16a34a', 'rgba(22,163,74,.12)'], grabada: ['#2563eb', 'rgba(37,99,235,.12)'], editada: ['#d97706', 'rgba(217,119,6,.14)'], publicada: ['#6C00FF', 'rgba(108,0,255,.12)'] };
  const etapaStyle = e => { const v = ETAPA_COL[e] || ETAPA_COL.idea; return 'color:' + v[0] + ';border-color:' + v[0] + ';background:' + v[1] + ';font-weight:700'; };
+ const TIPO_COL = { Post: '#16a34a', Reel: '#6C00FF', Carrusel: '#2563eb', Historia: '#d97706', Banner: '#db2777' };
+ // Mini-tarjetas de color (segmentado) para elegir opción con un toque; cambia de color al pasar/elegir.
+ const segBtns = (arr, cur, colorOf, iconOf) => arr.map(o => { const v = Array.isArray(o) ? o[0] : o, l = Array.isArray(o) ? o[1] : o, c = colorOf(v); return `<button type="button" class="pz-seg__b${v === cur ? ' active' : ''}" data-v="${esc(v)}" style="--c:${c}">${iconOf ? iconOf(v) : ''}<span>${esc(l)}</span></button>`; }).join('');
  const _PERSON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>';
  const _CLIENT_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/></svg>';
  const respIcon = r => !r ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>' : (r === 'Cliente' ? _CLIENT_SVG : _PERSON_SVG);
  const marcasList = (function () { const s = new Set(); if (state.gestion && state.gestion.marcas) state.gestion.marcas.forEach(x => { if (x && x.marca) s.add(x.marca); }); Object.values(state.piezas || {}).forEach(x => { if (x && x.marca) s.add(x.marca); }); return Array.from(s).sort((a, b) => a.localeCompare(b)); })();
- const marcaOpts = (function () { const cur = p.marca || ''; const set = new Set(marcasList); let o = '<option value="">— Elige marca —</option>'; if (cur && !set.has(cur)) o += `<option value="${esc(cur)}" selected>${esc(cur)}</option>`; marcasList.forEach(m => { o += `<option ${m === cur ? 'selected' : ''}>${esc(m)}</option>`; }); return o; })();
+ const marcaOpts = (function () { const cur = p.marca || ''; const set = new Set(marcasList); let o = '<option value="">Elige marca</option>'; if (cur && !set.has(cur)) o += `<option value="${esc(cur)}" selected>${esc(cur)}</option>`; marcasList.forEach(m => { o += `<option ${m === cur ? 'selected' : ''}>${esc(m)}</option>`; }); return o; })();
  const html = `<div class="g-modal" id="pzModal"><div class="g-modal__box glass pz-box">
  <button type="button" class="g-close" id="pzX" aria-label="Cerrar">✕</button>
  <div class="pz-head">
- <select id="pzMarca" class="pz-marca">${marcaOpts}</select>
- <select id="pzEtapa" class="pz-etapa" style="${etapaStyle(p.etapa)}">${et.map(([v, l]) => `<option value="${v}" ${p.etapa === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+ <div class="pz-iconsel pz-marca"><span class="pz-iconsel__ic" id="pzMarcaIcon">${marcaIcon(p.marca)}</span><select id="pzMarca">${marcaOpts}</select></div>
  </div>
  ${p.origenCliente ? '<div class="pz-cli-banner">🟢 <b>Idea propuesta por el cliente.</b> Por ahora es solo para su parrilla y <b>no cuenta</b> en las metas. Si la tomamos, apruébala como contenido de Versus y entra al flujo normal.<div style="margin-top:.5rem"><button type="button" class="btn btn--primary btn--sm" id="pzAprobarVersus">✓ Aprobar como contenido de Versus</button></div></div>' : ''}
  <input id="pzIdea" class="pz-idea" placeholder="La idea / título" value="${esc(p.idea)}">
- <div class="pz-row3" style="margin:.7rem 0">
- <label class="select"><span>Categoría</span><div class="pz-iconsel"><span class="pz-iconsel__ic" id="pzTipoIcon">${tipoIcon(p.tipo)}</span><select id="pzTipo">${CATEGORIAS_PIEZA.map(t => `<option ${p.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div></label>
+ <div class="pz-lblrow"><span class="pz-lbl">Estado</span></div>
+ <div class="pz-seg pz-seg--estado" id="pzEtapaSeg">${segBtns(et, p.etapa, v => ETAPA_COL[v] ? ETAPA_COL[v][0] : '#6C00FF')}</div>
+ <select id="pzEtapa" hidden>${et.map(([v, l]) => `<option value="${v}" ${p.etapa === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+ <div class="pz-lblrow"><span class="pz-lbl">Categoría</span></div>
+ <div class="pz-seg pz-seg--cat" id="pzTipoSeg">${segBtns(CATEGORIAS_PIEZA, p.tipo, v => TIPO_COL[v] || '#6C00FF', v => tipoIcon(v))}</div>
+ <select id="pzTipo" hidden>${CATEGORIAS_PIEZA.map(t => `<option ${p.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
+ <div class="pz-row2" style="margin:.7rem 0">
  <label class="select"><span>N.º de publicación</span><input id="pzNum" type="text" value="${esc(p.numero || '')}" placeholder="1"><div class="pz-numfoot"><span id="pzNumFijo" class="pz-num-fijo"${p.numeroManual ? '' : ' hidden'}>📌 fijo · <a href="#" id="pzNumAuto">auto</a></span></div></label>
- <label class="select"><span>Responsable</span><div class="pz-iconsel"><span class="pz-iconsel__ic" id="pzRespIcon">${respIcon(p.responsable)}</span><select id="pzResp">${_yo ? `<option value="${esc(_yo)}" ${p.responsable === _yo ? 'selected' : ''}>Yo · ${esc(_yo)}</option>` : ''}${people.filter(n => n !== _yo).map(n => `<option ${p.responsable === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}<option value="Cliente" ${p.responsable === 'Cliente' ? 'selected' : ''}>Cliente</option>${(p.responsable && !people.includes(p.responsable) && p.responsable !== 'Cliente' && p.responsable !== _yo) ? `<option selected>${esc(p.responsable)}</option>` : ''}</select></div></label>
+ <label class="select"><span>Responsable</span><div class="pz-iconsel"><span class="pz-iconsel__ic" id="pzRespIcon">${respIcon(p.responsable)}</span><select id="pzResp">${_yo ? `<option value="${esc(_yo)}" ${p.responsable === _yo ? 'selected' : ''}>${esc(_yo)}</option>` : ''}${people.filter(n => n !== _yo).map(n => `<option ${p.responsable === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}<option value="Cliente" ${p.responsable === 'Cliente' ? 'selected' : ''}>Cliente</option>${(p.responsable && !people.includes(p.responsable) && p.responsable !== 'Cliente' && p.responsable !== _yo) ? `<option selected>${esc(p.responsable)}</option>` : ''}</select></div></label>
  </div>
  <div class="pz-row3" style="margin:.7rem 0">
  <label class="select"><span>Fecha de entrega</span><input id="pzFechaEntrega" type="date" value="${esc(p.fechaEntrega || '')}"></label>
@@ -715,9 +755,7 @@ function openPieza(id, prefill) {
    const el = $('#pzExtraBadge'); if (!el) return;
    const isC = CRE_TIPOS.includes((pzTipo && pzTipo.value) || p.tipo);
    const n = Number(pzNum && pzNum.value) || 0;
-   const show = isC && metaCre > 0 && n > metaCre;
-   el.hidden = !show;
-   if (show) el.textContent = 'Adicional · sobre lo pactado (' + metaCre + ')';
+   el.hidden = true; // badge "Adicional" retirado por pedido
  };
  if (pzNum) pzNum.addEventListener('input', calcExtra);
  if (pzTipo) pzTipo.addEventListener('change', calcExtra);
@@ -728,6 +766,19 @@ function openPieza(id, prefill) {
  if (_pzResp && _pzRespIc) _pzResp.addEventListener('change', () => { _pzRespIc.innerHTML = respIcon(_pzResp.value); });
  const _pzEtapa = $('#pzEtapa');
  if (_pzEtapa) _pzEtapa.addEventListener('change', () => { _pzEtapa.setAttribute('style', etapaStyle(_pzEtapa.value)); });
+ // Mini-tarjetas de color → escriben en el <select> oculto y disparan sus listeners.
+ const wireSeg = (segId, selId) => {
+   const seg = $('#' + segId), sel = $('#' + selId); if (!seg || !sel) return;
+   seg.querySelectorAll('.pz-seg__b').forEach(b => b.addEventListener('click', () => {
+     seg.querySelectorAll('.pz-seg__b').forEach(x => x.classList.toggle('active', x === b));
+     sel.value = b.dataset.v; sel.dispatchEvent(new Event('change'));
+   }));
+ };
+ wireSeg('pzEtapaSeg', 'pzEtapa');
+ wireSeg('pzTipoSeg', 'pzTipo');
+ // Icono de la marca junto al selector (cambia al elegir otra marca).
+ const _pzMarcaIc = $('#pzMarcaIcon'), _pzMarcaSel = $('#pzMarca');
+ if (_pzMarcaIc && _pzMarcaSel) _pzMarcaSel.addEventListener('change', () => { _pzMarcaIc.innerHTML = marcaIcon(_pzMarcaSel.value); });
  // Marca: si la lista no estaba cargada (p. ej. desde el calendario general), tráela y repuebla el selector.
  if (!marcasList.length) {
    const cur = p.marca || '';
@@ -735,7 +786,7 @@ function openPieza(id, prefill) {
      const sel = $('#pzMarca'); if (!sel || !document.getElementById('pzModal')) return;
      const ms = ((g.data && g.data.marcas) || []).map(x => x.marca);
      if (!ms.length) return;
-     const set = new Set(ms); let o = '<option value="">— Elige marca —</option>';
+     const set = new Set(ms); let o = '<option value="">Elige marca</option>';
      if (cur && !set.has(cur)) o += `<option value="${esc(cur)}" selected>${esc(cur)}</option>`;
      ms.forEach(m => { o += `<option ${m === cur ? 'selected' : ''}>${esc(m)}</option>`; });
      sel.innerHTML = o;
@@ -1493,11 +1544,12 @@ async function loadArchivos() {
  state.marcaActiva = null;
  const out = $('#archivosOut');
  out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando marcas…</div>';
- const [{ data }, lg] = await Promise.all([api('/api/archivos'), api('/api/marca/logos')]);
+ const [{ data }, lg, hd] = await Promise.all([api('/api/archivos'), api('/api/marca/logos'), api('/api/marca/handles').catch(() => ({}))]);
  state.hubMarcas = data.marcas || [];
  const logosArr = (lg.ok ? lg.data.logos : []) || [];
  state.logoSlugs = logosArr.map(x => x.slug);
  state.logoData = {}; logosArr.forEach(x => { state.logoData[x.slug] = { light: x.light || null, dark: x.dark || null }; });
+ state.marcaHandles = (hd && hd.data && hd.data.items) || [];
  renderMarcasGrid();
 }
 function renderMarcasGrid() {
@@ -1506,14 +1558,15 @@ function renderMarcasGrid() {
  hideTopbarLogo(); // volvimos a la grilla de marcas: sin logo en el título
  $('#viewTitle').textContent = 'Marcas';
  $('#viewSub').textContent = 'Cada marca es su universo: calendario, métricas, estrategia y archivos';
- const handle = s => '@' + normStr(s).replace(/[^a-z0-9]+/g, '');
+ // @ real de Instagram (si está guardado); si no hay, no inventamos un @.
+ const igOf = marca => { const km = normStr(marca).replace(/[^a-z0-9]/g, ''); const it = (state.marcaHandles || []).find(h => { const u = normStr(h.user).replace(/[^a-z0-9]/g, ''), n = normStr(h.name).replace(/[^a-z0-9]/g, ''); return h.instagram && (u === km || n === km || (km && n.indexOf(km) >= 0) || (km && km.indexOf(n) >= 0)); }); return it ? '@' + it.instagram.replace(/^@/, '') : ''; };
  out.innerHTML = `<div class="marca-grid-head"><p class="topbar__sub" style="margin:0 .2rem">Toca una marca para gestionar todo lo suyo: calendario, métricas, estrategia y archivos.</p>${admin ? '<button class="btn btn--primary btn--sm" id="addMarca">+ Agregar marca</button>' : ''}</div>
  <div class="marca-grid">` + state.hubMarcas.map(m => `
  <div class="marca-cell">
  <button class="bcard marca-card" data-marca="${esc(m.marca)}" data-sector="${esc(m.sector || '')}">
  <div class="bcard-head"><div class="bcard-id">
  ${marcaLogoHTML(m.marca, 'bcard-av')}
- <div style="min-width:0"><div class="bcard-name">${esc(m.marca)}</div><div class="bcard-user">${esc(handle(m.marca))}</div></div>
+ <div style="min-width:0"><div class="bcard-name">${esc(m.marca)}</div>${igOf(m.marca) ? `<div class="bcard-user">${esc(igOf(m.marca))}</div>` : ''}</div>
  </div></div>
  <div class="bcard-chips">
  ${m.sector ? `<span class="bchip">${esc(m.sector)}</span>` : ''}
@@ -1570,6 +1623,7 @@ function openMarca(marca, sector) {
 }
 function marcaTab(tab) {
  const marca = state.marcaActiva.marca;
+ state._mtab = tab; // pestaña activa: evita que un render async lento sobrescriba a otra pestaña
  if (tab === 'calendario') return marcaCalendario(marca);
  if (tab === 'ciclo') return marcaCiclo(marca);
  if (tab === 'metricas') return marcaMetricas(marca);
@@ -1712,6 +1766,7 @@ async function marcaCiclo(marca) {
  </div>
  <p class="hub-hint" style="margin-top:.5rem">Solo el administrador puede editar ciclos, fechas y cantidades.</p>
  </div>`;
+ if (state._mtab !== 'ciclo') return;
  pane.innerHTML = cardsHTML + (isAdmin ? configAdmin : configLectura) + `
  <div class="ciclo-vs">
  <div class="ciclo-vs__head"><h4>Pactado vs. Realizado</h4><span class="g-card__meta">${totalReal}/${totalPac} del ciclo</span></div>
@@ -1831,6 +1886,7 @@ async function marcaCalendario(marca) {
  <span class="hub-cal__etapa">${esc(p.etapa || '')}</span>
  </button>`).join('') + `</div>`;
  }
+ if (state._mtab !== 'calendario') return; // ya cambiaron de pestaña mientras cargaba
  pane.innerHTML = html;
  const addC = $('#addCreativo'); if (addC) addC.addEventListener('click', () => openAgregarCreativo(marca));
  const addE = $('#addEstrategia'); if (addE) addE.addEventListener('click', () => openEstrategiaModal(marca));
@@ -1892,7 +1948,7 @@ async function openEstrategiaModal(marca, fecha) {
    <button type="button" class="g-close" id="estX" aria-label="Cerrar">✕</button>
    <div class="pz-idea" style="font-weight:800;font-size:1.15rem;margin-bottom:.4rem">📌 Agregar estrategia</div>
    <div class="form-grid" style="margin:.6rem 0">
-     ${marca ? `<input type="hidden" id="estMarca" value="${esc(marca)}">` : `<label class="select"><span>Marca</span><select id="estMarca"><option value="">— Elige marca —</option>${marcas.map(m => `<option>${esc(m)}</option>`).join('')}</select></label>`}
+     ${marca ? `<input type="hidden" id="estMarca" value="${esc(marca)}">` : `<label class="select"><span>Marca</span><select id="estMarca"><option value="">Elige marca</option>${marcas.map(m => `<option>${esc(m)}</option>`).join('')}</select></label>`}
      <label class="select"><span>Título</span><input id="estTit" placeholder="Estudio de mercado, Estrategia Q4…"></label>
      <label class="select"><span>Fecha <em style="font-weight:400;color:var(--ink-40)">(día en el calendario del cliente)</em></span><input id="estFecha" type="date" value="${esc(fecha || '')}"></label>
    </div>
@@ -1957,6 +2013,7 @@ async function marcaMetricas(marca) {
  </div>`
  : '<div class="est-ctx" style="margin-top:1rem"><div class="hub-empty">Aún no hay métricas de publicaciones del Portal de clientes para esta marca.</div></div>';
  const pautaCard = '<div class="est-ctx" style="margin-top:1rem"><h4>📢 Campañas de pauta <span class="hub-hint" style="display:inline;margin:0">— el resumen que ve el cliente en su pestaña Pauta</span></h4><div id="cfPauta"><div class="hub-hint">Cargando…</div></div></div>';
+ if (state._mtab !== 'metricas') return;
  pane.innerHTML = balanceCard + semanalCard + pubCard + pautaCard;
  wmRender(marca);
  marcaPautaAdmin(marca);
@@ -2060,6 +2117,7 @@ async function marcaArchivos(marca) {
  </div>`;
  html += hubFileSection('Logos', 'logo', logos, 'PNG, SVG o JPG del logo. Cualquiera del equipo puede subir.', 'image/*');
  html += hubFileSection('Manual de marca', 'manual', manual, 'El PDF del manual / identidad de marca (o imágenes).', 'application/pdf,image/*');
+ if (state._mtab !== 'archivos') return;
  pane.innerHTML = html;
  const drvSave = $('#drvSave');
  if (drvSave) drvSave.addEventListener('click', async () => {
@@ -2089,7 +2147,9 @@ async function marcaArchivos(marca) {
 async function marcaClienteAcceso(marca, _unlocked) {
  const box = $('#cfCliente'); if (!box) return;
  const { ok, data } = await api('/api/marca/cliente?marca=' + encodeURIComponent(marca));
- if (!ok || !data.usuario) {
+ // Si el servidor no respondió bien (sesión cargando, etc.) NO ofrezcas crear: podría ya tener portal.
+ if (!ok) { box.innerHTML = '<div class="md-none">No se pudo leer el acceso del cliente. <a href="#" id="cfCliRetry">Reintentar</a></div>'; const rt = $('#cfCliRetry'); if (rt) rt.addEventListener('click', e => { e.preventDefault(); marcaClienteAcceso(marca, _unlocked); }); return; }
+ if (!data.usuario) {
    if (!isAdmin()) { box.innerHTML = '<div class="md-none">Esta marca no está enlazada a una cuenta de cliente.</div>'; return; }
    const _slug = normStr(marca).replace(/[^a-z0-9]/g, '');
    box.innerHTML = `
@@ -2168,7 +2228,7 @@ async function marcaPautaAdmin(marca) {
   if (!cu) { box.innerHTML = '<div class="est-ctx-alert">Esta marca no tiene portal de cliente. Créalo en <b>Acceso del cliente</b> para poder cargar su pauta.</div>'; return; }
   const render = (editing) => {
     const e = editing || {};
-    const cycOpts = ['<option value="">— Ciclo —</option>'].concat(cycles.map(c => `<option value="${esc(c.id)}" ${e.cycle === c.id ? 'selected' : ''}>${esc(c.name)}${c.status === 'active' ? ' · activo' : ''}</option>`)).join('');
+    const cycOpts = ['<option value="">Ciclo</option>'].concat(cycles.map(c => `<option value="${esc(c.id)}" ${e.cycle === c.id ? 'selected' : ''}>${esc(c.name)}${c.status === 'active' ? ' · activo' : ''}</option>`)).join('');
     box.innerHTML = `
       <div class="pauta-form">
         <div class="est-ctx-grid">
@@ -2213,9 +2273,10 @@ async function marcaConfig(marca) {
  const pane = $('#marcaPane');
  pane.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando configuración…</div>';
  const { data: ctx } = await api('/api/marca/contexto?marca=' + encodeURIComponent(marca));
+ if (state._mtab !== 'config') return;
  pane.innerHTML = `
  <div class="est-ctx">
- <h4> Logo de la marca <span class="hub-hint" style="display:inline;margin:0">— aparece en su tarjeta y en el portal del cliente</span></h4>
+ <h4>Logo de la marca <span class="hub-hint" style="display:inline;margin:0">aparece en su tarjeta y en el portal del cliente</span></h4>
  <div class="cfg-logos">
    <div class="cfg-logo2">
      <div class="cfg-logo2__prev cfg-logo2__prev--light" id="cfgLogoLightPrev"><span class="gw-none">Sin logo</span></div>
@@ -2424,6 +2485,7 @@ async function marcaEstrategia(marca) {
  const platsCfg = (plt.data && plt.data.plats) || { Instagram: true };
  const platActivas = Object.keys(platsCfg).filter(k => platsCfg[k]);
  const platOpts = (platActivas.length ? platActivas : ['Instagram']).map(pl => `<option value="${esc(pl.toLowerCase())}">${esc(pl)}</option>`).join('');
+ if (state._mtab !== 'estrategia') return;
  pane.innerHTML = `
  <div id="esCtxBox"></div>
 
