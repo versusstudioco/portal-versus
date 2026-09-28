@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260928d';
+const VS_TEAM_BUILD = '20260928e';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -379,6 +379,35 @@ const TIPO_SVG = {
  Short: '<path d="M13 3L5 13h5l-1 8 8-11h-5z"/>'
 };
 function tipoIcon(t) { return _svg(TIPO_SVG[t] || '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h4"/>'); }
+// Desplegable propio, compacto: cerrado ocupa una línea; abierto muestra icono + color y resalta al pasar el cursor.
+// opts: [{v, label, color, icon}]. Genera el control + un <input hidden id=hiddenId> con el valor.
+function pzDD(id, hiddenId, opts, cur) {
+ const curO = opts.find(o => o.v === cur) || opts[0] || { v: '', label: '', color: '#6C00FF', icon: '' };
+ const ar = '<svg class="pz-dd__ar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+ const optHTML = o => `<button type="button" class="pz-dd__opt${o.v === cur ? ' sel' : ''}" data-v="${esc(o.v)}" style="--c:${o.color}">${o.icon ? `<span class="pz-dd__ic">${o.icon}</span>` : ''}<span class="pz-dd__t">${esc(o.label)}</span></button>`;
+ return `<div class="pz-dd" id="${id}" style="--c:${curO.color}">
+   <button type="button" class="pz-dd__btn">${curO.icon ? `<span class="pz-dd__ic">${curO.icon}</span>` : ''}<span class="pz-dd__lbl">${esc(curO.label)}</span>${ar}</button>
+   <div class="pz-dd__menu" hidden>${opts.map(optHTML).join('')}</div>
+ </div><input type="hidden" id="${hiddenId}" value="${esc(cur)}">`;
+}
+function wireDD(id, opts, onChange) {
+ const dd = document.getElementById(id); if (!dd) return;
+ const btn = dd.querySelector('.pz-dd__btn'), menu = dd.querySelector('.pz-dd__menu'), hidden = dd.nextElementSibling;
+ btn.addEventListener('click', e => { e.stopPropagation(); const wasOpen = !menu.hidden; document.querySelectorAll('.pz-dd__menu:not([hidden])').forEach(m => m.hidden = true); menu.hidden = wasOpen; });
+ menu.querySelectorAll('.pz-dd__opt').forEach(o => o.addEventListener('click', () => {
+   const v = o.dataset.v, sel = opts.find(x => x.v === v) || {};
+   hidden.value = v;
+   dd.style.setProperty('--c', sel.color || '#6C00FF');
+   const bic = btn.querySelector('.pz-dd__ic'); if (bic) bic.innerHTML = sel.icon || ''; else if (sel.icon) btn.insertAdjacentHTML('afterbegin', `<span class="pz-dd__ic">${sel.icon}</span>`);
+   btn.querySelector('.pz-dd__lbl').textContent = sel.label || v;
+   menu.querySelectorAll('.pz-dd__opt').forEach(x => x.classList.toggle('sel', x === o));
+   menu.hidden = true;
+   hidden.dispatchEvent(new Event('change'));
+   if (onChange) onChange(v);
+ }));
+}
+// Un solo listener global: cerrar cualquier desplegable propio al hacer clic afuera.
+document.addEventListener('click', e => { document.querySelectorAll('.pz-dd__menu:not([hidden])').forEach(m => { const dd = m.closest('.pz-dd'); if (dd && !dd.contains(e.target)) m.hidden = true; }); });
 // Icono propio de cada marca (para seleccionarla en contenido; NO es el logo).
 const BRAND_SVG = {
  robot: '<rect x="5" y="9" width="14" height="9" rx="2"/><path d="M12 9V5M12 5a1.4 1.4 0 1 0 0-2.8A1.4 1.4 0 0 0 12 5z"/><circle cx="9.5" cy="13.5" r="1"/><circle cx="14.5" cy="13.5" r="1"/><path d="M3 12v3M21 12v3"/>',
@@ -654,8 +683,9 @@ function openPieza(id, prefill) {
  const ETAPA_COL = { idea: ['#8a8a8a', 'rgba(138,138,138,.12)'], aprobada: ['#16a34a', 'rgba(22,163,74,.12)'], grabada: ['#2563eb', 'rgba(37,99,235,.12)'], editada: ['#d97706', 'rgba(217,119,6,.14)'], publicada: ['#6C00FF', 'rgba(108,0,255,.12)'] };
  const etapaStyle = e => { const v = ETAPA_COL[e] || ETAPA_COL.idea; return 'color:' + v[0] + ';border-color:' + v[0] + ';background:' + v[1] + ';font-weight:700'; };
  const TIPO_COL = { Post: '#16a34a', Reel: '#6C00FF', Carrusel: '#2563eb', Historia: '#d97706', Banner: '#db2777' };
- // Desplegable de categoría con color según el tipo (cambia al elegir).
- const tipoStyle = t => { const c = TIPO_COL[t] || '#6C00FF'; return 'border-color:' + c + ';color:' + c; };
+ const _dot = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="currentColor"/></svg>';
+ const ETAPA_OPTS = et.map(([v, l]) => ({ v, label: l, color: (ETAPA_COL[v] || ETAPA_COL.idea)[0], icon: _dot }));
+ const TIPO_OPTS = CATEGORIAS_PIEZA.map(t => ({ v: t, label: t, color: TIPO_COL[t] || '#6C00FF', icon: tipoIcon(t) }));
  const _PERSON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>';
  const _CLIENT_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/></svg>';
  const respIcon = r => !r ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>' : (r === 'Cliente' ? _CLIENT_SVG : _PERSON_SVG);
@@ -665,12 +695,12 @@ function openPieza(id, prefill) {
  <button type="button" class="g-close" id="pzX" aria-label="Cerrar">✕</button>
  <div class="pz-head">
  <div class="pz-iconsel pz-marca"><span class="pz-iconsel__ic" id="pzMarcaIcon">${marcaIcon(p.marca)}</span><select id="pzMarca">${marcaOpts}</select></div>
- <select id="pzEtapa" class="pz-etapa" style="${etapaStyle(p.etapa)}">${et.map(([v, l]) => `<option value="${v}" ${p.etapa === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+ ${pzDD('pzEtapaDD', 'pzEtapa', ETAPA_OPTS, p.etapa)}
  </div>
  ${p.origenCliente ? '<div class="pz-cli-banner">🟢 <b>Idea propuesta por el cliente.</b> Por ahora es solo para su parrilla y <b>no cuenta</b> en las metas. Si la tomamos, apruébala como contenido de Versus y entra al flujo normal.<div style="margin-top:.5rem"><button type="button" class="btn btn--primary btn--sm" id="pzAprobarVersus">✓ Aprobar como contenido de Versus</button></div></div>' : ''}
  <input id="pzIdea" class="pz-idea" placeholder="La idea / título" value="${esc(p.idea)}">
  <div class="pz-row3" style="margin:.6rem 0">
- <label class="select"><span>Categoría</span><div class="pz-iconsel" id="pzTipoSel" style="${tipoStyle(p.tipo)}"><span class="pz-iconsel__ic" id="pzTipoIcon">${tipoIcon(p.tipo)}</span><select id="pzTipo">${CATEGORIAS_PIEZA.map(t => `<option ${p.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div></label>
+ <label class="select"><span>Categoría</span>${pzDD('pzTipoDD', 'pzTipo', TIPO_OPTS, p.tipo)}</label>
  <label class="select"><span>N.º de publicación</span><input id="pzNum" type="text" value="${esc(p.numero || '')}" placeholder="1"><div class="pz-numfoot"><span id="pzNumFijo" class="pz-num-fijo"${p.numeroManual ? '' : ' hidden'}>📌 fijo · <a href="#" id="pzNumAuto">auto</a></span></div></label>
  <label class="select"><span>Responsable</span><div class="pz-iconsel"><span class="pz-iconsel__ic" id="pzRespIcon">${respIcon(p.responsable)}</span><select id="pzResp">${_yo ? `<option value="${esc(_yo)}" ${p.responsable === _yo ? 'selected' : ''}>${esc(_yo)}</option>` : ''}${people.filter(n => n !== _yo).map(n => `<option ${p.responsable === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}<option value="Cliente" ${p.responsable === 'Cliente' ? 'selected' : ''}>Cliente</option>${(p.responsable && !people.includes(p.responsable) && p.responsable !== 'Cliente' && p.responsable !== _yo) ? `<option selected>${esc(p.responsable)}</option>` : ''}</select></div></label>
  </div>
@@ -755,14 +785,11 @@ function openPieza(id, prefill) {
  };
  if (pzNum) pzNum.addEventListener('input', calcExtra);
  if (pzTipo) pzTipo.addEventListener('change', calcExtra);
- // Iconos vivos (categoría, responsable) y color del estado.
- const _pzTipoIc = $('#pzTipoIcon');
- const _pzTipoSel = $('#pzTipoSel');
- if (pzTipo && _pzTipoIc) pzTipo.addEventListener('change', () => { _pzTipoIc.innerHTML = tipoIcon(pzTipo.value); if (_pzTipoSel) _pzTipoSel.setAttribute('style', tipoStyle(pzTipo.value)); });
+ // Desplegables propios de Estado y Categoría (icono + color, compactos).
+ wireDD('pzEtapaDD', ETAPA_OPTS);
+ wireDD('pzTipoDD', TIPO_OPTS);
  const _pzResp = $('#pzResp'), _pzRespIc = $('#pzRespIcon');
  if (_pzResp && _pzRespIc) _pzResp.addEventListener('change', () => { _pzRespIc.innerHTML = respIcon(_pzResp.value); });
- const _pzEtapa = $('#pzEtapa');
- if (_pzEtapa) _pzEtapa.addEventListener('change', () => { _pzEtapa.setAttribute('style', etapaStyle(_pzEtapa.value)); });
  // Icono de la marca junto al selector (cambia al elegir otra marca).
  const _pzMarcaIc = $('#pzMarcaIcon'), _pzMarcaSel = $('#pzMarca');
  if (_pzMarcaIc && _pzMarcaSel) _pzMarcaSel.addEventListener('change', () => { _pzMarcaIc.innerHTML = marcaIcon(_pzMarcaSel.value); });
@@ -806,13 +833,20 @@ function openPieza(id, prefill) {
  $$('.pz-platpanel__p').forEach(pp => { pp.hidden = pp.dataset.panel !== pk; });
  }));
  (function(){ const pzF = $('#pzFecha'), pzE = $('#pzFechaEntrega'); if (pzF && pzE) pzF.addEventListener('change', () => { if (pzF.value && !pzE.value) { const d = new Date(pzF.value + 'T00:00:00'); d.setDate(d.getDate() - 2); pzE.value = d.toISOString().slice(0, 10); } }); })();
- $('#pzSave').addEventListener('click', async () => {
+ $('#pzSave').addEventListener('click', () => {
  pzGuardado = true; // evita que close() cree además un borrador
  const body = buildPiezaBody();
- if (!id) { const r = await api('/api/piezas/crear', { method: 'POST', body }); if (r.data.ok && $('#pzEtapa').value !== 'idea') await api('/api/piezas/etapa', { method: 'POST', body: { id: r.data.pieza.id, etapa: $('#pzEtapa').value } }); }
- else { await api('/api/piezas/update', { method: 'POST', body }); if ($('#pzEtapa').value !== p.etapa) await api('/api/piezas/etapa', { method: 'POST', body: { id, etapa: $('#pzEtapa').value } }); }
- try { if (body.marca) await api('/api/marca/renumerar', { method: 'POST', body: { marca: body.marca } }); } catch (_) {} // consecutivo por fecha
- close(); refreshPiezaView();
+ const etapaSel = $('#pzEtapa').value;
+ // Cierra al instante; guarda en segundo plano (se siente inmediato).
+ close();
+ (async () => {
+   try {
+     if (!id) { const r = await api('/api/piezas/crear', { method: 'POST', body }); if (r.data && r.data.ok && etapaSel !== 'idea') await api('/api/piezas/etapa', { method: 'POST', body: { id: r.data.pieza.id, etapa: etapaSel } }); }
+     else { await api('/api/piezas/update', { method: 'POST', body }); if (etapaSel !== p.etapa) await api('/api/piezas/etapa', { method: 'POST', body: { id, etapa: etapaSel } }); }
+     if (body.marca) await api('/api/marca/renumerar', { method: 'POST', body: { marca: body.marca } }).catch(() => {});
+   } catch (_) { alert('No se pudo guardar la pieza (revisa tu conexión).'); }
+   refreshPiezaView();
+ })();
  });
  const btnAV = $('#pzAprobarVersus');
  if (btnAV) btnAV.addEventListener('click', async () => {
