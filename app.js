@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260929a';
+const VS_TEAM_BUILD = '20260929b';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -3189,67 +3189,70 @@ async function loadCalendario(silent) {
  const piezas = Object.values(data.columnas || {}).flat().filter(p => p.fecha && p.tipo !== 'Historia');
  state.piezas = state.piezas || {};
  piezas.forEach(p => state.piezas[p.id] = p);
- // Mes: el del primer item, o el actual.
- const ref = piezas[0] ? piezas[0].fecha : new Date().toISOString().slice(0, 10);
- const [y, m] = ref.split('-').map(Number);
- const offset = (new Date(y, m - 1, 1).getDay() + 6) % 7;
- const dias = new Date(y, m, 0).getDate();
- const porDia = {};
- piezas.forEach(p => { if (p.fecha.slice(0, 7) === `${y}-${String(m).padStart(2, '0')}`) (porDia[p.fecha] || (porDia[p.fecha] = [])).push(p); });
+ // Mes visible: se mantiene el elegido; por defecto el mes actual (el equipo navega libremente por todo el calendario).
+ if (!state.calYM) { const t = new Date(); state.calYM = { y: t.getFullYear(), m: t.getMonth() + 1 }; }
  const hoyISO = new Date().toISOString().slice(0, 10);
-
- let celdas = '';
- DIAS_SEM.forEach(d => celdas += `<div class="cal__dow">${d}</div>`);
- for (let i = 0; i < offset; i++) celdas += '<div class="cal__cell cal__cell--empty"></div>';
- for (let d = 1; d <= dias; d++) {
- const iso = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
- const items = porDia[iso] || [];
- celdas += `<div class="cal__cell ${iso === hoyISO ? 'cal__cell--hoy' : ''}" data-iso="${iso}">
+ const render = () => {
+   const { y, m } = state.calYM;
+   const ym = `${y}-${String(m).padStart(2, '0')}`;
+   const offset = (new Date(y, m - 1, 1).getDay() + 6) % 7;
+   const dias = new Date(y, m, 0).getDate();
+   const porDia = {}; let enMes = 0;
+   piezas.forEach(p => { if (p.fecha.slice(0, 7) === ym) { (porDia[p.fecha] || (porDia[p.fecha] = [])).push(p); enMes++; } });
+   let celdas = '';
+   DIAS_SEM.forEach(d => celdas += `<div class="cal__dow">${d}</div>`);
+   for (let i = 0; i < offset; i++) celdas += '<div class="cal__cell cal__cell--empty"></div>';
+   for (let d = 1; d <= dias; d++) {
+     const iso = `${ym}-${String(d).padStart(2, '0')}`;
+     const items = porDia[iso] || [];
+     celdas += `<div class="cal__cell ${iso === hoyISO ? 'cal__cell--hoy' : ''}" data-iso="${iso}">
  <div class="cal__num">${d}</div>
  ${items.map(p => `<div class="cal__item cal-pz" draggable="true" data-id="${p.id}" title="${esc(p.marca)} · ${esc(p.tipo)} · ${esc(p.etapa)} — arrastra para cambiar la fecha"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${tipoIcon(p.tipo)}<span class="cal__txt">${esc(p.marca)}</span></div>`).join('')}
  </div>`;
- }
- out.innerHTML = `<div class="cal-toolbar">
+   }
+   out.innerHTML = `<div class="cal-toolbar">
    <button class="btn btn--primary btn--sm" id="calNewTask">+ Tarea</button>
    <button class="btn btn--ghost btn--sm" id="calNewContent">+ Contenido</button>
    <button class="btn btn--ghost btn--sm" id="calNewMeet">+ Reunión</button>
    <button class="btn btn--ghost btn--sm" id="calNewEst">+ Estrategia</button>
  </div>
- <p class="topbar__sub" style="margin-bottom:1rem">${porDia && piezas.length} piezas en ${esc(CAL_MESES[m - 1])} ${y} · toca una para ver el guion y la etapa</p>
+ <div class="marca-cal-nav"><button class="btn btn--ghost btn--sm" id="calPrev">Anterior</button><div class="marca-cal-month">${esc(CAL_MESES[m - 1])} ${y}</div><button class="btn btn--ghost btn--sm" id="calNext">Siguiente</button></div>
+ <p class="topbar__sub" style="margin-bottom:1rem">${enMes} pieza(s) en ${esc(CAL_MESES[m - 1])} ${y} · toca una para ver el guion y la etapa</p>
  <div class="cal">${celdas}</div>`;
- $$('.cal-pz').forEach(el => {
-   el.addEventListener('click', () => { if (!el._drag) openPieza(el.dataset.id); });
-   el.addEventListener('dragstart', e => { el._drag = true; e.dataTransfer.setData('text/plain', el.dataset.id); e.dataTransfer.effectAllowed = 'move'; setTimeout(() => el.classList.add('dragging'), 0); });
-   el.addEventListener('dragend', () => { el.classList.remove('dragging'); setTimeout(() => el._drag = false, 60); });
- });
- $$('#calendarioOut .cal__cell').forEach(cell => {
-   if (!cell.dataset.iso) return;
-   cell.addEventListener('dragover', e => { e.preventDefault(); cell.classList.add('cal__cell--over'); });
-   cell.addEventListener('dragleave', () => cell.classList.remove('cal__cell--over'));
-   cell.addEventListener('drop', e => {
-     e.preventDefault(); cell.classList.remove('cal__cell--over');
-     const id = e.dataTransfer.getData('text/plain'), iso = cell.dataset.iso;
-     if (!id || !iso) return;
-     const p = state.piezas[id]; if (p && p.fecha === iso) return;
-     // Mover la tarjeta en el DOM al instante — arrastre fluido, sin recargar el mes.
-     const card = $('#calendarioOut .cal-pz[data-id="' + id + '"]');
-     if (card) { card.classList.remove('dragging'); cell.appendChild(card); }
-     if (p) p.fecha = iso;
-     const _mk = p && p.marca;
-     // Guardar en segundo plano. NO recargamos (la tarjeta ya se movió sola → fluido).
-     // El renumerado corre aparte; el calendario general muestra la marca, no el número.
-     api('/api/piezas/update', { method: 'POST', body: { id, fecha: iso } })
-       .then(r => {
-         if (!r || !r.ok) { loadCalendario(); return; }
-         if (_mk) api('/api/marca/renumerar', { method: 'POST', body: { marca: _mk } }).catch(() => {});
-       })
-       .catch(() => loadCalendario());
+   $$('.cal-pz').forEach(el => {
+     el.addEventListener('click', () => { if (!el._drag) openPieza(el.dataset.id); });
+     el.addEventListener('dragstart', e => { el._drag = true; e.dataTransfer.setData('text/plain', el.dataset.id); e.dataTransfer.effectAllowed = 'move'; setTimeout(() => el.classList.add('dragging'), 0); });
+     el.addEventListener('dragend', () => { el.classList.remove('dragging'); setTimeout(() => el._drag = false, 60); });
    });
- });
- const bt = $('#calNewTask'); if (bt) bt.onclick = openTarea;
- const bc = $('#calNewContent'); if (bc) bc.onclick = () => openPieza(null);
- const bm = $('#calNewMeet'); if (bm) bm.onclick = openNuevaReunion;
- const be = $('#calNewEst'); if (be) be.onclick = () => openEstrategiaModal(null);
+   $$('#calendarioOut .cal__cell').forEach(cell => {
+     if (!cell.dataset.iso) return;
+     cell.addEventListener('dragover', e => { e.preventDefault(); cell.classList.add('cal__cell--over'); });
+     cell.addEventListener('dragleave', () => cell.classList.remove('cal__cell--over'));
+     cell.addEventListener('drop', e => {
+       e.preventDefault(); cell.classList.remove('cal__cell--over');
+       const id = e.dataTransfer.getData('text/plain'), iso = cell.dataset.iso;
+       if (!id || !iso) return;
+       const p = state.piezas[id]; if (p && p.fecha === iso) return;
+       const card = $('#calendarioOut .cal-pz[data-id="' + id + '"]');
+       if (card) { card.classList.remove('dragging'); cell.appendChild(card); }
+       if (p) p.fecha = iso;
+       const _mk = p && p.marca;
+       api('/api/piezas/update', { method: 'POST', body: { id, fecha: iso } })
+         .then(r => {
+           if (!r || !r.ok) { loadCalendario(); return; }
+           if (_mk) api('/api/marca/renumerar', { method: 'POST', body: { marca: _mk } }).catch(() => {});
+         })
+         .catch(() => loadCalendario());
+     });
+   });
+   const bt = $('#calNewTask'); if (bt) bt.onclick = openTarea;
+   const bc = $('#calNewContent'); if (bc) bc.onclick = () => openPieza(null);
+   const bm = $('#calNewMeet'); if (bm) bm.onclick = openNuevaReunion;
+   const be = $('#calNewEst'); if (be) be.onclick = () => openEstrategiaModal(null);
+   const pv = $('#calPrev'); if (pv) pv.onclick = () => { let { y, m } = state.calYM; m--; if (m < 1) { m = 12; y--; } state.calYM = { y, m }; render(); };
+   const nx = $('#calNext'); if (nx) nx.onclick = () => { let { y, m } = state.calYM; m++; if (m > 12) { m = 1; y++; } state.calYM = { y, m }; render(); };
+ };
+ render();
 }
 
 /* ---------------- Tendencias: modo En vivo / Biblioteca ---------------- */
