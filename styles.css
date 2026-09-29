@@ -634,8 +634,8 @@ body.dark .ioscard__btn:hover { background: #2c2c2e; }
 /* Modal de pieza */
 .pz-box { max-width: 580px; text-align: left; }
 .pz-head { display: flex; gap: .6rem; margin-bottom: .8rem; }
-.pz-marca { flex: 1; min-width: 0; height: 44px; }
-.pz-head .pz-marca select { font-size: 1rem; font-weight: 600; }
+.pz-marcawrap { flex: 1; min-width: 0; position: relative; }
+.pz-marcawrap .pz-dd { width: 100%; }
 /* Desplegable propio (Estado / Categoría): compacto cerrado; icono + color al abrir */
 .pz-dd { position: relative; --c: #6C00FF; }
 .pz-head .pz-dd { min-width: 130px; }
@@ -646,6 +646,7 @@ body.dark .ioscard__btn:hover { background: #2c2c2e; }
 .pz-dd__ic svg, .pz-dd__ic .cal-svg { width: 17px; height: 17px; }
 .pz-dd__ar { width: 16px; height: 16px; flex: 0 0 auto; opacity: .7; }
 .pz-dd__menu { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; min-width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.16); padding: .3rem; display: flex; flex-direction: column; gap: 2px; }
+.pz-dd__menu[hidden] { display: none; }
 .pz-dd__opt { display: flex; align-items: center; gap: .5rem; width: 100%; padding: .5rem .6rem; font-family: var(--font); font-size: .9rem; font-weight: 600; color: var(--ink); background: transparent; border: 0; border-radius: 8px; cursor: pointer; white-space: nowrap; text-align: left; --c: #6C00FF; }
 .pz-dd__opt .pz-dd__ic { color: var(--c); }
 .pz-dd__opt .pz-dd__t { flex: 1; }

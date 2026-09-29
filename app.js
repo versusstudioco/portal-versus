@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260928e';
+const VS_TEAM_BUILD = '20260928f';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -441,6 +441,9 @@ function _brandKey(m) {
  return null;
 }
 function marcaIcon(m) { const key = _brandKey(m); return key ? _svg(BRAND_SVG[key]) : _svg('<path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/>'); }
+// Color estable por marca (para que su desplegable se vea como el de categorías).
+const BRAND_PALETTE = ['#6C00FF', '#16a34a', '#2563eb', '#d97706', '#db2777', '#0891b2', '#7c3aed', '#dc2626', '#059669', '#ea580c'];
+function marcaColor(m) { const k = normStr(m).replace(/[^a-z0-9]/g, ''); if (!k) return '#8a8a8a'; let h = 0; for (let i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) >>> 0; return BRAND_PALETTE[h % BRAND_PALETTE.length]; }
 const ESTADO_INFO = {
  retrasado: { label: 'Retrasado', cls: 'st-red' },
  en_proceso: { label: 'En proceso', cls: 'st-blue' },
@@ -690,11 +693,17 @@ function openPieza(id, prefill) {
  const _CLIENT_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/></svg>';
  const respIcon = r => !r ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>' : (r === 'Cliente' ? _CLIENT_SVG : _PERSON_SVG);
  const marcasList = (function () { const s = new Set(); if (state.gestion && state.gestion.marcas) state.gestion.marcas.forEach(x => { if (x && x.marca) s.add(x.marca); }); Object.values(state.piezas || {}).forEach(x => { if (x && x.marca) s.add(x.marca); }); return Array.from(s).sort((a, b) => a.localeCompare(b)); })();
- const marcaOpts = (function () { const cur = p.marca || ''; const set = new Set(marcasList); let o = '<option value="">Elige marca</option>'; if (cur && !set.has(cur)) o += `<option value="${esc(cur)}" selected>${esc(cur)}</option>`; marcasList.forEach(m => { o += `<option ${m === cur ? 'selected' : ''}>${esc(m)}</option>`; }); return o; })();
+ const marcaOptsArr = (function () {
+   const cur = p.marca || '', set = new Set(marcasList), arr = [];
+   if (!cur) arr.push({ v: '', label: 'Elige marca', color: '#8a8a8a', icon: marcaIcon('') });
+   if (cur && !set.has(cur)) arr.push({ v: cur, label: cur, color: marcaColor(cur), icon: marcaIcon(cur) });
+   marcasList.forEach(m => arr.push({ v: m, label: m, color: marcaColor(m), icon: marcaIcon(m) }));
+   return arr;
+ })();
  const html = `<div class="g-modal" id="pzModal"><div class="g-modal__box glass pz-box">
  <button type="button" class="g-close" id="pzX" aria-label="Cerrar">✕</button>
  <div class="pz-head">
- <div class="pz-iconsel pz-marca"><span class="pz-iconsel__ic" id="pzMarcaIcon">${marcaIcon(p.marca)}</span><select id="pzMarca">${marcaOpts}</select></div>
+ <div id="pzMarcaWrap" class="pz-marcawrap">${pzDD('pzMarcaDD', 'pzMarca', marcaOptsArr, p.marca || '')}</div>
  ${pzDD('pzEtapaDD', 'pzEtapa', ETAPA_OPTS, p.etapa)}
  </div>
  ${p.origenCliente ? '<div class="pz-cli-banner">🟢 <b>Idea propuesta por el cliente.</b> Por ahora es solo para su parrilla y <b>no cuenta</b> en las metas. Si la tomamos, apruébala como contenido de Versus y entra al flujo normal.<div style="margin-top:.5rem"><button type="button" class="btn btn--primary btn--sm" id="pzAprobarVersus">✓ Aprobar como contenido de Versus</button></div></div>' : ''}
@@ -790,20 +799,21 @@ function openPieza(id, prefill) {
  wireDD('pzTipoDD', TIPO_OPTS);
  const _pzResp = $('#pzResp'), _pzRespIc = $('#pzRespIcon');
  if (_pzResp && _pzRespIc) _pzResp.addEventListener('change', () => { _pzRespIc.innerHTML = respIcon(_pzResp.value); });
- // Icono de la marca junto al selector (cambia al elegir otra marca).
- const _pzMarcaIc = $('#pzMarcaIcon'), _pzMarcaSel = $('#pzMarca');
- if (_pzMarcaIc && _pzMarcaSel) _pzMarcaSel.addEventListener('change', () => { _pzMarcaIc.innerHTML = marcaIcon(_pzMarcaSel.value); });
- // Marca: si la lista no estaba cargada (p. ej. desde el calendario general), tráela y repuebla el selector.
+ // Marca: desplegable propio (icono + color), igual que Categoría.
+ wireDD('pzMarcaDD', marcaOptsArr);
+ // Si la lista no estaba cargada (p. ej. desde el calendario general), tráela y reconstruye el desplegable.
  if (!marcasList.length) {
    const cur = p.marca || '';
    api('/api/gestion').then(g => {
-     const sel = $('#pzMarca'); if (!sel || !document.getElementById('pzModal')) return;
+     const wrap = $('#pzMarcaWrap'); if (!wrap || !document.getElementById('pzModal')) return;
      const ms = ((g.data && g.data.marcas) || []).map(x => x.marca);
      if (!ms.length) return;
-     const set = new Set(ms); let o = '<option value="">Elige marca</option>';
-     if (cur && !set.has(cur)) o += `<option value="${esc(cur)}" selected>${esc(cur)}</option>`;
-     ms.forEach(m => { o += `<option ${m === cur ? 'selected' : ''}>${esc(m)}</option>`; });
-     sel.innerHTML = o;
+     const set = new Set(ms), arr = [];
+     if (!cur) arr.push({ v: '', label: 'Elige marca', color: '#8a8a8a', icon: marcaIcon('') });
+     if (cur && !set.has(cur)) arr.push({ v: cur, label: cur, color: marcaColor(cur), icon: marcaIcon(cur) });
+     ms.forEach(m => arr.push({ v: m, label: m, color: marcaColor(m), icon: marcaIcon(m) }));
+     wrap.innerHTML = pzDD('pzMarcaDD', 'pzMarca', arr, cur);
+     wireDD('pzMarcaDD', arr);
    }).catch(() => {});
  }
  // UNA sola llamada al ciclo: rango (para el #) + metas (para "adicional"). Antes eran dos → lentitud.
