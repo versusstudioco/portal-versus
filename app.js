@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260928f';
+const VS_TEAM_BUILD = '20260929a';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -551,9 +551,9 @@ function piezasSemana(columnas) {
   Object.keys(columnas || {}).forEach(k => { out[k] = (columnas[k] || []).filter(dentro); total += out[k].length; });
   return { columnas: out, total };
 }
-async function loadFlujo() {
+async function loadFlujo(silent) {
   const out = $('#flujoOut');
-  out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando flujo…</div>';
+  if (!silent || !out.innerHTML.trim()) out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando flujo…</div>';
   const { data } = await api('/api/piezas');
   const all = Object.values(data.columnas || {}).flat();
   state.piezas = {}; all.forEach(p => state.piezas[p.id] = p);
@@ -562,13 +562,14 @@ async function loadFlujo() {
   out.innerHTML = '<div id="flBoard"></div>';
   const bd = $('#flBoard'); bd.innerHTML = boardHTML(dataSemana); bindBoard(bd, loadFlujo);
 }
-function refreshPiezaView() {
+function refreshPiezaView(silent) {
  // Recarga SOLO la vista que está visible (antes ignoraba el calendario general).
+ // silent = refresco sin parpadeo (deja lo que hay hasta que llega lo nuevo).
  const vis = id => { const el = document.getElementById(id); return el && !el.classList.contains('hidden'); };
- if (vis('view-archivos') && state.marcaActiva) marcaCalendario(state.marcaActiva.marca);
- else if (vis('view-calendario')) loadCalendario();
- else if (vis('view-flujo')) loadFlujo();
- else if (vis('view-inicio')) loadInicio();
+ if (vis('view-archivos') && state.marcaActiva) marcaCalendario(state.marcaActiva.marca, silent);
+ else if (vis('view-calendario')) loadCalendario(silent);
+ else if (vis('view-flujo')) loadFlujo(silent);
+ else if (vis('view-inicio')) loadInicio(silent);
  else if (vis('view-gestion')) { /* no depende de piezas directamente */ }
 }
 function metricsFromMet(met) {
@@ -853,9 +854,10 @@ function openPieza(id, prefill) {
    try {
      if (!id) { const r = await api('/api/piezas/crear', { method: 'POST', body }); if (r.data && r.data.ok && etapaSel !== 'idea') await api('/api/piezas/etapa', { method: 'POST', body: { id: r.data.pieza.id, etapa: etapaSel } }); }
      else { await api('/api/piezas/update', { method: 'POST', body }); if (etapaSel !== p.etapa) await api('/api/piezas/etapa', { method: 'POST', body: { id, etapa: etapaSel } }); }
-     if (body.marca) await api('/api/marca/renumerar', { method: 'POST', body: { marca: body.marca } }).catch(() => {});
+     refreshPiezaView(true); // la pieza ya está guardada → muéstrala YA (sin parpadeo)
+     // El renumerado por fecha corre después, sin bloquear; refresca en silencio al terminar.
+     if (body.marca) api('/api/marca/renumerar', { method: 'POST', body: { marca: body.marca } }).then(() => refreshPiezaView(true)).catch(() => {});
    } catch (_) { alert('No se pudo guardar la pieza (revisa tu conexión).'); }
-   refreshPiezaView();
  })();
  });
  const btnAV = $('#pzAprobarVersus');
@@ -1874,9 +1876,10 @@ function buildMonthGrid(piezas, refISO) {
  }
  return { label: `${CAL_MESES[m - 1]} ${y}`, html: `<div class="cal">${celdas}</div>` };
 }
-async function marcaCalendario(marca) {
+async function marcaCalendario(marca, silent) {
  const pane = $('#marcaPane');
- pane.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando calendario…</div>';
+ // silent = refresco sin parpadeo: deja lo que hay hasta que llegue lo nuevo (p. ej. tras guardar una pieza).
+ if (!silent || !pane.innerHTML.trim()) pane.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando calendario…</div>';
  const [board, histR, cicR] = await Promise.all([api('/api/piezas'), api('/api/marca/publicaciones?marca=' + encodeURIComponent(marca)), api('/api/marca/ciclo?marca=' + encodeURIComponent(marca))]);
  // Guardar el rango del ciclo activo para numerar por ciclo (no por histórico).
  if (cicR.ok) state._cicloRange = { marca, inicio: cicR.data.inicio || '', fin: cicR.data.fin || '' };
@@ -3177,9 +3180,9 @@ function openTarea() {
 
 /* ---------------- Calendario compartido ---------------- */
 const CAL_MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-async function loadCalendario() {
+async function loadCalendario(silent) {
  const out = $('#calendarioOut');
- out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando calendario…</div>';
+ if (!silent || !out.innerHTML.trim()) out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando calendario…</div>';
  // Usa las PIEZAS reales (con id + etapa) para que cada una abra su ficha.
  const { data } = await api('/api/piezas');
  // El calendario general muestra creativos (post, reel, carrusel, banner) — NO historias.
