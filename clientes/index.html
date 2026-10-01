@@ -820,7 +820,6 @@ img{max-width:100%;display:block;}
  <div class="ni on" id="dt-calendario" onclick="showDT(this,'calendario')">Calendario</div>
  <div class="ni" id="dt-ciclos" onclick="showDT(this,'ciclos')">Ciclos</div>
  <div class="ni" id="dt-resumen" onclick="showDT(this,'resumen')">Resumen</div>
- <div class="ni" id="dt-contenido" onclick="showDT(this,'contenido')">Contenido</div>
  <div class="ni" id="dt-comparativo" onclick="showDT(this,'comparativo')">Comparativo</div>
  <div class="ni" id="dt-pauta" onclick="showDT(this,'pauta')">Pauta</div>
  <div class="sb-foot">
@@ -1450,7 +1449,7 @@ var PLATS = ["Instagram","YouTube","TikTok","LinkedIn"];
 var TCLS = {Reel:"t-reel",Carrusel:"t-carr",Post:"t-post",Historia:"t-hist",Video:"t-vid",Short:"t-sho",Pauta:"t-pauta",Banner:"t-banner"};
 
 // ===== AUTO-ACTUALIZACIÓN (evita quedarse con una versión vieja en caché) =====
-var VS_BUILD = '20260928a';
+var VS_BUILD = '20260929a';
 (function(){
  try{
   if(new URLSearchParams(location.search).get('v') === VS_BUILD) return; // ya estamos en la versión fresca
@@ -3725,6 +3724,17 @@ function renderComparativo() {
  var el=gi('compPanel'); if(!el) return;
  var cycles=DB.cycles.filter(function(c){return c.brand===CU;});
  if(cycles.length<1){el.innerHTML='<div class="empty">Sin ciclos.</div>';return;}
+ // El contenido entregado se cuenta POR CICLO (igual que Resumen): publicaciones + piezas del equipo
+ // asignadas al ciclo (gestor/piezas). Cargamos gestor/piezas una vez si aún no están.
+ if(!DB._gpiezas && FBDB){
+   DB._gpiezas=[];
+   var _bn=(CREDS[CU]&&CREDS[CU].name)||CU||""; var _k1=vgNorm(_bn), _k2=vgNorm(CU);
+   FBDB.ref("vsportal/gestor/piezas").once("value").then(function(s){
+     var all=s.val()||{};
+     DB._gpiezas=Object.keys(all).map(function(k){return all[k];}).filter(function(p){ if(!p||!p.marca) return false; var pm=vgNorm(p.marca); return pm===_k1||pm===_k2||(_k1&&pm.indexOf(_k1)>=0)||(_k1&&_k1.indexOf(pm)>=0); });
+     renderComparativo();
+   }).catch(function(){ renderComparativo(); });
+ }
  if(cycles.length<2){
  var _c1=cycles[cycles.length-1];
  var _bf=Number(_c1.baseFollowers)||0; var _bv=Number(_c1.baseViews)||0;
@@ -3772,7 +3782,13 @@ function renderComparativo() {
  labels.push(cyc.name);
  var base=Number(cyc.baseFollowers)||0;
  var baseV=Number(cyc.baseViews)||0;
- var pubs=DB.publications.filter(function(p){return p.brand===CU&&p.cycle===cyc.id&&p.status==='published';});
+ var pubs=DB.publications.filter(function(p){return p.brand===CU&&p.cycle===cyc.id&&p.status==='published'&&!p.origenCliente;});
+ // Piezas del equipo ASIGNADAS a este ciclo (por etiqueta de ciclo, no solo fecha), sin duplicar por tipo+fecha.
+ var _seenCmp={}; pubs.forEach(function(p){_seenCmp[(p.type||'')+'|'+(p.date||'')]=1;});
+ var gpCmp=(DB._gpiezas||[]).filter(function(p){return pzEnCiclo(p,cyc)&&p.etapa!=='idea'&&!p.origenCliente;})
+   .filter(function(p){return !_seenCmp[(p.tipo||'')+'|'+(p.fecha||p.fechaEntrega||'')];});
+ var _isCre=function(t){return t==='Reel'||t==='Carrusel'||t==='Post';};
+ var doneCreativos=pubs.filter(function(p){return _isCre(p.type);}).length + gpCmp.filter(function(p){return _isCre(p.tipo);}).length;
  // Latest followers
  var latF=0;
  for(var w=4;w>=1;w--){
@@ -3805,7 +3821,7 @@ function renderComparativo() {
  // Content
  var prom=0;
  [{k:'reels'},{k:'carruseles'},{k:'posts'}].forEach(function(t){prom+=Number(cyc[t.k])||0;});
- var pct=prom>0?Math.min(100,Math.round((pubs.length/prom)*100)):0;
+ var pct=prom>0?Math.min(100,Math.round((doneCreativos/prom)*100)):0;
  // Engagement avg
  var erVals=pubs.map(function(p){var e=engRate(p);return e?parseFloat(e):null;}).filter(function(v){return v!==null;});
  var avgER=erVals.length?+(erVals.reduce(function(a,b){return a+b;},0)/erVals.length).toFixed(2):0;
@@ -3841,7 +3857,7 @@ function renderComparativo() {
  }
  weekData.push({w:wj,f:wkF,v:wkV});
  }
- cycData.push({cyc:cyc,base:trueBase,latF:latF,growF:growF,totV:totV,weeksV:weeksWithData,prom:prom,done:pubs.length,pct:pct,avgER:avgER,weeks:weekData});
+ cycData.push({cyc:cyc,base:trueBase,latF:latF,growF:growF,totV:totV,weeksV:weeksWithData,prom:prom,done:doneCreativos,pct:pct,avgER:avgER,weeks:weekData});
  });
 
  var isDark=document.body.classList.contains('dark')||document.documentElement.classList.contains('dark');
