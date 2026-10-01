@@ -1449,7 +1449,7 @@ var PLATS = ["Instagram","YouTube","TikTok","LinkedIn"];
 var TCLS = {Reel:"t-reel",Carrusel:"t-carr",Post:"t-post",Historia:"t-hist",Video:"t-vid",Short:"t-sho",Pauta:"t-pauta",Banner:"t-banner"};
 
 // ===== AUTO-ACTUALIZACIÓN (evita quedarse con una versión vieja en caché) =====
-var VS_BUILD = '20260929a';
+var VS_BUILD = '20260929b';
 (function(){
  try{
   if(new URLSearchParams(location.search).get('v') === VS_BUILD) return; // ya estamos en la versión fresca
@@ -3822,9 +3822,11 @@ function renderComparativo() {
  var prom=0;
  [{k:'reels'},{k:'carruseles'},{k:'posts'}].forEach(function(t){prom+=Number(cyc[t.k])||0;});
  var pct=prom>0?Math.min(100,Math.round((doneCreativos/prom)*100)):0;
- // Engagement avg
- var erVals=pubs.map(function(p){var e=engRate(p);return e?parseFloat(e):null;}).filter(function(v){return v!==null;});
- var avgER=erVals.length?+(erVals.reduce(function(a,b){return a+b;},0)/erVals.length).toFixed(2):0;
+ // Engagement avg: incluye publicaciones Y piezas del equipo del ciclo que tengan métricas.
+ var gpER=gpCmp.map(function(p){return {brand:CU,cycle:cyc.id,platform:p.plataforma||'',views:+p.mViews||0,likes:+p.mLikes||0,comments:+p.mComments||0,saved:+p.mSaved||0,shares:+p.mShared||0};});
+ var erVals=pubs.concat(gpER).map(function(p){var e=engRate(p);return e?parseFloat(e):null;}).filter(function(v){return v!==null;});
+ // Sin métricas de engagement cargadas → null (se muestra "–", no "0%").
+ var avgER=erVals.length?+(erVals.reduce(function(a,b){return a+b;},0)/erVals.length).toFixed(2):null;
  dataF.push(latF||base); // absolute followers at cycle close
  dataV.push(totV);
  dataPct.push(pct);
@@ -3911,8 +3913,8 @@ function renderComparativo() {
  html+='<div class="comp-sc-sub">'+lastD.done+'/'+lastD.prom+' piezas'+diffBadge(lastD.pct,prevD?prevD.pct:null,false)+'</div></div>';
  // card 4
  html+='<div class="comp-sc"><div class="comp-sc-lbl">Engagement prom.</div>';
- html+='<div class="comp-sc-val">'+lastD.avgER+'%</div>';
- html+='<div class="comp-sc-sub">'+cycData.length+' ciclos'+diffBadge(lastD.avgER,prevD?prevD.avgER:null,false)+'</div></div>';
+ html+='<div class="comp-sc-val">'+(lastD.avgER!=null?lastD.avgER+'%':'–')+'</div>';
+ html+='<div class="comp-sc-sub">'+(lastD.avgER!=null?cycData.length+' ciclos'+diffBadge(lastD.avgER,prevD&&prevD.avgER!=null?prevD.avgER:null,false):'sin métricas cargadas')+'</div></div>';
  html+='</div>';
 
  // \u2500\u2500 CHARTS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
