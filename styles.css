@@ -747,6 +747,13 @@ body.dark .cal__cell { border-color: rgba(255,255,255,.07); }
 .cal__cell--hoy { background: rgba(10,132,255,.06); border-color: rgba(10,132,255,.35); }
 .cal__num { font-size: .78rem; font-weight: 600; color: var(--ink-40); margin-bottom: .4rem; }
 .cal__cell--hoy .cal__num { color: #0a84ff; }
+/* Festivos de Colombia */
+.cal__cell--festivo { background: rgba(217,119,6,.10); border-color: rgba(217,119,6,.4); }
+body.dark .cal__cell--festivo { background: rgba(245,158,11,.12); border-color: rgba(245,158,11,.4); }
+.cal__cell--festivo .cal__num { color: #b45309; }
+body.dark .cal__cell--festivo .cal__num { color: #f59e0b; }
+.cal__fest { font-size: .62rem; font-weight: 700; line-height: 1.15; color: #b45309; background: rgba(217,119,6,.14); border-radius: 6px; padding: 2px 5px; margin-bottom: .35rem; display: block; white-space: normal; }
+body.dark .cal__fest { color: #f59e0b; background: rgba(245,158,11,.16); }
 .cal__item { font-size: .72rem; display: flex; align-items: center; gap: .32rem; padding: .28rem .4rem; border-radius: 8px; background: var(--bg); margin-bottom: .3rem; min-width: 0; }
 .cal-svg { width: 13px; height: 13px; flex: 0 0 auto; color: var(--ink-60); }
 .cal__txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

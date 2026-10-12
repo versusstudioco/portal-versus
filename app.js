@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20260929b';
+const VS_TEAM_BUILD = '20261012a';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -1853,6 +1853,45 @@ async function marcaCiclo(marca) {
  });
 }
 
+/* --- Festivos de Colombia (se calculan para cualquier año; algunos se trasladan al lunes, otros dependen de Semana Santa) --- */
+const _festCache = {};
+function festivosColombia(year) {
+ if (_festCache[year]) return _festCache[year];
+ const pad = n => String(n).padStart(2, '0');
+ const iso = (y, mo, d) => `${y}-${pad(mo)}-${pad(d)}`;
+ // Ley Emiliani: si no cae lunes, se traslada al lunes siguiente.
+ const aLunes = (mo, d) => { const dt = new Date(year, mo - 1, d); const dow = dt.getDay(); const add = dow === 1 ? 0 : (dow === 0 ? 1 : 8 - dow); dt.setDate(dt.getDate() + add); return iso(dt.getFullYear(), dt.getMonth() + 1, dt.getDate()); };
+ // Pascua (algoritmo de Computus) → base para los festivos móviles.
+ const a = year % 19, b = Math.floor(year / 100), c = year % 100, d2 = Math.floor(b / 4), e = b % 4,
+   f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d2 - g + 15) % 30,
+   i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, mm = Math.floor((a + 11 * h + 22 * l) / 451),
+   emes = Math.floor((h + l - 7 * mm + 114) / 31), edia = ((h + l - 7 * mm + 114) % 31) + 1;
+ const pascua = new Date(year, emes - 1, edia);
+ const masPascua = n => { const dt = new Date(pascua); dt.setDate(dt.getDate() + n); return iso(dt.getFullYear(), dt.getMonth() + 1, dt.getDate()); };
+ const H = {};
+ H[iso(year, 1, 1)] = 'Año Nuevo';
+ H[aLunes(1, 6)] = 'Reyes Magos';
+ H[aLunes(3, 19)] = 'San José';
+ H[masPascua(-3)] = 'Jueves Santo';
+ H[masPascua(-2)] = 'Viernes Santo';
+ H[iso(year, 5, 1)] = 'Día del Trabajo';
+ H[masPascua(43)] = 'Ascensión del Señor';
+ H[masPascua(64)] = 'Corpus Christi';
+ H[masPascua(71)] = 'Sagrado Corazón';
+ H[aLunes(6, 29)] = 'San Pedro y San Pablo';
+ H[iso(year, 7, 20)] = 'Día de la Independencia';
+ H[iso(year, 8, 7)] = 'Batalla de Boyacá';
+ H[aLunes(8, 15)] = 'Asunción de la Virgen';
+ H[aLunes(10, 12)] = 'Día de la Raza';
+ H[aLunes(11, 1)] = 'Todos los Santos';
+ H[aLunes(11, 11)] = 'Independencia de Cartagena';
+ H[iso(year, 12, 8)] = 'Inmaculada Concepción';
+ H[iso(year, 12, 25)] = 'Navidad';
+ _festCache[year] = H;
+ return H;
+}
+function festivoDe(isoDate) { const y = +isoDate.slice(0, 4); return festivosColombia(y)[isoDate] || ''; }
+
 /* --- Calendario de la marca (grid mensual) + Agregar creativo --- */
 const TIPOS_CREATIVO = ['Post', 'Carrusel', 'Reel', 'Banner', 'Historia'];
 function buildMonthGrid(piezas, refISO) {
@@ -1869,8 +1908,10 @@ function buildMonthGrid(piezas, refISO) {
  for (let d = 1; d <= dias; d++) {
  const iso = `${ym}-${String(d).padStart(2, '0')}`;
  const items = porDia[iso] || [];
- celdas += `<div class="cal__cell ${iso === hoyISO ? 'cal__cell--hoy' : ''}" data-iso="${iso}">
+ const fest = festivoDe(iso);
+ celdas += `<div class="cal__cell ${iso === hoyISO ? 'cal__cell--hoy' : ''}${fest ? ' cal__cell--festivo' : ''}" data-iso="${iso}"${fest ? ` title="Festivo: ${esc(fest)}"` : ''}>
  <div class="cal__num">${d}</div>
+ ${fest ? `<div class="cal__fest">🇨🇴 ${esc(fest)}</div>` : ''}
  ${items.map(p => `<div class="cal__item cal-pz" draggable="true" data-id="${p.id}" title="${esc(p.idea || '')} · ${esc(p.tipo || '')} · ${esc(p.etapa || '')} — arrastra para cambiar la fecha"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${tipoIcon(p.tipo)}<span class="cal__txt"><span class="cal__pnum${p.numeroManual ? ' cal__pnum--fijo' : ''}"${p.numeroManual ? ' title="N.º fijado a mano"' : ''}>${p.numero ? '#' + esc(p.numero) + ' ' : ''}</span>${esc(p.tipo || '')}</span></div>`).join('')}
  </div>`;
  }
@@ -3205,8 +3246,10 @@ async function loadCalendario(silent) {
    for (let d = 1; d <= dias; d++) {
      const iso = `${ym}-${String(d).padStart(2, '0')}`;
      const items = porDia[iso] || [];
-     celdas += `<div class="cal__cell ${iso === hoyISO ? 'cal__cell--hoy' : ''}" data-iso="${iso}">
+     const fest = festivoDe(iso);
+     celdas += `<div class="cal__cell ${iso === hoyISO ? 'cal__cell--hoy' : ''}${fest ? ' cal__cell--festivo' : ''}" data-iso="${iso}"${fest ? ` title="Festivo: ${esc(fest)}"` : ''}>
  <div class="cal__num">${d}</div>
+ ${fest ? `<div class="cal__fest">🇨🇴 ${esc(fest)}</div>` : ''}
  ${items.map(p => `<div class="cal__item cal-pz" draggable="true" data-id="${p.id}" title="${esc(p.marca)} · ${esc(p.tipo)} · ${esc(p.etapa)} — arrastra para cambiar la fecha"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${tipoIcon(p.tipo)}<span class="cal__txt">${esc(p.marca)}</span></div>`).join('')}
  </div>`;
    }
