@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20261012a';
+const VS_TEAM_BUILD = '20261014a';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -1892,6 +1892,12 @@ function festivosColombia(year) {
 }
 function festivoDe(isoDate) { const y = +isoDate.slice(0, 4); return festivosColombia(y)[isoDate] || ''; }
 
+// En el calendario del equipo, una pieza se ubica por su FECHA DE ENTREGA mientras se trabaja,
+// y por su FECHA DE PUBLICACIÓN cuando ya está Editada o Publicada (lista para salir).
+function piezaLista(p) { return p && (p.etapa === 'editada' || p.etapa === 'publicada'); }
+function fechaCalendario(p) { if (!p) return ''; return piezaLista(p) ? (p.fecha || p.fechaEntrega || '') : (p.fechaEntrega || p.fecha || ''); }
+function cuandoLbl(p) { return piezaLista(p) ? 'publica' : 'entrega'; }
+
 /* --- Calendario de la marca (grid mensual) + Agregar creativo --- */
 const TIPOS_CREATIVO = ['Post', 'Carrusel', 'Reel', 'Banner', 'Historia'];
 function buildMonthGrid(piezas, refISO) {
@@ -1900,7 +1906,7 @@ function buildMonthGrid(piezas, refISO) {
  const offset = (new Date(y, m - 1, 1).getDay() + 6) % 7;
  const dias = new Date(y, m, 0).getDate();
  const porDia = {};
- piezas.forEach(p => { const f = p.fecha || p.fechaEntrega; if (!f) return; if (f.slice(0, 7) === ym) (porDia[f] || (porDia[f] = [])).push(p); });
+ piezas.forEach(p => { const f = fechaCalendario(p); if (!f) return; if (f.slice(0, 7) === ym) (porDia[f] || (porDia[f] = [])).push(p); });
  const hoyISO = new Date().toISOString().slice(0, 10);
  let celdas = '';
  DIAS_SEM.forEach(d => celdas += `<div class="cal__dow">${d}</div>`);
@@ -1912,7 +1918,7 @@ function buildMonthGrid(piezas, refISO) {
  celdas += `<div class="cal__cell ${iso === hoyISO ? 'cal__cell--hoy' : ''}${fest ? ' cal__cell--festivo' : ''}" data-iso="${iso}"${fest ? ` title="Festivo: ${esc(fest)}"` : ''}>
  <div class="cal__num">${d}</div>
  ${fest ? `<div class="cal__fest">🇨🇴 ${esc(fest)}</div>` : ''}
- ${items.map(p => `<div class="cal__item cal-pz" draggable="true" data-id="${p.id}" title="${esc(p.idea || '')} · ${esc(p.tipo || '')} · ${esc(p.etapa || '')} — arrastra para cambiar la fecha"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${tipoIcon(p.tipo)}<span class="cal__txt"><span class="cal__pnum${p.numeroManual ? ' cal__pnum--fijo' : ''}"${p.numeroManual ? ' title="N.º fijado a mano"' : ''}>${p.numero ? '#' + esc(p.numero) + ' ' : ''}</span>${esc(p.tipo || '')}</span></div>`).join('')}
+ ${items.map(p => `<div class="cal__item cal-pz cal-pz--${cuandoLbl(p)}" draggable="true" data-id="${p.id}" title="${esc(p.idea || '')} · ${esc(p.tipo || '')} · ${esc(p.etapa || '')} — ${piezaLista(p) ? 'se publica' : 'se entrega'} este día (arrastra para cambiarlo)"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${tipoIcon(p.tipo)}<span class="cal__txt"><span class="cal__pnum${p.numeroManual ? ' cal__pnum--fijo' : ''}"${p.numeroManual ? ' title="N.º fijado a mano"' : ''}>${p.numero ? '#' + esc(p.numero) + ' ' : ''}</span>${esc(p.tipo || '')}</span><span class="cal__when cal__when--${cuandoLbl(p)}">${cuandoLbl(p)}</span></div>`).join('')}
  </div>`;
  }
  return { label: `${CAL_MESES[m - 1]} ${y}`, html: `<div class="cal">${celdas}</div>` };
@@ -1931,11 +1937,11 @@ async function marcaCalendario(marca, silent) {
  state.piezas = state.piezas || {}; mine.forEach(p => state.piezas[p.id] = p);
  const creativos = mine.filter(p => p.tipo !== 'Historia').length;
  const historias = mine.filter(p => p.tipo === 'Historia').length;
- // El calendario de la marca muestra TODO (creativos e historias).
- const conFecha = mine.filter(p => p.fecha || p.fechaEntrega).sort((a, b) => (a.fecha || a.fechaEntrega).localeCompare(b.fecha || b.fechaEntrega));
- const sinFecha = mine.filter(p => !(p.fecha || p.fechaEntrega));
+ // El calendario de la marca muestra TODO (creativos e historias). Se ubica por entrega o publicación según la etapa.
+ const conFecha = mine.filter(p => fechaCalendario(p)).sort((a, b) => fechaCalendario(a).localeCompare(fechaCalendario(b)));
+ const sinFecha = mine.filter(p => !fechaCalendario(p));
  if (!state.marcaCalYM) {
- const ref = (conFecha.length ? (conFecha[conFecha.length - 1].fecha || conFecha[conFecha.length - 1].fechaEntrega) : new Date().toISOString().slice(0, 10));
+ const ref = (conFecha.length ? fechaCalendario(conFecha[conFecha.length - 1]) : new Date().toISOString().slice(0, 10));
  const [ry, rm] = ref.split('-'); state.marcaCalYM = { y: +ry, m: +rm };
  }
  const render = () => {
@@ -1980,10 +1986,12 @@ async function marcaCalendario(marca, silent) {
  e.preventDefault(); cell.classList.remove('cal__cell--over');
  const id = e.dataTransfer.getData('text/plain'), iso = cell.dataset.iso;
  if (!id || !iso) return;
- const p = state.piezas[id]; if (p && p.fecha === iso) return;
+ const p = state.piezas[id]; if (p && fechaCalendario(p) === iso) return;
  const card = pane.querySelector('.cal-pz[data-id="' + id + '"]');
  if (card) { card.classList.remove('dragging'); cell.appendChild(card); } // movimiento instantáneo
- if (p) p.fecha = iso;
+ // Mientras se trabaja se mueve la ENTREGA; cuando está Editada/Publicada se mueve la PUBLICACIÓN.
+ const campo = piezaLista(p) ? 'fecha' : 'fechaEntrega';
+ if (p) p[campo] = iso;
  // Se sincroniza en todos lados guardando en la fuente correcta según el tipo de tarjeta:
  //  · pieza del equipo → gestor/piezas (calendario general, de marca y flujo)
  //  · publicación ya publicada → db/publications (portal del cliente y métricas)
@@ -1993,7 +2001,7 @@ async function marcaCalendario(marca, silent) {
  .then(r => { if (!r || !r.ok) { alert('No se pudo mover la tarjeta: ' + ((r && r.data && r.data.error) || 'intenta de nuevo')); marcaCalendario(marca); } })
  .catch(() => { alert('No se pudo mover la tarjeta (revisa tu conexión).'); marcaCalendario(marca); });
  } else {
- api('/api/piezas/update', { method: 'POST', body: { id, fecha: iso } })
+ api('/api/piezas/update', { method: 'POST', body: Object.assign({ id }, { [campo]: iso }) })
  .then(r => {
  if (!r || !r.ok) { alert('No se pudo mover la tarjeta: ' + ((r && r.data && r.data.error) || 'intenta de nuevo')); marcaCalendario(marca); return; }
  // Renumera por fecha y actualiza SOLO los números en su lugar (sin recargar → fluido).
@@ -3227,7 +3235,8 @@ async function loadCalendario(silent) {
  // Usa las PIEZAS reales (con id + etapa) para que cada una abra su ficha.
  const { data } = await api('/api/piezas');
  // El calendario general muestra creativos (post, reel, carrusel, banner) — NO historias.
- const piezas = Object.values(data.columnas || {}).flat().filter(p => p.fecha && p.tipo !== 'Historia');
+ // Se incluye todo lo que tenga fecha de entrega o de publicación (así el equipo ve qué entregar cada día).
+ const piezas = Object.values(data.columnas || {}).flat().filter(p => fechaCalendario(p) && p.tipo !== 'Historia');
  state.piezas = state.piezas || {};
  piezas.forEach(p => state.piezas[p.id] = p);
  // Mes visible: se mantiene el elegido; por defecto el mes actual (el equipo navega libremente por todo el calendario).
@@ -3239,7 +3248,7 @@ async function loadCalendario(silent) {
    const offset = (new Date(y, m - 1, 1).getDay() + 6) % 7;
    const dias = new Date(y, m, 0).getDate();
    const porDia = {}; let enMes = 0;
-   piezas.forEach(p => { if (p.fecha.slice(0, 7) === ym) { (porDia[p.fecha] || (porDia[p.fecha] = [])).push(p); enMes++; } });
+   piezas.forEach(p => { const f = fechaCalendario(p); if (f && f.slice(0, 7) === ym) { (porDia[f] || (porDia[f] = [])).push(p); enMes++; } });
    let celdas = '';
    DIAS_SEM.forEach(d => celdas += `<div class="cal__dow">${d}</div>`);
    for (let i = 0; i < offset; i++) celdas += '<div class="cal__cell cal__cell--empty"></div>';
@@ -3250,7 +3259,7 @@ async function loadCalendario(silent) {
      celdas += `<div class="cal__cell ${iso === hoyISO ? 'cal__cell--hoy' : ''}${fest ? ' cal__cell--festivo' : ''}" data-iso="${iso}"${fest ? ` title="Festivo: ${esc(fest)}"` : ''}>
  <div class="cal__num">${d}</div>
  ${fest ? `<div class="cal__fest">🇨🇴 ${esc(fest)}</div>` : ''}
- ${items.map(p => `<div class="cal__item cal-pz" draggable="true" data-id="${p.id}" title="${esc(p.marca)} · ${esc(p.tipo)} · ${esc(p.etapa)} — arrastra para cambiar la fecha"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${tipoIcon(p.tipo)}<span class="cal__txt">${esc(p.marca)}</span></div>`).join('')}
+ ${items.map(p => `<div class="cal__item cal-pz cal-pz--${cuandoLbl(p)}" draggable="true" data-id="${p.id}" title="${esc(p.marca)} · ${esc(p.tipo)} · ${esc(p.etapa)} — ${piezaLista(p) ? 'se publica' : 'se entrega'} este día (arrastra para cambiarlo)"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${tipoIcon(p.tipo)}<span class="cal__txt">${esc(p.marca)}</span><span class="cal__when cal__when--${cuandoLbl(p)}">${cuandoLbl(p)}</span></div>`).join('')}
  </div>`;
    }
    out.innerHTML = `<div class="cal-toolbar">
@@ -3275,12 +3284,14 @@ async function loadCalendario(silent) {
        e.preventDefault(); cell.classList.remove('cal__cell--over');
        const id = e.dataTransfer.getData('text/plain'), iso = cell.dataset.iso;
        if (!id || !iso) return;
-       const p = state.piezas[id]; if (p && p.fecha === iso) return;
+       const p = state.piezas[id]; if (p && fechaCalendario(p) === iso) return;
        const card = $('#calendarioOut .cal-pz[data-id="' + id + '"]');
        if (card) { card.classList.remove('dragging'); cell.appendChild(card); }
-       if (p) p.fecha = iso;
+       // En progreso mueve la ENTREGA; Editada/Publicada mueve la PUBLICACIÓN.
+       const campo = piezaLista(p) ? 'fecha' : 'fechaEntrega';
+       if (p) p[campo] = iso;
        const _mk = p && p.marca;
-       api('/api/piezas/update', { method: 'POST', body: { id, fecha: iso } })
+       api('/api/piezas/update', { method: 'POST', body: Object.assign({ id }, { [campo]: iso }) })
          .then(r => {
            if (!r || !r.ok) { loadCalendario(); return; }
            if (_mk) api('/api/marca/renumerar', { method: 'POST', body: { marca: _mk } }).catch(() => {});

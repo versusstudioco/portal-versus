@@ -767,6 +767,15 @@ body.dark .cal__fest { color: #f59e0b; background: rgba(245,158,11,.16); }
 .cal__dot--publicada { background: #16a34a; }
 .cal-pz { cursor: pointer; }
 .cal-pz:hover { background: #ececec; }
+/* Entrega vs. publicación: la pieza se ubica en su día de entrega hasta que está Editada/Publicada. */
+.cal__item .cal__txt { flex: 1; }
+.cal__when { flex: 0 0 auto; font-size: .54rem; font-weight: 800; text-transform: uppercase; letter-spacing: .02em; padding: 1px 4px; border-radius: 5px; line-height: 1.3; }
+.cal__when--entrega { color: #b45309; background: rgba(217,119,6,.15); }
+.cal__when--publica { color: #15803d; background: rgba(22,163,74,.15); }
+body.dark .cal__when--entrega { color: #f59e0b; background: rgba(245,158,11,.18); }
+body.dark .cal__when--publica { color: #22c55e; background: rgba(34,197,94,.18); }
+.cal-pz--entrega { border-left: 3px solid #d97706; }
+.cal-pz--publica { border-left: 3px solid #16a34a; }
 
 /* ---------- Pauta (revisión) ---------- */
 .p-row { display: flex; align-items: center; gap: 1.4rem; flex-wrap: wrap; }
