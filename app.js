@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20261014b';
+const VS_TEAM_BUILD = '20261016a';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -1928,7 +1928,7 @@ function buildMonthGrid(piezas, refISO) {
  celdas += `<div class="cal__cell ${iso === hoyISO ? 'cal__cell--hoy' : ''}${fest ? ' cal__cell--festivo' : ''}" data-iso="${iso}"${fest ? ` title="Festivo: ${esc(fest)}"` : ''}>
  <div class="cal__num">${d}</div>
  ${fest ? `<div class="cal__fest">🇨🇴 ${esc(fest)}</div>` : ''}
- ${items.map(p => `<div class="cal__item cal-pz${soyDis ? ' cal-pz--' + cuandoLbl(p) : ''}" draggable="true" data-id="${p.id}" title="${esc(p.idea || '')} · ${esc(p.tipo || '')} · ${esc(p.etapa || '')}${soyDis ? ' — ' + (piezaLista(p) ? 'se publica' : 'se entrega') + ' este día' : ''} (arrastra para cambiarlo)"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${tipoIcon(p.tipo)}<span class="cal__txt"><span class="cal__pnum${p.numeroManual ? ' cal__pnum--fijo' : ''}"${p.numeroManual ? ' title="N.º fijado a mano"' : ''}>${p.numero ? '#' + esc(p.numero) + ' ' : ''}</span>${esc(p.tipo || '')}</span>${soyDis ? `<span class="cal__when cal__when--${cuandoLbl(p)}">${cuandoLbl(p)}</span>` : ''}</div>`).join('')}
+ ${items.map(p => `<div class="cal__item cal-pz${soyDis ? ' cal-pz--' + cuandoLbl(p) : ''}" draggable="true" data-id="${p.id}" title="${esc(p.idea || '')} · ${esc(p.tipo || '')} · ${esc(p.etapa || '')}${soyDis ? ' — ' + (piezaLista(p) ? 'se publica' : 'se entrega') + ' este día' : ''} (arrastra para cambiarlo)"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${tipoIcon(p.tipo)}<span class="cal__txt"><span class="cal__pnum${p.numeroManual ? ' cal__pnum--fijo' : ''}"${p.numeroManual ? ' title="N.º fijado a mano"' : ''}>${p.numero ? '#' + esc(p.numero) + ' ' : ''}</span>${esc(p.tipo || '')}</span>${soyDis ? `<span class="cal__when cal__when--${cuandoLbl(p)}" title="${piezaLista(p) ? 'Publicación' : 'Entrega'}">${piezaLista(p) ? 'P' : 'E'}</span>` : ''}</div>`).join('')}
  </div>`;
  }
  return { label: `${CAL_MESES[m - 1]} ${y}`, html: `<div class="cal">${celdas}</div>` };
@@ -3271,7 +3271,7 @@ async function loadCalendario(silent) {
      celdas += `<div class="cal__cell ${iso === hoyISO ? 'cal__cell--hoy' : ''}${fest ? ' cal__cell--festivo' : ''}" data-iso="${iso}"${fest ? ` title="Festivo: ${esc(fest)}"` : ''}>
  <div class="cal__num">${d}</div>
  ${fest ? `<div class="cal__fest">🇨🇴 ${esc(fest)}</div>` : ''}
- ${items.map(p => `<div class="cal__item cal-pz${soyDis ? ' cal-pz--' + cuandoLbl(p) : ''}" draggable="true" data-id="${p.id}" title="${esc(p.marca)} · ${esc(p.tipo)} · ${esc(p.etapa)}${soyDis ? ' — ' + (piezaLista(p) ? 'se publica' : 'se entrega') + ' este día' : ''} (arrastra para cambiarlo)"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${tipoIcon(p.tipo)}<span class="cal__txt">${esc(p.marca)}</span>${soyDis ? `<span class="cal__when cal__when--${cuandoLbl(p)}">${cuandoLbl(p)}</span>` : ''}</div>`).join('')}
+ ${items.map(p => `<div class="cal__item cal-pz${soyDis ? ' cal-pz--' + cuandoLbl(p) : ''}" draggable="true" data-id="${p.id}" title="${esc(p.marca)} · ${esc(p.tipo)} · ${esc(p.etapa)}${soyDis ? ' — ' + (piezaLista(p) ? 'se publica' : 'se entrega') + ' este día' : ''} (arrastra para cambiarlo)"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${tipoIcon(p.tipo)}<span class="cal__txt">${esc(p.marca)}</span>${soyDis ? `<span class="cal__when cal__when--${cuandoLbl(p)}" title="${piezaLista(p) ? 'Publicación' : 'Entrega'}">${piezaLista(p) ? 'P' : 'E'}</span>` : ''}</div>`).join('')}
  </div>`;
    }
    out.innerHTML = `<div class="cal-toolbar">
