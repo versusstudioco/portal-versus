@@ -1448,7 +1448,7 @@ var PLATS = ["Instagram","YouTube","TikTok","LinkedIn"];
 var TCLS = {Reel:"t-reel",Carrusel:"t-carr",Post:"t-post",Historia:"t-hist",Video:"t-vid",Short:"t-sho",Pauta:"t-pauta",Banner:"t-banner"};
 
 // ===== AUTO-ACTUALIZACIÓN (evita quedarse con una versión vieja en caché) =====
-var VS_BUILD = '20261005a';
+var VS_BUILD = '20261021a';
 (function(){
  try{
   if(new URLSearchParams(location.search).get('v') === VS_BUILD) return; // ya estamos en la versión fresca
@@ -1535,8 +1535,12 @@ function loadDB() {
  } catch(e) { return defaultDB(); }
 }
 var _fbSaveTimer=null;
+var FB_DB_OK=false; // SEGURIDAD: solo true cuando la base se leyó bien desde Firebase. Sin esto, no se guarda.
 function _fbPush() {
  _fbSaveTimer=null;
+ // CANDADO ANTI-BORRADO: nunca escribir db/creds completos si la base no se cargó correctamente.
+ // Si DB quedó en default/vacío por una carga fallida, guardar borraría toda la base. Mejor no guardar.
+ if(!FB_DB_OK){ console.warn("No se guarda: la base no se cargó correctamente (protección anti-borrado)."); return; }
  try {
  if(FBDB && typeof FBDB.ref === "function") {
  FBDB.ref("vsportal/db").set(DB).catch(function(e){console.warn("FB db:",e.message);});
@@ -2211,8 +2215,8 @@ function loadFromFirebase(callback) {
  // y muestra "A problem repeatedly occurred". Leyendo solo lo necesario, el portal abre liviano.
  var data={}, done=0, any=false;
  function fin(){
- if(data.db) { DB=data.db; sanitizeDB(); _dbStr=JSON.stringify(DB); try{localStorage.setItem(DB_KEY,_dbStr);}catch(e){} any=true; }
- else { DB=loadDB(); sanitizeDB(); }
+ if(data.db) { DB=data.db; sanitizeDB(); _dbStr=JSON.stringify(DB); try{localStorage.setItem(DB_KEY,_dbStr);}catch(e){} any=true; FB_DB_OK=true; }
+ else { DB=loadDB(); sanitizeDB(); } // lectura falló → FB_DB_OK queda false → no se guardará (protección)
  if(data.creds) {
  // Firebase es la fuente de verdad: REEMPLAZAR (no fusionar) para respetar eliminaciones.
  Object.keys(CREDS).forEach(function(k){ delete CREDS[k]; });

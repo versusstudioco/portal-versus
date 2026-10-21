@@ -741,7 +741,9 @@
             const km = norm(marca); let cu = '';
             Object.entries(creds).forEach(([u, v]) => { if (!cu && v && v.type === 'client' && (norm(v.name) === km || norm(u) === km || (km && norm(v.name).indexOf(km) >= 0) || (km && km.indexOf(norm(v.name)) >= 0))) cu = u; });
             if (cu) {
-              const raw = await fbGet('db/cycles').catch(() => null);
+              // SEGURIDAD: NO usar .catch(()=>null) aquí. Si la lectura falla, debe lanzar y abortar
+              // (lo atrapa el try de abajo) en vez de reescribir db/cycles con un array vacío y borrar todo.
+              const raw = await fbGet('db/cycles');
               let arr = (Array.isArray(raw) ? raw : (raw && typeof raw === 'object' ? Object.values(raw) : [])).filter(Boolean);
               // Buscar un ciclo del cliente que coincida por nombre/periodo o por fecha de inicio; si no, crear.
               let cyc = arr.find(x => x.brand === cu && ((x.name && c.periodo && norm(x.name) === norm(c.periodo)) || (x.start && c.inicio && x.start === c.inicio)));
@@ -876,7 +878,9 @@
         const km = norm(marca); let cu = '';
         Object.entries(creds).forEach(([u, v]) => { if (!cu && v && v.type === 'client' && (norm(v.name) === km || norm(u) === km || (km && norm(v.name).indexOf(km) >= 0) || (km && km.indexOf(norm(v.name)) >= 0))) cu = u; });
         if (!cu) { if (method === 'POST') return { ok: false, status: 400, data: { error: 'La marca no tiene portal de cliente vinculado. Créalo primero para cargar su pauta.' } }; return { ok: true, data: { cu: '', cycles: [], pauta: [] } }; }
-        const pautaRaw = await fbGet('db/pauta').catch(() => null);
+        // SEGURIDAD: sin .catch — si la lectura falla, se lanza y la petición devuelve error,
+        // en vez de reescribir db/pauta con un array vacío (que borraría toda la pauta).
+        const pautaRaw = await fbGet('db/pauta');
         let arr = (Array.isArray(pautaRaw) ? pautaRaw : (pautaRaw && typeof pautaRaw === 'object' ? Object.values(pautaRaw) : [])).filter(Boolean);
         if (method === 'POST') {
           if (body.remove) { arr = arr.filter(x => x && x.id !== body.remove); await fbPut('db/pauta', arr); return { ok: true, data: { ok: true } }; }
