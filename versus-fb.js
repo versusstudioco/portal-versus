@@ -157,16 +157,12 @@
   let _pzArr = null, _pzAt = 0;
   async function piezasAll() {
     if (_pzArr && Date.now() - _pzAt < 6000) return _pzArr;
-    let obj = await fbGet('gestor/piezas').catch(() => null);
-    if (!obj) {
-      // Semilla desde el archivo del repo (una sola vez).
-      try {
-        const seed = await fetch('/seed-piezas.json').then(r => r.json());
-        const map = {}; seed.forEach(p => { map[p.id] = Object.assign({ comentarios: {}, createdAt: new Date().toISOString() }, p); });
-        await fbPut('gestor/piezas', map).catch(() => {});
-        obj = map;
-      } catch (_) { obj = {}; }
-    }
+    // SEGURIDAD: la semilla NO debe sobreescribir datos reales. Si la lectura FALLA (sesión/permiso/red),
+    // devolvemos lo último conocido o vacío, pero NUNCA escribimos encima. Sembrar queda deshabilitado
+    // en producción: el contenido real es la única fuente.
+    let obj;
+    try { obj = await fbGet('gestor/piezas'); }
+    catch (e) { return _pzArr || []; } // lectura falló → no tocar la base, no sembrar
     _pzArr = Object.values(obj || {}).map(normPieza); _pzAt = Date.now();
     return _pzArr;
   }
