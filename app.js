@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20261021b';
+const VS_TEAM_BUILD = '20261021c';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -2237,6 +2237,23 @@ async function marcaArchivos(marca) {
 }
 
 /* --- Configuración de la marca: logo + usuarios de redes (cualquiera del equipo puede editar) --- */
+// Switch para encender/apagar el portal del cliente desde el Team.
+async function marcaPortalSwitch(marca) {
+ const sw = $('#cfPortalSw'), msg = $('#cfPortalMsg'); if (!sw) return;
+ const r = await api('/api/marca/portal?marca=' + encodeURIComponent(marca));
+ if (!r.ok) { if (msg) msg.textContent = 'No se pudo leer el estado del portal.'; return; }
+ if (!r.data.cu) { sw.checked = false; sw.disabled = true; if (msg) msg.textContent = 'Esta marca aún no tiene portal de cliente.'; return; }
+ const pintar = activo => { sw.checked = !!activo; if (msg) { msg.innerHTML = activo ? '<b style="color:#16a34a">● Activo</b> — el cliente puede entrar a su portal.' : '<b style="color:#dc2626">● Apagado</b> — el cliente NO puede entrar.'; } };
+ sw.disabled = false; pintar(r.data.activo);
+ sw.addEventListener('change', async () => {
+   const activo = sw.checked;
+   sw.disabled = true; if (msg) msg.textContent = 'Guardando…';
+   const rr = await api('/api/marca/portal', { method: 'POST', body: { marca, activo } });
+   sw.disabled = false;
+   if (rr.ok && !(rr.data && rr.data.error)) { pintar(activo); flash(activo ? 'Portal del cliente ENCENDIDO ✓' : 'Portal del cliente APAGADO ✓'); }
+   else { sw.checked = !activo; if (msg) msg.textContent = (rr.data && rr.data.error) || 'No se pudo cambiar.'; }
+ });
+}
 async function marcaClienteAcceso(marca, _unlocked) {
  const box = $('#cfCliente'); if (!box) return;
  const { ok, data } = await api('/api/marca/cliente?marca=' + encodeURIComponent(marca));
@@ -2368,7 +2385,14 @@ async function marcaConfig(marca) {
  const { data: ctx } = await api('/api/marca/contexto?marca=' + encodeURIComponent(marca));
  if (state._mtab !== 'config') return;
  pane.innerHTML = `
- <div class="est-ctx">
+ ${puedeCambiarClave() ? `<div class="est-ctx" id="cfPortalBox" style="margin-top:0">
+ <div class="cf-portal">
+   <div><h4 style="margin:0">🔌 Portal del cliente</h4><span class="hub-hint" style="display:inline;margin:0">si lo apagas, el cliente no podrá entrar a su portal</span></div>
+   <label class="sw"><input type="checkbox" id="cfPortalSw" disabled><span class="sw__sl"></span></label>
+ </div>
+ <div id="cfPortalMsg" class="hub-hint" style="margin-top:.45rem">Cargando…</div>
+ </div>` : ''}
+ <div class="est-ctx"${puedeCambiarClave() ? ' style="margin-top:1rem"' : ''}>
  <h4>Logo de la marca <span class="hub-hint" style="display:inline;margin:0">aparece en su tarjeta y en el portal del cliente</span></h4>
  <div class="cfg-logos">
    <div class="cfg-logo2">
@@ -2417,7 +2441,7 @@ async function marcaConfig(marca) {
  ${puedeCambiarClave() ? `<div class="est-ctx" style="margin-top:1rem"><h4>🔑 Acceso del cliente <span class="hub-hint" style="display:inline;margin:0">— entra a /clientes/; el cambio de clave pide un código</span></h4><div id="cfCliente"><div class="hub-hint">Cargando…</div></div></div>` : ''}`;
 
  marcaPlataformas(marca);
- if (puedeCambiarClave()) marcaClienteAcceso(marca);
+ if (puedeCambiarClave()) { marcaClienteAcceso(marca); marcaPortalSwitch(marca); }
  // Logos claro/oscuro → db/brandCfg (lo que ve el cliente). Cualquiera del equipo.
  const setLogoPrev = (id, uri) => { const el = $('#' + id); if (el) el.innerHTML = uri ? `<img src="${uri}" alt="logo">` : '<span class="gw-none">Sin logo</span>'; };
  api('/api/marca/logo?marca=' + encodeURIComponent(marca)).then(r => {

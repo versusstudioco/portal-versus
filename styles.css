@@ -1565,3 +1565,13 @@ body { overflow-x: hidden; }
 .pz-cyclbl { font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--ink-40); }
 .pz-cycsel { align-self: flex-start; max-width: 320px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 8px; padding: 6px 30px 6px 11px; font-size: 12.5px; font-weight: 600; font-family: inherit; cursor: pointer; }
 .pz-cycsel:focus { outline: none; border-color: var(--bd2); }
+
+/* Switch encender/apagar portal del cliente */
+.cf-portal { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.sw { position: relative; display: inline-block; width: 48px; height: 28px; flex: 0 0 auto; }
+.sw input { opacity: 0; width: 0; height: 0; position: absolute; }
+.sw__sl { position: absolute; inset: 0; background: #c7c7cc; border-radius: 999px; transition: background .2s; cursor: pointer; }
+.sw__sl::before { content: ""; position: absolute; width: 24px; height: 24px; left: 2px; top: 2px; background: #fff; border-radius: 50%; transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+.sw input:checked + .sw__sl { background: #16a34a; }
+.sw input:checked + .sw__sl::before { transform: translateX(20px); }
+.sw input:disabled + .sw__sl { opacity: .5; cursor: default; }

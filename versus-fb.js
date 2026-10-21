@@ -671,6 +671,26 @@
         const items = Object.entries(bc || {}).map(([u, v]) => ({ user: u, name: nameOf[u] || u, instagram: (v && v.instagram) || '', tiktok: (v && v.tiktok) || '' }));
         return { ok: true, data: { items } };
       }
+      // Encender / apagar el portal de un cliente. Si se apaga, el cliente no puede entrar.
+      if (p === '/api/marca/portal') {
+        const s = await sesionActual();
+        if (!s || !s.esEquipo) return { ok: false, status: 403, data: { error: 'Solo el equipo' } };
+        const marca = q.get('marca') || body.marca || '';
+        const norm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+        const [credsTeam, credsCli] = await Promise.all([fbGet('db/creds').catch(() => ({})), fbGet('creds').catch(() => ({}))]);
+        const creds = Object.assign({}, credsCli || {}, credsTeam || {});
+        const km = norm(marca); let cu = '';
+        Object.entries(creds).forEach(([u, v]) => { if (!cu && v && v.type === 'client' && (norm(v.name) === km || norm(u) === km || (km && norm(v.name).indexOf(km) >= 0) || (km && km.indexOf(norm(v.name)) >= 0))) cu = u; });
+        if (!cu) return { ok: true, data: { cu: '', activo: true } };
+        if (method === 'POST') {
+          const activo = !!body.activo;
+          await fbPut('db/brandCfg/' + cu + '/portalActivo', activo);
+          _bustPortal();
+          return { ok: true, data: { ok: true, cu, activo } };
+        }
+        const bc = (await fbGet('db/brandCfg/' + cu).catch(() => null)) || {};
+        return { ok: true, data: { cu, activo: bc.portalActivo !== false } };
+      }
       if (p === '/api/onboarding') {
         const obj = (await fbGet('onboarding').catch(() => null)) || {};
         const altas = Object.entries(obj).map(([id, v]) => ({ id, ...v })).sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));

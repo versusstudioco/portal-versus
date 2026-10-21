@@ -1448,7 +1448,7 @@ var PLATS = ["Instagram","YouTube","TikTok","LinkedIn"];
 var TCLS = {Reel:"t-reel",Carrusel:"t-carr",Post:"t-post",Historia:"t-hist",Video:"t-vid",Short:"t-sho",Pauta:"t-pauta",Banner:"t-banner"};
 
 // ===== AUTO-ACTUALIZACIÓN (evita quedarse con una versión vieja en caché) =====
-var VS_BUILD = '20261021a';
+var VS_BUILD = '20261021b';
 (function(){
  try{
   if(new URLSearchParams(location.search).get('v') === VS_BUILD) return; // ya estamos en la versión fresca
@@ -2298,6 +2298,15 @@ function entrarDash(u) {
  window.location.replace("/team/");
  return;
  } else {
+ // Portal apagado por el equipo → no deja entrar.
+ var _bcAct=(DB.brandCfg&&DB.brandCfg[u])||{};
+ if(_bcAct.portalActivo===false){
+ try { firebase.auth().signOut(); } catch(e) {}
+ CU=null; FB_LOADED=false;
+ var errOff=gi("le"); if(errOff){ errOff.textContent="Tu portal está desactivado por el momento. Escríbenos a VERSUS para reactivarlo."; errOff.classList.add("show"); }
+ showS("loginScreen");
+ return;
+ }
  showS("dashScreen"); setTimeout(checkTutorial,600);
  gi("brandName").textContent=cred.name || u;
  var bc0=(DB.brandCfg&&DB.brandCfg[u])||{},hdls0=[];
