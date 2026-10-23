@@ -156,7 +156,7 @@
   // Caché corta de gestor/piezas: evita releer en cada recarga (se invalida al escribir piezas).
   let _pzArr = null, _pzAt = 0;
   async function piezasAll() {
-    if (_pzArr && Date.now() - _pzAt < 6000) return _pzArr;
+    if (_pzArr && Date.now() - _pzAt < 20000) return _pzArr;
     // SEGURIDAD: la semilla NO debe sobreescribir datos reales. Si la lectura FALLA (sesión/permiso/red),
     // devolvemos lo último conocido o vacío, pero NUNCA escribimos encima. Sembrar queda deshabilitado
     // en producción: el contenido real es la única fuente.
@@ -564,6 +564,59 @@
         let n = 0;
         for (const id of Object.keys(obj)) { const pz = obj[id]; if (pz && typeof pz.idea === 'string' && /^Contenido de /.test(pz.idea)) { await fbDelete('gestor/piezas/' + id); n++; } }
         return { ok: true, data: { ok: true, eliminadas: n } };
+      }
+      // Radiografía del tablero (SOLO lectura): para saber qué hay y por qué pesa. No escribe nada.
+      if (p === '/api/piezas/stats') {
+        const s = await sesionActual();
+        if (!s || !s.esEquipo) return { ok: false, status: 403, data: { error: 'Solo el equipo' } };
+        const obj = (await fbGet('gestor/piezas').catch(() => null)) || {};
+        const arr = Object.values(obj);
+        const porEtapa = {}, porMarca = {}, ideaPref = {};
+        let recuperado = 0, contenidoDe = 0, conFecha = 0, conEntrega = 0, sinFecha = 0, minF = '9999', maxF = '0000';
+        for (const x of arr) {
+          porEtapa[x.etapa || 'idea'] = (porEtapa[x.etapa || 'idea'] || 0) + 1;
+          porMarca[x.marca || '—'] = (porMarca[x.marca || '—'] || 0) + 1;
+          const idea = String(x.idea || '');
+          if (/recuperado/i.test(idea)) recuperado++;
+          if (/^Contenido de /.test(idea)) contenidoDe++;
+          const pref = idea.slice(0, 26) || '(vacío)';
+          ideaPref[pref] = (ideaPref[pref] || 0) + 1;
+          if (x.fecha) conFecha++;
+          if (x.fechaEntrega) conEntrega++;
+          if (!x.fecha && !x.fechaEntrega) sinFecha++;
+          const f = x.fecha || x.fechaEntrega;
+          if (f) { if (f < minF) minF = f; if (f > maxF) maxF = f; }
+        }
+        const topIdeas = Object.entries(ideaPref).sort((a, b) => b[1] - a[1]).slice(0, 20);
+        return { ok: true, data: { total: arr.length, porEtapa, porMarca, recuperado, contenidoDe, conFecha, conEntrega, sinFecha, rango: { min: minF, max: maxF }, topIdeas } };
+      }
+      // Importa/elimina MUCHAS piezas en UNA sola escritura (un PATCH multi-ruta).
+      // Firebase corta el bombardeo de PUTs uno por uno (preflight CORS); con un solo PATCH no.
+      // body: { piezas: [ {marca,tipo,idea,fecha,fechaEntrega,etapa,cycle,id?}, ... ], del: [id, ...] }
+      if (p === '/api/piezas/importar' && method === 'POST') {
+        const s = await sesionActual();
+        if (!s || !s.esEquipo) return { ok: false, status: 403, data: { error: 'Solo el equipo' } };
+        const map = {};
+        const del = Array.isArray(body.del) ? body.del : [];
+        for (const id of del) { if (id) map[String(id)] = null; } // null en un PATCH = borra esa ruta
+        const arr = Array.isArray(body.piezas) ? body.piezas : [];
+        const creadas = [];
+        for (const b of arr) {
+          const id = b.id || uid();
+          const pieza = {
+            id, marca: String(b.marca || '').trim() || 'Sin marca', tipo: b.tipo || 'Reel',
+            idea: String(b.idea || '').trim() || (String(b.marca || 'Contenido') + ' · ' + (b.tipo || 'Reel')),
+            guion: b.guion || '', caracteristicas: b.caracteristicas || '', etapa: b.etapa || 'idea',
+            responsable: b.responsable || '', numero: b.numero || '', numeroManual: !!b.numeroManual,
+            cycle: b.cycle || '', fecha: b.fecha || null, fechaEntrega: b.fechaEntrega || null,
+            refLinks: b.refLinks || '', comentarios: {}, createdAt: new Date().toISOString()
+          };
+          map[id] = pieza; creadas.push(pieza);
+        }
+        if (!Object.keys(map).length) return { ok: true, data: { ok: true, creadas: 0, borradas: 0 } };
+        await fbPatch('gestor/piezas', map); // UNA sola petición
+        _pzBust();
+        return { ok: true, data: { ok: true, creadas: creadas.length, borradas: del.length } };
       }
 
       // ---- Marcas ----
