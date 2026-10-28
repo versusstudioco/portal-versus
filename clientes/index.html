@@ -1448,7 +1448,7 @@ var PLATS = ["Instagram","YouTube","TikTok","LinkedIn"];
 var TCLS = {Reel:"t-reel",Carrusel:"t-carr",Post:"t-post",Historia:"t-hist",Video:"t-vid",Short:"t-sho",Pauta:"t-pauta",Banner:"t-banner"};
 
 // ===== AUTO-ACTUALIZACIÓN (evita quedarse con una versión vieja en caché) =====
-var VS_BUILD = '20261021b';
+var VS_BUILD = '20261028a';
 (function(){
  try{
   if(new URLSearchParams(location.search).get('v') === VS_BUILD) return; // ya estamos en la versión fresca
@@ -1536,15 +1536,34 @@ function loadDB() {
 }
 var _fbSaveTimer=null;
 var FB_DB_OK=false; // SEGURIDAD: solo true cuando la base se leyó bien desde Firebase. Sin esto, no se guarda.
+// ===== TRIPWIRE ANTI-BORRADO =====
+// Recuerda cuánto tenía la base la última vez que estuvo bien (cargada o sincronizada).
+// Si un guardado dejaría una rama con datos en CERO, se bloquea: eso nunca pasa con un
+// borrado normal (se borra de a uno), solo con un "se borró todo de la nada".
+var _lastGood=null;
+function _countAny(v){ if(!v) return 0; if(Array.isArray(v)) return v.length; if(typeof v==="object") return Object.keys(v).length; return 0; }
+function _snapCounts(db,creds){ db=db||{}; return {
+ publications:_countAny(db.publications), cycles:_countAny(db.cycles), objectives:_countAny(db.objectives),
+ weekMetrics:_countAny(db.weekMetrics), feedback:_countAny(db.feedback), pauta:_countAny(db.pauta),
+ brandCfg:_countAny(db.brandCfg), creds:_countAny(creds)
+}; }
+function _marcaBueno(){ try{ _lastGood=_snapCounts(DB,CREDS); }catch(e){} }
+function _guttedReason(prev,now){ if(!prev) return ""; for(var k in prev){ if(prev[k]>=8 && now[k]===0) return k; } return ""; }
 function _fbPush() {
  _fbSaveTimer=null;
  // CANDADO ANTI-BORRADO: nunca escribir db/creds completos si la base no se cargó correctamente.
  // Si DB quedó en default/vacío por una carga fallida, guardar borraría toda la base. Mejor no guardar.
  if(!FB_DB_OK){ console.warn("No se guarda: la base no se cargó correctamente (protección anti-borrado)."); return; }
+ // TRIPWIRE: si una rama con datos quedaría vacía, NO guardar (protege de un borrado masivo accidental).
+ try {
+ var now=_snapCounts(DB,CREDS); var reason=_guttedReason(_lastGood,now);
+ if(reason){ console.warn("Guardado BLOQUEADO: la rama '"+reason+"' quedaría vacía (protección anti-borrado). Recarga la página."); try{showToast("No se guardó: la base se ve incompleta. Recarga la página (protección anti-borrado).");}catch(e){} return; }
+ } catch(e){}
  try {
  if(FBDB && typeof FBDB.ref === "function") {
  FBDB.ref("vsportal/db").set(DB).catch(function(e){console.warn("FB db:",e.message);});
  FBDB.ref("vsportal/creds").set(CREDS).catch(function(e){console.warn("FB creds:",e.message);});
+ _marcaBueno(); // lo que acabamos de escribir pasa a ser la nueva referencia "buena"
  }
  } catch(e){ console.warn("Firebase save:",e.message); }
 }
@@ -2225,6 +2244,7 @@ function loadFromFirebase(callback) {
  try{localStorage.setItem(DB_KEY+"_creds",JSON.stringify(CREDS));}catch(e){}
  any=true;
  }
+ if(FB_DB_OK) _marcaBueno(); // referencia "buena" para el tripwire anti-borrado
  FB_LOADED=true; callback(any);
  }
  FBDB.ref("vsportal/db").once("value", function(s){ data.db=s.val(); if(++done===2) fin(); }, function(err){ console.warn("Firebase db:",err.message); if(++done===2) fin(); });
@@ -2245,6 +2265,7 @@ function startFirebaseSync() {
  if(!DB.feedback) DB.feedback={};
  if(!DB.brandCfg) DB.brandCfg={};
  if(!DB.actLog) DB.actLog=[];
+ _marcaBueno(); // la base remota (más reciente) pasa a ser la referencia "buena" del tripwire
  try { localStorage.setItem(DB_KEY, JSON.stringify(DB)); } catch(e) {}
  if(CU&&CREDS[CU]&&CREDS[CU].type!=="admin") {
  var cid=actCyc[CU];
