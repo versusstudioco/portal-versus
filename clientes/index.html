@@ -3053,7 +3053,7 @@ function renderResumen(cycId, targetId) {
 
  // \u2500\u2500 DATOS DEL CICLO ANTERIOR (para comparativo) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
  var prevCyc=null;
- var myCycles=DB.cycles.filter(function(c){return c.brand===CU;}).sort(function(a,b){return a.id>b.id?1:-1;});
+ var myCycles=DB.cycles.filter(function(c){return c.brand===CU;}).sort(function(a,b){return (a.start||'').localeCompare(b.start||'');});
  var myIdx=myCycles.findIndex(function(c){return c.id===cycId;});
  if(myIdx>0) prevCyc=myCycles[myIdx-1];
 
