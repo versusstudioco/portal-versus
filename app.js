@@ -1557,8 +1557,6 @@ function aplicarNumeros(scope, mapa) {
    const numEl = item.querySelector('.cal__pnum');
    if (numEl) {
      numEl.textContent = p.numero ? '#' + p.numero + ' ' : '';
-     numEl.classList.toggle('cal__pnum--fijo', !!p.numeroManual);
-     numEl.title = p.numeroManual ? 'N.º fijado a mano' : '';
    } else { // tarjeta vieja sin el span: reconstruye el texto
      const card = item.querySelector('.cal__txt');
      if (card) card.textContent = (p.numero ? '#' + p.numero + ' ' : '') + (p.tipo || '');
@@ -1928,7 +1926,7 @@ function buildMonthGrid(piezas, refISO) {
  celdas += `<div class="cal__cell ${iso === hoyISO ? 'cal__cell--hoy' : ''}${fest ? ' cal__cell--festivo' : ''}" data-iso="${iso}"${fest ? ` title="Festivo: ${esc(fest)}"` : ''}>
  <div class="cal__num">${d}</div>
  ${fest ? `<div class="cal__fest">🇨🇴 ${esc(fest)}</div>` : ''}
- ${items.map(p => `<div class="cal__item cal-pz${soyDis ? ' cal-pz--' + cuandoLbl(p) : ''}" draggable="true" data-id="${p.id}" title="${esc(p.idea || '')} · ${esc(p.tipo || '')} · ${esc(p.etapa || '')}${soyDis ? ' — ' + (piezaLista(p) ? 'se publica' : 'se entrega') + ' este día' : ''} (arrastra para cambiarlo)"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${tipoIcon(p.tipo)}<span class="cal__txt"><span class="cal__pnum${p.numeroManual ? ' cal__pnum--fijo' : ''}"${p.numeroManual ? ' title="N.º fijado a mano"' : ''}>${p.numero ? '#' + esc(p.numero) + ' ' : ''}</span>${esc(p.tipo || '')}</span>${soyDis ? `<span class="cal__when cal__when--${cuandoLbl(p)}" title="${piezaLista(p) ? 'Publicación' : 'Entrega'}">${piezaLista(p) ? 'P' : 'E'}</span>` : ''}</div>`).join('')}
+ ${items.map(p => `<div class="cal__item cal-pz${soyDis ? ' cal-pz--' + cuandoLbl(p) : ''}" draggable="true" data-id="${p.id}" title="${esc(p.idea || '')} · ${esc(p.tipo || '')} · ${esc(p.etapa || '')}${soyDis ? ' — ' + (piezaLista(p) ? 'se publica' : 'se entrega') + ' este día' : ''} (arrastra para cambiarlo)"><span class="cal__dot cal__dot--${esc(p.etapa)}"></span>${tipoIcon(p.tipo)}<span class="cal__txt"><span class="cal__pnum">${p.numero ? '#' + esc(p.numero) + ' ' : ''}</span>${esc(p.tipo || '')}</span>${soyDis ? `<span class="cal__when cal__when--${cuandoLbl(p)}" title="${piezaLista(p) ? 'Publicación' : 'Entrega'}">${piezaLista(p) ? 'P' : 'E'}</span>` : ''}</div>`).join('')}
  </div>`;
  }
  return { label: `${CAL_MESES[m - 1]} ${y}`, html: `<div class="cal">${celdas}</div>` };
@@ -2023,6 +2021,8 @@ async function marcaCalendario(marca, silent) {
  });
  };
  render();
+ // Auto-sanar: al abrir, renumera por ciclo+fecha y corrige en su lugar los # viejos/fijados (sin bloquear).
+ api('/api/marca/renumerar', { method: 'POST', body: { marca } }).then(rr => { if (rr && rr.ok && rr.data && rr.data.numeros) aplicarNumeros(pane, rr.data.numeros); }).catch(() => {});
 }
 function openAgregarCreativo(marca, fecha) {
  // Abre el editor COMPLETO (mismo de una tarjeta), con la marca ya puesta.

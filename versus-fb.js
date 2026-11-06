@@ -467,7 +467,7 @@
       }
       // Renumera el consecutivo por marca+ciclo SEGÚN LA FECHA (lo que va primero, va primero).
       // Creativos e historias se numeran en secuencias separadas.
-      // Los números FIJADOS a mano (numeroManual) se respetan: no se tocan y el resto se acomoda alrededor.
+      // Numeración 100% automática: dentro de cada ciclo, por fecha, 1,2,3... El más viejo es el #1.
       if (p === '/api/marca/renumerar' && method === 'POST') {
         const marca = body.marca || '';
         if (!marca) return { ok: false, status: 400, data: { error: 'Falta marca' } };
@@ -478,14 +478,10 @@
         const groups = {};
         mine.forEach(x => { const g = x.cycle || ''; (groups[g] || (groups[g] = [])).push(x); });
         const cambios = []; const numeros = {};
-        // Numera una secuencia por fecha, saltando los números que ya tiene tomados un número fijo.
+        // Numera la secuencia estrictamente por fecha: 1,2,3... (la lista ya viene ordenada por fecha).
         const numerar = list => {
-          const ocupados = new Set();
-          list.forEach(x => { if (x.numeroManual && x.numero) { const n = String(x.numero); numeros[x.id] = n; ocupados.add(n); } });
           let next = 1;
           list.forEach(x => {
-            if (x.numeroManual && x.numero) return; // fijado a mano → se queda
-            while (ocupados.has(String(next))) next++;
             const n = String(next); next++;
             numeros[x.id] = n;
             if (String(x.numero || '') !== n) cambios.push({ id: x.id, numero: n });
