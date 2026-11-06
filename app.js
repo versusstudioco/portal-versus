@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20261106e';
+const VS_TEAM_BUILD = '20261106f';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -1955,7 +1955,9 @@ async function marcaCalendario(marca, silent) {
  // Es la fuente de verdad del tablero: siempre coincide con lo que se ve y no depende del servidor.
  (() => {
    const esH = t => t === 'Historia' || t === 'Historias';
-   const kd = x => (x.fecha || x.fechaEntrega || '9999-12-31') + '|' + String(x.createdAt || '');
+   // Ordena por la MISMA fecha con la que el calendario ubica cada tarjeta (fechaCalendario:
+   // entrega o publicación según el rol/etapa). Así el número coincide con la posición visual.
+   const kd = x => (fechaCalendario(x) || '9999-12-31') + '|' + String(x.createdAt || '');
    const grupos = {};
    mine.forEach(x => { const g = x.cycle || ''; (grupos[g] || (grupos[g] = [])).push(x); });
    Object.keys(grupos).forEach(g => {
