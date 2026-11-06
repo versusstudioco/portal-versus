@@ -3156,7 +3156,7 @@ async function loadInicio(silent) {
    <div class="md-hero__date">${esc(fechaLarga)}</div>
    <div class="md-hero__hello">${saludo}, ${primer}</div>
    <div class="md-hero__frase">${esc(frase)}</div>
-   <div class="md-hero__chips"><span><b>${hoy.length}</b> hoy</span><span><b>${contArr.length}</b> en contenido</span>${me.area ? `<span>${esc(me.area)}</span>` : ''}</div>
+   <div class="md-hero__chips"><span><b>${hoy.length}</b> hoy</span>${me.area ? `<span>${esc(me.area)}</span>` : ''}</div>
  </div>
  <div class="md-actions"><button class="btn btn--primary btn--sm" id="mdNewTask">+ Nueva tarea</button><button class="btn btn--ghost btn--sm" id="mdNewContent">+ Nuevo contenido</button></div>
  <div class="md-cards">
@@ -3167,10 +3167,6 @@ async function loadInicio(silent) {
    <section class="md-card">
      <div class="md-card__t">Esta semana${proximas.length ? `<span class="md-count">${proximas.length}</span>` : ''}</div>
      ${proximas.length ? capBlock(proximas, tRow, 'semana') : mdEmpty('Nada programado', 'Sin tareas para el resto de la semana.')}
-   </section>
-   <section class="md-card md-card--wide">
-     <div class="md-card__t">Contenido de hoy${contArr.length ? `<span class="md-count">${contArr.length}</span>` : ''}</div>
-     ${contArr.length ? capBlock(contArr, contRow, 'cont') : mdEmpty('Nada de contenido para hoy', 'Agrega uno con “+ Nuevo contenido”.')}
    </section>
  </div>`;
 
