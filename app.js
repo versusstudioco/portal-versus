@@ -1090,7 +1090,15 @@ async function loadMisTareas(silent) {
  const { data } = await api('/api/team/mytasks');
  const tasks = data.tasks || [];
  const cols = { pendiente: [], en_curso: [], hecho: [] };
- tasks.forEach(t => cols[t.status] && cols[t.status].push(t));
+ // Las tareas "Hecho" se muestran solo 1 día; luego desaparecen del tablero (siguen en el histórico).
+ const DONE_MS = 24 * 60 * 60 * 1000, ahoraMs = Date.now();
+ tasks.forEach(t => {
+   if (t.status === 'hecho') {
+     const done = t.completedAt ? Date.parse(t.completedAt) : 0;
+     if (!done || (ahoraMs - done) > DONE_MS) return; // hecha hace más de 1 día → se oculta
+   }
+   cols[t.status] && cols[t.status].push(t);
+ });
  const atras = tasks.filter(t => t.overdue).length;
  let html = `<div class="g-stats">
  <div class="g-stat"><b>${tasks.length}</b><span>tareas</span></div>
