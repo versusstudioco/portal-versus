@@ -20,7 +20,7 @@ function flash(msg) {
 // El Team carga sus scripts con ?v=<build>. Este valor DEBE coincidir con el ?v= de team/index.html.
 // Comprueba contra la versión desplegada y avisa si hay una nueva (sin recargar a la fuerza: el equipo
 // puede estar escribiendo). El chip del sidebar confirma "estás en la última versión".
-const VS_TEAM_BUILD = '20261106d';
+const VS_TEAM_BUILD = '20261106e';
 (function () {
   let nueva = ''; // build nuevo detectado (si lo hay)
   const chip = () => document.getElementById('vsVerChip');
@@ -1951,6 +1951,21 @@ async function marcaCalendario(marca, silent) {
  const hist = (histR.ok && histR.data.items) || [];
  hist.forEach(h => { if (!mine.some(x => x.id === h.id)) mine.push(h); });
  state.piezas = state.piezas || {}; mine.forEach(p => state.piezas[p.id] = p);
+ // Número por ciclo + fecha, calculado aquí con las piezas ya cargadas de ESTA marca.
+ // Es la fuente de verdad del tablero: siempre coincide con lo que se ve y no depende del servidor.
+ (() => {
+   const esH = t => t === 'Historia' || t === 'Historias';
+   const kd = x => (x.fecha || x.fechaEntrega || '9999-12-31') + '|' + String(x.createdAt || '');
+   const grupos = {};
+   mine.forEach(x => { const g = x.cycle || ''; (grupos[g] || (grupos[g] = [])).push(x); });
+   Object.keys(grupos).forEach(g => {
+     const arr = grupos[g];
+     const cre = arr.filter(x => !esH(x.tipo)).sort((a, b) => kd(a).localeCompare(kd(b)));
+     const his = arr.filter(x => esH(x.tipo)).sort((a, b) => kd(a).localeCompare(kd(b)));
+     cre.forEach((x, i) => { x.numero = String(i + 1); });
+     his.forEach((x, i) => { x.numero = String(i + 1); });
+   });
+ })();
  const creativos = mine.filter(p => p.tipo !== 'Historia').length;
  const historias = mine.filter(p => p.tipo === 'Historia').length;
  // El calendario de la marca muestra TODO (creativos e historias). Se ubica por entrega o publicación según la etapa.
@@ -2029,8 +2044,8 @@ async function marcaCalendario(marca, silent) {
  });
  };
  render();
- // Auto-sanar: al abrir, renumera por ciclo+fecha y corrige en su lugar los # viejos/fijados (sin bloquear).
- api('/api/marca/renumerar', { method: 'POST', body: { marca } }).then(rr => { if (rr && rr.ok && rr.data && rr.data.numeros) aplicarNumeros(pane, rr.data.numeros); }).catch(() => {});
+ // Persistir en segundo plano la numeración por ciclo+fecha (el display ya quedó calculado arriba).
+ api('/api/marca/renumerar', { method: 'POST', body: { marca } }).catch(() => {});
 }
 function openAgregarCreativo(marca, fecha) {
  // Abre el editor COMPLETO (mismo de una tarjeta), con la marca ya puesta.
